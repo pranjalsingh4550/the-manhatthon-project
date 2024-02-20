@@ -9,7 +9,5 @@ int main(){
     dup(fd);
     string s;
     cout<<"\"";
-    while(cin>>s){
-        cout<<s<<"\"|\"";
-    }
+    
 }

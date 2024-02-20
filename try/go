@@ -1,0 +1,29 @@
+#!/bin/bash
+
+bison -d try.y
+if [ $? -ne 0 ]; then
+    echo "Error in bison"
+    exit 1
+fi
+
+flex try.l
+
+if [ $? -ne 0 ]; then
+    echo "Error in flex"
+    exit 1
+fi
+
+g++ -o try try.tab.c lex.yy.c -lfl
+
+if [ $? -ne 0 ]; then
+    echo "Error in g++"
+    exit 1
+fi
+
+if [ $# -eq 0 ]; then
+    ./try < input.txt
+    exit 1
+else
+    ./try < $1
+    exit 1
+fi

@@ -9,8 +9,9 @@
 %%
 [0-9]+ { yylval.num = atoi(yytext);return NUMBER;}
 [ \t] ;
-\n { return 0;}
-. { cout<<"Error";}
+let { return LET;}
+\n { return yytext[0];}
+. {return yytext[0];}
 %%
 
 int yywrap(){

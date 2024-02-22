@@ -83,10 +83,7 @@ simple_stmt:
     | type_alias
     | star_expressions 
     | return_stmt
-    | import_stmt
     | raise_stmt
-    | del_stmt
-    | yield_stmt
     | assert_stmt
     | 'break' 
     | 'continue' 
@@ -110,17 +107,16 @@ compound_stmt:
 assignment:
     | NAME ':' expression ['=' annotated_rhs ] 
     | ('(' single_target ')' 
-         | single_subscript_attribute_target) ':' expression ['=' annotated_rhs ] 
-    | (star_targets '=' )+ (yield_expr | star_expressions) !'=' [TYPE_COMMENT] 
-    | single_target augassign ~ (yield_expr | star_expressions) 
+         | single_subscript_attribute_target) ':' expression ['=' annotated_rhs ]
+    | (star_targets '=')+ (star_expressions) !'=' [TYPE_COMMENT]
+    | single_target augassign ~ ( star_expressions )
 
-annotated_rhs: yield_expr | star_expressions
+annotated_rhs: star_expressions
 
 augassign:
     | '+=' 
     | '-=' 
     | '*=' 
-    | '@=' 
     | '/=' 
     | '%=' 
     | '&=' 
@@ -142,40 +138,15 @@ global_stmt: 'global' ','.NAME+
 
 nonlocal_stmt: 'nonlocal' ','.NAME+ 
 
-del_stmt:
-    | 'del' del_targets &(';' | NEWLINE) 
 
-yield_stmt: yield_expr 
 
 assert_stmt: 'assert' expression [',' expression ] 
 
-import_stmt:
-    | import_name
-    | import_from
 
 # Import statements
 # -----------------
-
-import_name: 'import' dotted_as_names 
+ 
 # note below: the ('.' | '...') is necessary because '...' is tokenized as ELLIPSIS
-import_from:
-    | 'from' ('.' | '...')* dotted_name 'import' import_from_targets 
-    | 'from' ('.' | '...')+ 'import' import_from_targets 
-import_from_targets:
-    | '(' import_from_as_names [','] ')' 
-    | import_from_as_names !','
-    | '*' 
-import_from_as_names:
-    | ','.import_from_as_name+ 
-import_from_as_name:
-    | NAME ['as' NAME ] 
-dotted_as_names:
-    | ','.dotted_as_name+ 
-dotted_as_name:
-    | dotted_name ['as' NAME ] 
-dotted_name:
-    | dotted_name '.' NAME 
-    | NAME
 
 # COMPOUND STATEMENTS
 # ===================
@@ -186,8 +157,7 @@ dotted_name:
 block:
     | NEWLINE INDENT statements DEDENT 
     | simple_stmts
-
-decorators: ('@' named_expression NEWLINE )+ 
+ 
 
 # Class definitions
 # -----------------
@@ -203,7 +173,6 @@ class_def_raw:
 # --------------------
 
 function_def:
-    | decorators function_def_raw 
     | function_def_raw
 
 function_def_raw:
@@ -509,11 +478,7 @@ expressions:
 expression:
     | disjunction 'if' disjunction 'else' expression 
     | disjunction
-    | lambdef
 
-yield_expr:
-    | 'yield' 'from' expression 
-    | 'yield' [star_expressions] 
 
 star_expressions:
     | star_expression (',' star_expression )+ [','] 
@@ -612,8 +577,7 @@ term:
     | term '*' factor 
     | term '/' factor 
     | term '//' factor 
-    | term '%' factor 
-    | term '@' factor 
+    | term '%' factor
     | factor
 
 factor:
@@ -638,17 +602,9 @@ await_primary:
 primary:
     | primary '.' NAME 
     | primary genexp 
-    | primary '(' [arguments] ')' 
-    | primary '[' slices ']' 
+    | primary '(' [arguments] ')'
     | atom
 
-slices:
-    | slice !',' 
-    | ','.(slice | starred_expression)+ [','] 
-
-slice:
-    | [expression] ':' [expression] [':' [expression] ] 
-    | named_expression 
 
 atom:
     | NAME
@@ -663,75 +619,23 @@ atom:
     | '...' 
 
 group:
-    | '(' (yield_expr | named_expression) ')' 
+    | '(' ( named_expression) ')' 
 
 # Lambda functions
 # ----------------
-
-lambdef:
-    | 'lambda' [lambda_params] ':' expression 
-
-lambda_params:
-    | lambda_parameters
-
 # lambda_parameters etc. duplicates parameters but without annotations
 # or type comments, and if there's no comma after a parameter, we expect
 # a colon, not a close parenthesis.  (For more, see parameters above.)
 #
-lambda_parameters:
-    | lambda_slash_no_default lambda_param_no_default* lambda_param_with_default* [lambda_star_etc] 
-    | lambda_slash_with_default lambda_param_with_default* [lambda_star_etc] 
-    | lambda_param_no_default+ lambda_param_with_default* [lambda_star_etc] 
-    | lambda_param_with_default+ [lambda_star_etc] 
-    | lambda_star_etc 
 
-lambda_slash_no_default:
-    | lambda_param_no_default+ '/' ',' 
-    | lambda_param_no_default+ '/' &':' 
-
-lambda_slash_with_default:
-    | lambda_param_no_default* lambda_param_with_default+ '/' ',' 
-    | lambda_param_no_default* lambda_param_with_default+ '/' &':' 
-
-lambda_star_etc:
-    | '*' lambda_param_no_default lambda_param_maybe_default* [lambda_kwds] 
-    | '*' ',' lambda_param_maybe_default+ [lambda_kwds] 
-    | lambda_kwds 
-
-lambda_kwds:
-    | '**' lambda_param_no_default 
-
-lambda_param_no_default:
-    | lambda_param ',' 
-    | lambda_param &':' 
-lambda_param_with_default:
-    | lambda_param default ',' 
-    | lambda_param default &':' 
-lambda_param_maybe_default:
-    | lambda_param default? ',' 
-    | lambda_param default? &':' 
-lambda_param: NAME 
 
 # LITERALS
 # ========
 
-fstring_middle:
-    | fstring_replacement_field
-    | FSTRING_MIDDLE 
-fstring_replacement_field:
-    | '{' (yield_expr | star_expressions) '='? [fstring_conversion] [fstring_full_format_spec] '}' 
-fstring_conversion:
-    | "!" NAME 
-fstring_full_format_spec:
-    | ':' fstring_format_spec* 
-fstring_format_spec:
-    | FSTRING_MIDDLE 
-    | fstring_replacement_field
-fstring:
-    | FSTRING_START fstring_middle* FSTRING_END 
+
 
 string: STRING 
-strings: (fstring|string)+ 
+strings: (string)+ 
 
 list:
     | '[' [star_named_expressions] ']' 
@@ -810,9 +714,7 @@ kwarg_or_double_starred:
 # ---------------
 
 # NOTE: star_targets may contain *bitwise_or, targets may not.
-star_targets:
-    | star_target !',' 
-    | star_target (',' star_target )* [','] 
+star_targets: target_with_star_atom
 
 star_targets_list_seq: ','.star_target+ [','] 
 
@@ -825,8 +727,7 @@ star_target:
     | target_with_star_atom
 
 target_with_star_atom:
-    | t_primary '.' NAME !t_lookahead 
-    | t_primary '[' slices ']' !t_lookahead 
+    | t_primary '.' NAME !t_lookahead  
     | star_atom
 
 star_atom:
@@ -842,32 +743,14 @@ single_target:
 
 single_subscript_attribute_target:
     | t_primary '.' NAME !t_lookahead 
-    | t_primary '[' slices ']' !t_lookahead 
 
 t_primary:
     | t_primary '.' NAME &t_lookahead 
-    | t_primary '[' slices ']' &t_lookahead 
     | t_primary genexp &t_lookahead 
     | t_primary '(' [arguments] ')' &t_lookahead 
     | atom &t_lookahead 
 
 t_lookahead: '(' | '[' | '.'
-
-# Targets for del statements
-# --------------------------
-
-del_targets: ','.del_target+ [','] 
-
-del_target:
-    | t_primary '.' NAME !t_lookahead 
-    | t_primary '[' slices ']' !t_lookahead 
-    | del_t_atom
-
-del_t_atom:
-    | NAME 
-    | '(' del_target ')' 
-    | '(' [del_targets] ')' 
-    | '[' [del_targets] ']' 
 
 # TYPING ELEMENTS
 # ---------------

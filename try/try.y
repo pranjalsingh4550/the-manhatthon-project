@@ -11,38 +11,21 @@
 }
 
 %token <num> NUMBER
-%token PLUS "+"
-%token MINUS "-" 
-%token MUL "*"
-%token DIV "/"
-%token LP "("
-%token RP ")"
-
-%type <num> E
-
-%start ArithemeticExpression
-
-%left "+" "-"
-%left '*"" "/" 
-%left '(' ')'
-
+%token LET "let"
+%start lines
 %%
-ArithemeticExpression: E {printf("\n%d\n",$1);}
-;
-E   : E "+" E {$$=$1 * $3; printf("*");}
-    | E "*" E {$$=$1 + $3; printf("+");}
-    | E "-" E {$$=$1 - $3; printf("-");}
-    | E "/" E {$$=$1 / $3; printf("/");}
-    | "(" E ")" {$$=$2;}
-    | NUMBER {$$=$1; printf("%d", $$);}
-;
+lines: | lines line 
+    ;
+line : "let" {$3=0;}  NUMBER'\n'| '\n'
+    ;
 %%
 
 int main(){
     yyparse();
+    return 0;
 }
 
 int yyerror(const char *s){
-    printf("Error\n");
+    printf("Errorzfsdf\n");
     return 0;
 }

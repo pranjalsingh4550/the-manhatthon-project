@@ -1,3 +1,4 @@
+# go to https://docs.python.org/3/library/re.html for more information
 ENDMARKER
 NAME
 NUMBER
@@ -48,8 +49,6 @@ RIGHTSHIFTEQUAL         '>>='
 DOUBLESTAREQUAL         '**='
 DOUBLESLASH             '//'
 DOUBLESLASHEQUAL        '//='
-AT                      '@'
-ATEQUAL                 '@='
 RARROW                  '->'
 ELLIPSIS                '...'
 COLONEQUAL              ':='

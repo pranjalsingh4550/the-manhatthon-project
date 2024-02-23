@@ -69,7 +69,6 @@ ignore [ \f]
 ";"	{return SEMI;}
 ":"	{return COLON;}
 "="	{return EQUAL;}
-"." {return DOT;}
 ","	{return COMMA;}
 
 "+"	{return PLUS;}

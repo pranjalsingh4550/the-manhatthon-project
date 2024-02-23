@@ -5,3 +5,4 @@ TO-DO:
 - Bid goodbye to `run`?
 - What is `converter.cpp`?
 - Beautify the README.md
+- Go through `ast.dot` 

@@ -1,11 +1,7 @@
 
 .PHONY: clean test
 clean:
-	rm -f a.out lex.yy.c converter.exe lexer
-
-lexer:
-	flex lexer.l
-	g++ -o lexer lex.yy.c main.c
+	rm -f a.out lex.yy.c converter.exe lexer parser.t* 
 
 test:
 	bison -d parser.y
@@ -15,4 +11,4 @@ test:
 	g++ -o lexer lex.yy.c parser.tab.c
 	if [ $? -ne 0 ]; then exit 1; fi
 	./lexer < input.py
-	rm -f lexer lex.yy.c parser.t* 
+	rm -f lexer lex.yy.c parser.t*

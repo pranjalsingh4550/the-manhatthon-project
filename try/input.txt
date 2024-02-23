@@ -1,5 +1,0 @@
-let 2 go 
-let 3 go
-
-go 5 let
-go let 4

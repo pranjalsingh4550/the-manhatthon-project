@@ -1,0 +1,5 @@
+lex.yy.c
+parser
+parser.tab.c
+parser.tab.h
+.DS_Store

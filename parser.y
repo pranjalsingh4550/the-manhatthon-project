@@ -53,9 +53,9 @@ semi: | ";"
 simple_stmt: assignment
 ;
 
-assignment: NAME ":" expression maybe_rhs 
+assignment: NAME ":"  expression maybe_rhs 
 
-maybe_rhs : | "=" expression
+maybe_rhs : | "=" expression 
 
 expression: disjunction "if" disjunction "else" expression | disjunction
 

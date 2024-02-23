@@ -20,98 +20,57 @@ NAME [a-zA-Z_][a-zA-Z0-9_]*
 number [0-9]+
 dunder "__name__"|"__main__"|"__init__"
 
-ignore \f
+string '[^'\\]*(?:\\.[^'\\]*)*'
+ignore [ \f]
 
 %%
+"break"	{return BREAK;}
+"continue"	{return CONTINUE;}
+"return"	{return RETURN;}
 
-{keyword}	{ do_token ('k');	}
-{operator}	{ do_token ('o');	}
-{delimiter}	{ do_token ('d'); 	}
-{comments}	{ do_token ('c');	}
-{identifier}	{ do_token ('i'); 	}
-{number}	{ do_token ('n');	}
+"if"	{return IF;}
+"else"	{return ELSE;}
 
-"if" {return IF;}
-"else" {return ELSE;}
+"and"	{return AND;}
+"or"	{return OR;}
+"not"	{return NOT;}
 
-"and" {return AND;}
-"or" {return OR;}
-"not" {return NOT;}
+"==" 	{return EQEQUAL;}
+"!=" 	{return NOTEQUAL;}
+"<"  	{return LESS;}
+">"		{return GREATER;}
+"<=" 	{return LESSEQUAL;}
+">=" 	{return GREATEREQUAL;}
+"is" 	{return IS;}
+"in" 	{return IN;}
 
-"=="  {return EQEQUAL;}
+"|"	{return VBAR;}
+"^"	{return CIRCUMFLEX;}
+"&"	{return AMPER;}
+"<<"	{return LEFTSHIFT;}
+">>"	{return RIGHTSHIFT;}
 
+"+"	{return PLUS;}
+"-"	{return MINUS;}
+"*"	{return STAR;}
+"/"	{return SLASH;}
+"%"	{return PERCENT;}
+"//"	{return DOUBLESLASH;}
+"**"	{return DOUBLESTAR;}
 
+[1-9]{number}*|0	{return NUMBER;}
+{number}	{cerr<<"leading zeros in decimal integer literals are not permitted"<<endl;exit(1);}
+{string}	{return STRING;}
+True	{return TRUE;}
+False	{return FALSE;}
+None	{return NONE;}
 
-{NAME} {return NAME;}
-";" {return SEMI;}
-":" {return COLON;}
-"=" {return EQUAL;}
-\t {return INDENT;}
-\n {return NEWLINE;}
+{NAME}	{return NAME;}
+";"	{return SEMI;}
+":"	{return COLON;}
+"="	{return EQUAL;}
+\t	{return INDENT;}
+\n	{return NEWLINE;}
 {ignore}
 . {return yytext[0];}
 %%
-
-YYSTYPE do_token (char t) {
-#ifdef DEV_DEBUG
-	printf ("token %s length %d\t", yytext, yyleng);
-	switch (t) {
-		case 'o': {
-			printf ("operator\n");
-			break;
-		}
-		case 'd': {
-			printf ("delimiter\n");
-			break;
-		}
-		case 'c': {
-			printf ("comment\n");
-			break;
-		}
-		case 'i': {
-			printf ("identifier\n");
-			break;
-		}
-		case 'k': {
-			printf ("keyword\n");
-			break;
-		}
-		case 'n': {
-			printf ("number\n");
-			break;
-		}
-		default:
-			  printf ("error\n");
-	}
-#endif
-	//process here
-	switch (t) {
-		case 'o': {
-			// process printf ("operator\n");
-			break;
-		}
-		case 'd': {
-			// process printf ("delimiter\n");
-			break;
-		}
-		case 'c': {
-			// process printf ("comment\n");
-			break;
-		}
-		case 'i': {
-			// process printf ("identifier\n");
-			break;
-		}
-		case 'k': {
-			// process printf ("keyword\n");
-			break;
-		}
-		case 'n': {
-			// process printf ("number\n");
-			break;
-		}
-		default:
-			  printf ("error\n");
-	}
-	return 0;
-}

@@ -1,3 +1,1 @@
-def fun():
-    def fun():
-        pass
+a:int =3

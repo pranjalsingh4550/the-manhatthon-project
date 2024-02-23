@@ -61,7 +61,39 @@ extern int yydebug;
     EQUAL = 262,                   /* "="  */
     COLON = 263,                   /* ":"  */
     BREAK = 264,                   /* "break"  */
-    CONTINUE = 265                 /* "continue"  */
+    CONTINUE = 265,                /* "continue"  */
+    RETURN = 266,                  /* "return"  */
+    IF = 267,                      /* "if"  */
+    ELSE = 268,                    /* "else"  */
+    AND = 269,                     /* "and"  */
+    OR = 270,                      /* "or"  */
+    NOT = 271,                     /* "not"  */
+    EQEQUAL = 272,                 /* "=="  */
+    NOTEQUAL = 273,                /* "!="  */
+    LESS = 274,                    /* "<"  */
+    LESSEQUAL = 275,               /* "<="  */
+    GREATER = 276,                 /* ">"  */
+    GREATEREQUAL = 277,            /* ">="  */
+    IS = 278,                      /* "is"  */
+    IN = 279,                      /* "in"  */
+    VBAR = 280,                    /* "|"  */
+    CIRCUMFLEX = 281,              /* "^"  */
+    AMPER = 282,                   /* "&"  */
+    LEFTSHIFT = 283,               /* "<<"  */
+    RIGHTSHIFT = 284,              /* ">>"  */
+    PLUS = 285,                    /* "+"  */
+    MINUS = 286,                   /* "-"  */
+    STAR = 287,                    /* "*"  */
+    SLASH = 288,                   /* "/"  */
+    PERCENT = 289,                 /* "%"  */
+    DOUBLESLASH = 290,             /* "//"  */
+    TILDE = 291,                   /* "~"  */
+    DOUBLESTAR = 292,              /* "**"  */
+    NUMBER = 293,                  /* NUMBER  */
+    STRING = 294,                  /* STRING  */
+    TRUE = 295,                    /* "True"  */
+    FALSE = 296,                   /* "False"  */
+    NONE = 297                     /* "None"  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -75,7 +107,7 @@ union YYSTYPE
     int ival;
     char *sval;
 
-#line 79 "parser.tab.h"
+#line 111 "parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

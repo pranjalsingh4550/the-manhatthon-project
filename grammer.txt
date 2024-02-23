@@ -596,7 +596,7 @@ power:
 # Primary elements are things like "obj.something.something", "obj[something]", "obj(something)", "obj" ...
 
 await_primary:
-    | AWAIT primary 
+    # | AWAIT primary 
     | primary
 
 primary:
@@ -613,10 +613,7 @@ atom:
     | 'None' 
     | strings
     | NUMBER
-    | (tuple | group | genexp)
     | (list | listcomp)
-    | (dict | set | dictcomp | setcomp)
-    | '...' 
 
 group:
     | '(' ( named_expression) ')' 

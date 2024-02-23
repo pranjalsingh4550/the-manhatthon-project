@@ -3,6 +3,7 @@
     using namespace std;
     extern int yylex();
     extern int yyparse();
+    extern char* yytext;
     extern int yyerror(const char *s);
 %}
 
@@ -11,12 +12,12 @@
 }
 
 %token <num> NUMBER
-%token LET "let"
 %start lines
 %%
-lines: | lines line 
+lines: {cout<<"what "<<yytext<<endl;} | lines line {cout<<yytext<<endl;} 
     ;
-line : "let" {$3=0;}  NUMBER'\n'| '\n'
+line : "let" NUMBER '\n' {cout<<"nice"<<endl;}
+| '\n'
     ;
 %%
 

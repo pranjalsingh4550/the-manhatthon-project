@@ -1,20 +1,17 @@
-class arm:
-    weight=12
-    def __init__(self):
-        print("arm created")
-    def baby():
-        print("baby")
+# class arm:
+#     weight=12
+#     def __init__(self):
+#         print("arm created")
+#     def baby():
+#         print("baby")
 
-class Body:
-    def func():
-        k=arm()
-        return k
-
-
+# class Body:
+#     def func():
+#         k=arm()
+#         return k
 def fun():
-
-    day=int();
-    day=month=4
+    day=int()
+ day=month=4
     k=arm;
     k.c=3
     k=day=month

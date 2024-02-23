@@ -54,8 +54,7 @@ extern int yydebug;
     YYEOF = 0,                     /* "end of file"  */
     YYerror = 256,                 /* error  */
     YYUNDEF = 257,                 /* "invalid token"  */
-    NUMBER = 258,                  /* NUMBER  */
-    LET = 259                      /* "let"  */
+    NUMBER = 258                   /* NUMBER  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -64,11 +63,11 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 9 "try.y"
+#line 10 "try.y"
 
     int num;
 
-#line 72 "try.tab.h"
+#line 71 "try.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

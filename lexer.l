@@ -2,6 +2,7 @@
 %option yylineno
 %{
     #include<bits/stdc++.h>
+    #include "parser.tab.h"
     using namespace std;
 %}
 
@@ -10,22 +11,36 @@ operator "+"|"-"|"*"|"**"|"/"|"//"|"%"|"@"|"<<"|">>"|"&"|"|"|"^"|"~"|"<"|">"|"<=
 delimiter "("|")"|"["|"]"|"{"|"}"|","|":"|"."|";"|"@"|"="|"->"|"+="|"-="|"*="|"/="|"//="|"%="|"@="|"&="|"|="|"^="|">>="|"<<="|"**="
 literal \"[^\"]*\"|'[^']*'
 comments #[^\r\n]*
-identifier [a-zA-Z_][a-zA-Z0-9_]*
+NAME [a-zA-Z_][a-zA-Z0-9_]*
 number [0-9]+
 dunder "__name__"|"__main__"|"__init__"
 
+ignore \f
 
 %%
-{keyword} {cout<<"keyword ";}
-{operator} {cout<<"operator ";}
-{delimiter} {cout<<"delimiter ";}
-{comments} {cout<<"comments "<<endl;}
-{literal} {cout<<"literal ";}
-{identifier} {cout<<"identifier ";}
-{number} {cout<<"number ";}
-{dunder} {cout<<"dunder ";}
-\n {cout<<'\n';}
-. {cout<<"token error at line " <<yylineno<<endl;}
+"break" {return BREAK;}
+"continue" {return CONTINUE;}
+"return" {return RETURN;}
+
+"if" {return IF;}
+"else" {return ELSE;}
+
+"and" {return AND;}
+"or" {return OR;}
+"not" {return NOT;}
+
+"=="  {return EQEQUAL;}
+
+
+
+{NAME} {return NAME;}
+";" {return SEMI;}
+":" {return COLON;}
+"=" {return EQUAL;}
+\t {return INDENT;}
+\n {return NEWLINE;}
+{ignore}
+. {return yytext[0];}
 %%
 
 

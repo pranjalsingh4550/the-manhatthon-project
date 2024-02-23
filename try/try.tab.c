@@ -73,9 +73,10 @@
     using namespace std;
     extern int yylex();
     extern int yyparse();
+    extern char* yytext;
     extern int yyerror(const char *s);
 
-#line 79 "try.tab.c"
+#line 80 "try.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -107,7 +108,7 @@ enum yysymbol_kind_t
   YYSYMBOL_YYerror = 1,                    /* error  */
   YYSYMBOL_YYUNDEF = 2,                    /* "invalid token"  */
   YYSYMBOL_NUMBER = 3,                     /* NUMBER  */
-  YYSYMBOL_LET = 4,                        /* "let"  */
+  YYSYMBOL_4_let_ = 4,                     /* "let"  */
   YYSYMBOL_5_n_ = 5,                       /* '\n'  */
   YYSYMBOL_YYACCEPT = 6,                   /* $accept  */
   YYSYMBOL_lines = 7,                      /* lines  */
@@ -497,7 +498,7 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int8 yyrline[] =
 {
-       0,    17,    17,    17,    19,    19
+       0,    17,    17,    17,    19,    20
 };
 #endif
 
@@ -1053,8 +1054,26 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
+  case 2: /* lines: %empty  */
+#line 17 "try.y"
+       {cout<<"what "<<yytext<<endl;}
+#line 1061 "try.tab.c"
+    break;
 
-#line 1058 "try.tab.c"
+  case 3: /* lines: lines line  */
+#line 17 "try.y"
+                                                   {cout<<yytext<<endl;}
+#line 1067 "try.tab.c"
+    break;
+
+  case 4: /* line: "let" NUMBER '\n'  */
+#line 19 "try.y"
+                         {cout<<"nice"<<endl;}
+#line 1073 "try.tab.c"
+    break;
+
+
+#line 1077 "try.tab.c"
 
       default: break;
     }
@@ -1247,7 +1266,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 21 "try.y"
+#line 22 "try.y"
 
 
 int main(){

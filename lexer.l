@@ -77,6 +77,7 @@ None	{return NONE;}
 ";"	{return SEMI;}
 ":"	{return COLON;}
 "="	{return EQUAL;}
+"." {return DOT;}
 \n	{return NEWLINE;}
 ^[\t ]+	{
     if(indent_stack.top()==yyleng){return 0;}

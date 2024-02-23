@@ -80,7 +80,6 @@ simple_stmts:
 # will throw a SyntaxError.
 simple_stmt:
     | assignment
-    | type_alias
     | star_expressions 
     | return_stmt
     | raise_stmt

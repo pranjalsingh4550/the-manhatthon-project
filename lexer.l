@@ -35,6 +35,11 @@ ignore [ \f]
 "break"	{return BREAK;}
 "continue"	{return CONTINUE;}
 "return"	{return RETURN;}
+"pass"	{return PASS;}
+"raise"	{return RAISE;}
+"assert"	{return ASSERT;}
+
+"from"	{return FROM;}
 
 "if"	{return IF;}
 "else"	{return ELSE;}
@@ -42,6 +47,9 @@ ignore [ \f]
 "and"	{return AND;}
 "or"	{return OR;}
 "not"	{return NOT;}
+
+"class" {return CLASS;}
+
 
 "==" 	{return EQEQUAL;}
 "!=" 	{return NOTEQUAL;}
@@ -58,6 +66,12 @@ ignore [ \f]
 "<<"	{return LEFTSHIFT;}
 ">>"	{return RIGHTSHIFT;}
 
+";"	{return SEMI;}
+":"	{return COLON;}
+"="	{return EQUAL;}
+"." {return DOT;}
+","	{return COMMA;}
+
 "+"	{return PLUS;}
 "-"	{return MINUS;}
 "*"	{return STAR;}
@@ -65,6 +79,22 @@ ignore [ \f]
 "%"	{return PERCENT;}
 "//"	{return DOUBLESLASH;}
 "**"	{return DOUBLESTAR;}
+
+"+="	{return PLUSEQUAL;}
+"-="	{return MINEQUAL;}
+"*="	{return STAREQUAL;}
+"/="	{return SLASHEQUAL;}
+"//="	{return DOUBLESLASHEQUAL;}
+"%="	{return PERCENTEQUAL;}
+"**="	{return DOUBLESTAREQUAL;}
+"&="	{return AMPEREQUAL;}
+"|="	{return VBAREQUAL;}
+"^="	{return CIRCUMFLEXEQUAL;}
+">>="	{return RIGHTSHIFTEQUAL;}
+"<<="	{return LEFTSHIFTEQUAL;}
+
+
+
 
 [1-9]{number}*|0	{return NUMBER;}
 {number}	{cerr<<"leading zeros in decimal integer literals are not permitted"<<endl;exit(1);}
@@ -74,11 +104,8 @@ False	{return FALSE;}
 None	{return NONE;}
 
 {NAME}	{return NAME;}
-";"	{return SEMI;}
-":"	{return COLON;}
-"="	{return EQUAL;}
-"." {return DOT;}
-\n	{return NEWLINE;}
+^[\t ]*\n
+\n  {return NEWLINE;}
 ^[\t ]+	{
     if(indent_stack.top()==yyleng){return 0;}
     else if(indent_stack.top()<yyleng)

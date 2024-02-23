@@ -5,16 +5,29 @@
 #     def baby():
 #         print("baby")
 
-# class Body:
-#     def func():
-#         k=arm()
-#         return k
+
+
+def func():
+    k=arm()
+
+
+
+    return k
+
+
+
 def fun():
+<<<<<<< HEAD
     day=int()
  day=month=4
     k=arm;
     k.c=3
     k=day=month
+=======
+    day:int;
+    month:int;
+    t:str = "adsfdasf\asdfasdf"
+>>>>>>> 83fd91b (Co-authored-by: pranjalsingh4550 <pranjalsingh4550@users.noreply.github.com>)
     print(k.c)
     year=int();
     hour=int()

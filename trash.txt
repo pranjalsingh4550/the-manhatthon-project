@@ -1,0 +1,28 @@
+parser.y: warning: 1 nonterminal useless in grammar [-Wother]
+parser.y: warning: 3 rules useless in grammar [-Wother]
+parser.y:232.1-7: warning: nonterminal useless in grammar: arglist [-Wother]
+  232 | arglist: arglist "," test { debugprintf ("arglist test\n"); }
+      | ^~~~~~~
+parser.y:219.10-60: warning: rule useless in grammar [-Wother]
+  219 | 	|"(" arglist ")" { debugprintf ( "( arglist )\n"); }
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+parser.y:230.11-48: warning: rule useless in grammar [-Wother]
+  230 | 	| "class" NAME "(" arglist ")" ":" suite
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+parser.y: warning: 42 reduce/reduce conflicts [-Wconflicts-rr]
+parser.y: note: rerun with option '-Wcounterexamples' to generate conflict counterexamples
+NAME
+atom
+primary
+power
+factor 
+term
+sum 
+shift_expr 
+ans_expr 
+xor_expr 
+expr 
+comparison 
+not_test 
+and_test 
+or_test

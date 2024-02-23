@@ -5,6 +5,7 @@
     extern int yyparse(); 
     extern void debugprintf (const char *) ;
     extern int yylineno;
+	extern char *yytext;
     int yyerror(const char *s);
 	extern void maketree (char* production, int count);
 	int nodecount = 0;
@@ -92,24 +93,25 @@
 
 
 %%
-stmts : {cout<<"empty input"<<endl;} |stmts stmt { debugprintf ( "stmts stmt\n"); }
+stmts : | stmts stmt 
+
 ;
 
-stmt: simple_stmt { debugprintf ( "simple_stmt\n"); }
-	| compound_stmt { debugprintf ( "compund_stmt\n"); }
+stmt:  simple_stmt 
+	| compound_stmt 
 ;
 
-simple_stmt: small_stmt semi NEWLINE   { debugprintf ( "small_stmt semi NEWLINE  \n"); }
-            | small_stmt ";" simple_stmt { debugprintf ( "small_stmt ; simple_stmts\n"); }
+simple_stmt: small_stmt semi NEWLINE   
+            | small_stmt ";" simple_stmt 
 ;
 
 
-semi: | ";" { debugprintf ( ";\n"); }
+semi: | ";" 
 ;
 
-small_stmt: expr_stmt { debugprintf ( "expr_stmt\n"); }
-	| return_stmt { debugprintf ( "return_stmt\n"); }
-	| raise_stmt { debugprintf ( "raise_stmt\n"); }
+small_stmt: expr_stmt 
+	| return_stmt 
+	|  raise_stmt 
 	| "break"
 	| "continue"
 	| "pass"
@@ -117,107 +119,106 @@ small_stmt: expr_stmt { debugprintf ( "expr_stmt\n"); }
 	/* | global_stmt
 	| nonlocal_stmt */
 ;
-expr_stmt: NAME annassign ":"  test maybe_rhs  { debugprintf ( "NAME :  test maybe_rhs \n"); }
-	| test augassign test { debugprintf ( "test annassign\n"); }
+expr_stmt: NAME  annassign
+	| test augassign test 
 
 annassign: ":"  test maybe_rhs
 maybe_rhs :
-    | "=" test  { debugprintf ( "= test \n"); }
+    | "=" test 
 
-test: or_test "if" or_test "else" test  { debugprintf ( "or_test if or_test else test \n"); }
-	| or_test { debugprintf ( "or_test\n"); }
-augassign: "+=" | "-=" | "*=" | "/=" | "//=" | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**=" { debugprintf ( "augassign\n"); }
+test: or_test "if" or_test "else" test  
+	| or_test 
+augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**=" 
 
 raise_stmt: "raise" | "raise" test maybe_from_test
 
-maybe_from_test: | "from" test { debugprintf ( "from test\n"); }
+maybe_from_test: | "from" test
 
 /* global_stmt: "global"  arglist
 
 nonlocal_stmt: "nonlocal"  arglist */
 
-assert_stmt: "assert" test { debugprintf ( "assert_stmt\n"); }
+assert_stmt: "assert" test 
 
-return_stmt: "return" maybe_test { debugprintf ( "return maybe_test\n"); }
+return_stmt: "return" maybe_test 
 
-maybe_test : | test { debugprintf ( "test\n"); 	}
-
-
-
-or_test : and_test  { debugprintf ( "and_test \n"); }
-	| or_test "or" and_test { debugprintf ( "or_test or and_test\n"); }
-
-and_test : not_test  { debugprintf ( "not_test \n"); }
-	| and_test "and" not_test { debugprintf ( "and_test and not_test\n"); }
-
-not_test : comparison  { debugprintf ( "comparison \n"); }
-	| "not" not_test { debugprintf ( "not not_test\n"); }
-
-comparison: expr  { debugprintf ( "expr \n"); }
-	| comparison compare_op_bitwise_or_pair { debugprintf ( "comparison compare_op_bitwise_or_pair\n"); }
-
-compare_op_bitwise_or_pair: eq_bitwise_or  { debugprintf ( "compare_op_bitwise_or_pair: eq_bitwise_or \n"); }
-	| noteq_bitwise_or  { debugprintf ( "noteq_bitwise_or \n"); }
-	| lt_bitwise_or  { debugprintf ( "lt_bitwise_or \n"); }
-	| lte_bitwise_or  { debugprintf ( "lte_bitwise_or \n"); }
-	| gt_bitwise_or  { debugprintf ( "gt_bitwise_or \n"); }
-	| gte_bitwise_or  { debugprintf ( "gte_bitwise_or \n"); }
-	| is_bitwise_or  { debugprintf ( "is_bitwise_or \n"); }
-	| in_bitwise_or  { debugprintf ( "in_bitwise_or \n"); }
-	| notin_bitwise_or { debugprintf ( "notin_bitwise_or\n"); }
-	| isnot_bitwise_or { debugprintf ( "isnot_bitwise_or\n"); }
-
-eq_bitwise_or: "==" expr { debugprintf ( "== expr\n"); }
-noteq_bitwise_or: "!=" expr { debugprintf ( "!= expr\n"); }
-lt_bitwise_or: "<" expr { debugprintf ( "< expr\n"); }
-lte_bitwise_or: "<=" expr { debugprintf ( "<= expr\n"); }
-gt_bitwise_or: ">" expr { debugprintf ( "> expr\n"); }
-gte_bitwise_or: ">=" expr { debugprintf ( ">= expr\n"); }
-is_bitwise_or: "is" expr { debugprintf ( "is expr\n"); }
-in_bitwise_or: "in" expr { debugprintf ( "in expr\n"); }
-notin_bitwise_or: "not" "in" expr { debugprintf ( "not in expr\n"); }
-isnot_bitwise_or: "is" "not" expr { debugprintf ( "is not expr\n"); }
-
-expr: xor_expr  { debugprintf ( "xor_expr \n"); }
-	| expr "|" xor_expr { debugprintf ( "expr | xor_expr\n"); }
-
-xor_expr: ans_expr  { debugprintf ( "ans_expr \n"); }
-	| xor_expr "^" ans_expr { debugprintf ( "xor_expr ^ ans_expr\n"); }
-
-ans_expr: shift_expr  { debugprintf ( "shift_expr \n"); }
-	| ans_expr "&" shift_expr { debugprintf ( "ans_expr & shift_expr\n"); }
-
-shift_expr: sum  { debugprintf ( "sum \n"); }
-	| shift_expr "<<" sum  { debugprintf ( "shift_expr << sum \n"); }
-	| shift_expr ">>" sum { debugprintf ( "shift_expr >> sum\n"); }
-
-sum : sum "+" term  { debugprintf ( "sum + term\n"); }
-	| sum "-" term { debugprintf ( "sum - term\n"); }
-	| term { debugprintf ( "term\n"); }
-
-term: term "*" factor  { debugprintf ( "term * factor \n"); }
-	| term "/" factor  { debugprintf ( "term / factor \n"); }
-	| term "%" factor { debugprintf ( "term % factor\n"); }
-	| term "//" factor { debugprintf ( "term // factor\n"); }
-	|factor  { debugprintf ( "factor \n"); }
-
-factor: "+" factor { debugprintf ( "+ factor\n"); }
-	| "-" factor { debugprintf ( "- factor\n"); }
-	| "~" factor { debugprintf ( "~ factor\n"); }
-	| power { debugprintf ( "power\n"); }
-
-power: primary { debugprintf ( "primary\n"); }
-	| primary "**" factor { debugprintf ( "primary ** factor\n"); }
-
-primary: atom { debugprintf ( "atom\n"); }
+maybe_test : | test 
 
 
-atom : NAME { debugprintf ( "NAME\n"); }
-    | NUMBER { debugprintf ( "NUMBER\n"); }
-    | STRING { debugprintf ( "STRING\n"); }
-    | "True" { debugprintf ( "True\n"); }
-    | "False" { debugprintf ( "False\n"); }
-    | "None" { debugprintf ( "None\n"); }
+
+or_test : and_test  
+	| or_test "or" and_test 
+
+and_test : not_test 
+	| and_test "and" not_test 
+not_test : comparison  
+	| "not" not_test 
+
+comparison: expr  
+	| comparison compare_op_bitwise_or_pair 
+
+compare_op_bitwise_or_pair: eq_bitwise_or 
+	| noteq_bitwise_or  
+	| lt_bitwise_or 
+	| lte_bitwise_or  
+	| gt_bitwise_or  
+	| gte_bitwise_or  
+	| is_bitwise_or 
+	| in_bitwise_or
+	| notin_bitwise_or 
+	| isnot_bitwise_or 
+
+eq_bitwise_or: "==" expr 
+noteq_bitwise_or: "!=" expr 
+lt_bitwise_or: "<" expr 
+lte_bitwise_or: "<=" expr 
+gt_bitwise_or: ">" expr 
+gte_bitwise_or: ">=" expr 
+is_bitwise_or: "is" expr 
+in_bitwise_or: "in" expr 
+notin_bitwise_or: "not" "in" expr
+isnot_bitwise_or: "is" "not" expr 
+
+expr: xor_expr  
+	| expr "|" xor_expr 
+
+xor_expr: ans_expr 
+	| xor_expr "^" ans_expr 
+
+ans_expr: shift_expr  
+	| ans_expr "&" shift_expr 
+
+shift_expr: sum  
+	| shift_expr "<<" sum  
+	| shift_expr ">>" sum 
+
+sum : sum "+" term  
+	| sum "-" term 
+	| term 
+
+term: term "*" factor 
+	| term "/" factor  
+	| term "%" factor 
+	| term DOUBLESLASH factor 
+	|factor  
+
+factor: "+" factor 
+	| "-" factor 
+	| "~" factor 
+	| power 
+
+power: primary
+	| primary "**" factor 
+
+primary: atom
+
+
+atom : NAME 
+    | NUMBER 
+    | STRING 
+    | "True" 
+    | "False" 
+    | "None" 
 
 classdef: "class" NAME ":" suite
 	| "class" NAME "(" arglist ")" ":" suite
@@ -225,17 +226,17 @@ classdef: "class" NAME ":" suite
 
 ;
 
-arglist: test | arglist "," test { debugprintf ( "test\n"); }
+arglist: test | arglist "," test 
 
-suite: simple_stmt { debugprintf ("simple_stmt\n"); }
-	| NEWLINE INDENT stmts DEDENT	{debugprintf ("NEWLINE INDENT stmts DEDENT\n");}
+suite: simple_stmt 
+	| NEWLINE INDENT stmts DEDENT	
 
 compound_stmt: 
 	/* if_stmt { debugprintf ("if_stmt\n"); }
 	| while_stmt { debugprintf ("while_stmt\n"); }
 	| for_stmt { debugprintf ("for_stmt\n"); }
 	| funcdef { debugprintf ("funcdef\n"); } */
-	classdef { debugprintf ("classdef\n"); } 
+	classdef 
 	 /* | async_stmt { debugprintf ("async_stmt\n"); }  */
 %%
 

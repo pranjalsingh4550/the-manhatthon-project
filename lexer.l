@@ -4,6 +4,8 @@
     #include<bits/stdc++.h>
     #include "parser.tab.h"
     using namespace std;
+    stack<int> indent_stack;
+    int ded=0;
 #ifndef YYSTYPE
 #define YYSTYPE long
 #endif
@@ -24,6 +26,12 @@ string '[^'\\]*(?:\\.[^'\\]*)*'
 ignore [ \f]
 
 %%
+    if(indent_stack.empty())
+        indent_stack.push(0);
+    if(ded>0){
+        ded--;
+        return DEDENT;
+    }
 "break"	{return BREAK;}
 "continue"	{return CONTINUE;}
 "return"	{return RETURN;}
@@ -69,8 +77,30 @@ None	{return NONE;}
 ";"	{return SEMI;}
 ":"	{return COLON;}
 "="	{return EQUAL;}
-\t	{return INDENT;}
 \n	{return NEWLINE;}
+^[\t ]+	{
+    if(indent_stack.top()==yyleng){return 0;}
+    else if(indent_stack.top()<yyleng)
+    {
+        indent_stack.push(yyleng);
+        return INDENT;
+    }
+    else
+    {
+        ded=1;
+        indent_stack.pop();
+        while(indent_stack.top()>yyleng)
+        {
+            ded++;
+            indent_stack.pop();
+        }
+        if(indent_stack.top()!=yyleng)
+        {
+            cerr<<"Indentation Error"<<endl;
+            exit(1);
+        }
+    }
+    indent_stack.push(yyleng);return INDENT;}
 {ignore}
 . {return yytext[0];}
 %%

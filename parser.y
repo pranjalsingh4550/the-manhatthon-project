@@ -12,7 +12,7 @@
     char *sval;
 }
 
-%token NEWLINE NAME INDENT
+%token NEWLINE NAME INDENT DEDENT
 %token SEMI ";"
 %token EQUAL "="
 %token COLON ":"
@@ -36,7 +36,7 @@
 
 
 %%
-statements : statements statement| statement
+statements : statements statement| statement 
 ;
 
 statement: simple_stmts
@@ -55,7 +55,7 @@ simple_stmt: assignment
 
 assignment: NAME ":"  expression maybe_rhs 
 
-maybe_rhs : | "=" expression 
+maybe_rhs : | "="  expression 
 
 expression: disjunction "if" disjunction "else" expression | disjunction
 

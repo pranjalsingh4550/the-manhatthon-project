@@ -8,7 +8,11 @@ lexer:
 	g++ -o lexer lex.yy.c main.c
 
 test:
+	bison -d parser.y
+	if [ $? -ne 0 ]; then exit 1; fi
 	flex lexer.l
-	g++ -o lexer lex.yy.c main.c
-	./lexer < test.py
-	rm -f lexer lex.yy.c
+	if [ $? -ne 0 ]; then exit 1; fi
+	g++ -o lexer lex.yy.c parser.tab.c
+	if [ $? -ne 0 ]; then exit 1; fi
+	./lexer < input.py
+	rm -f lexer lex.yy.c parser.t* 

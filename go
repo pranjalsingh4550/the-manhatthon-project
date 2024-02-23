@@ -13,7 +13,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-g++ parser.tab.c lex.yy.c -lfl
+g++ parser.tab.c lex.yy.c 
 
 if [ $? -ne 0 ]; then
     echo "Error in g++"

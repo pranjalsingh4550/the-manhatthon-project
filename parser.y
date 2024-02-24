@@ -24,6 +24,8 @@
 %token COLON ":"
 %token COMMA ","
 %token CLASS "class"
+%token FUNCRET "->"
+%token DEF "def"
 
 %token BREAK "break"
 %token CONTINUE "continue"
@@ -89,6 +91,7 @@
 %token FALSE "False"
 %token NONE "None"
 
+%token<sval> COMMENT
 
 %start stmts
 
@@ -102,9 +105,12 @@ stmt:  simple_stmt
 	| compound_stmt 
 ;
 
-simple_stmt: small_stmt ";" NEWLINE   
+simple_stmt: small_stmt ";"  NEWLINE   
+	| small_stmt ";" COMMENT NEWLINE
 	| small_stmt NEWLINE
+	| small_stmt COMMENT NEWLINE
 	| small_stmt ";" simple_stmt 
+	/* | COMMENT NEWLINE */
 ;
 
 
@@ -123,7 +129,7 @@ expr_stmt: NAME  annassign
 	| test augassign test 
 
 annassign: ":"  test "=" test
-	| ":" test
+| ":" test
 
 test: or_test "if" or_test "else" test  
 	| or_test 
@@ -225,19 +231,25 @@ classdef: "class" NAME ":" suite
 arglist: test | arglist "," test 
 
 suite: simple_stmt 
-	| NEWLINE INDENT stmts DEDENT	
+	| NEWLINE INDENT stmts DEDENT
+
+funcdef: "def" NAME "(" arglist ")" "->" test ":" suite
+	| "def" NAME "(" ")" "->" test ":" suite
 
 compound_stmt: 
 	/* if_stmt { debugprintf ("if_stmt\n"); }
 	| while_stmt { debugprintf ("while_stmt\n"); }
 	| for_stmt { debugprintf ("for_stmt\n"); }
-	| funcdef { debugprintf ("funcdef\n"); } */
+	| funcdef */
 	classdef 
 	 /* | async_stmt { debugprintf ("async_stmt\n"); }  */
+
 %%
 
-int main(){
+int main(int argc, char* argv[]){
 	yydebug = 1 ;
+	if (argv[1] && argv[1][0] == 'n')
+		yydebug = 0;
     yyparse();
     return 0;
 }

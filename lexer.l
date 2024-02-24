@@ -49,6 +49,8 @@ ignore [ \f]
 "not"	{return NOT;}
 
 "class" {return CLASS;}
+"def"	{return DEF;}
+{comments}	{return COMMENT;}
 
 
 "==" 	{return EQEQUAL;}
@@ -91,6 +93,7 @@ ignore [ \f]
 "^="	{return CIRCUMFLEXEQUAL;}
 ">>="	{return RIGHTSHIFTEQUAL;}
 "<<="	{return LEFTSHIFTEQUAL;}
+"->"	{return FUNCRET;}
 
 
 

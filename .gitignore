@@ -1,5 +1,9 @@
-lex.yy.c
-parser
 parser.tab.c
 parser.tab.h
+parser
+lexer
+parser.gv
+lex.yy.c
+a.out
 .DS_Store
+trash.txt

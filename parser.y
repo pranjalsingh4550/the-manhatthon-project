@@ -9,6 +9,7 @@
     int yyerror(const char *s);
 	extern void maketree (char* production, int count);
 	int nodecount = 0;
+	#define YYDEBUG 1
 %}
 
 %union {
@@ -101,13 +102,12 @@ stmt:  simple_stmt
 	| compound_stmt 
 ;
 
-simple_stmt: small_stmt semi NEWLINE   
-            | small_stmt ";" simple_stmt 
+simple_stmt: small_stmt ";" NEWLINE   
+	| small_stmt NEWLINE
+	| small_stmt ";" simple_stmt 
 ;
 
 
-semi: | ";" 
-;
 
 small_stmt: expr_stmt 
 	| return_stmt 
@@ -122,9 +122,8 @@ small_stmt: expr_stmt
 expr_stmt: NAME  annassign
 	| test augassign test 
 
-annassign: ":"  test maybe_rhs
-maybe_rhs :
-    | "=" test 
+annassign: ":"  test "=" test
+	| ":" test
 
 test: or_test "if" or_test "else" test  
 	| or_test 
@@ -140,11 +139,8 @@ nonlocal_stmt: "nonlocal"  arglist */
 
 assert_stmt: "assert" test 
 
-return_stmt: "return" maybe_test 
-
-maybe_test : | test 
-
-
+return_stmt: "return" test 
+	| "return"
 
 or_test : and_test  
 	| or_test "or" and_test 
@@ -241,6 +237,7 @@ compound_stmt:
 %%
 
 int main(){
+	yydebug = 1 ;
     yyparse();
     return 0;
 }

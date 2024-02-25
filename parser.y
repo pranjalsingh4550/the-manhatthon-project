@@ -10,20 +10,26 @@
     int yyerror(const char *s);
 	extern void maketree (char* production, int count);
 	int nodecount = 0;
-	struct Node {
+	class Node {
 		int nodeid;
 		string production;
-		vector<Node*> children;
-		Node (int id, string prod) {
-			nodeid = id;
-			production = prod;
+		vector<struct Node*> children;
+		// Node operator=(const Node& other) {
+		// 	nodeid = other.nodeid;
+		// 	production = other.production;
+		// 	children = other.children;
+		// 	return *this;
+		// }
+		Node (const char *label) {
+			nodeid = nodecount ++;
+			production = label;
 			if (graph)
-				fprintf (graph, "\tnode%d [label=%s]", nodecount ++, prod.c_str());
+				fprintf (graph, "\tnode%d [label=%s];\n", nodeid, label);
 		}
 		void addchild (Node* child) {
 			children.push_back(child);
 			if (graph)
-				fprintf (graph, "node%d -> node %d\n", this->nodeid, child->nodeid);
+				fprintf (graph, "\tnode%d -> node%d;\n", this->nodeid, child->nodeid);
 		}
 		void printnode () {
 			cout << "Node id: " << nodeid << " Production: " << production << endl;
@@ -36,85 +42,93 @@
 %}
 
 %union {
-	struct node* node;
+	class Node* node;
+
 }
 
-%token <Node*> NEWLINE NAME INDENT DEDENT
-%token <Node*> SEMI ";"
-%token <Node*> EQUAL "="
-%token <Node*> COLON ":"
-%token <Node*> COMMA ","
-%token <Node*> CLASS "class"
-%token <Node*> FUNCRETTYPE "->"
-%token <Node*> DEF "def"
-%token <Node*> WHILE "while"
-%token <Node*> FOR "for"
+%token <node> NEWLINE NAME INDENT DEDENT
+%token <node> SEMI ";"
+%token <node> EQUAL "="
+%token <node> COLON ":"
+%token <node> COMMA ","
+%token <node> LSQB "["
+%token <node> RSQB "]"
+%token <node> DOT "."
+%token <node> CLASS "class"
+%token <node> FUNCRETTYPE "->"
+%token <node> DEF "def"
+%token <node> WHILE "while"
+%token <node> FOR "for"
 
-%token <Node*> BREAK "break"
-%token <Node*> CONTINUE "continue"
-%token <Node*> RETURN "return"
-%token <Node*> PASS "pass"
-%token <Node*> ASSERT "assert"
-%token <Node*> RAISE "raise"
+%token <node> BREAK "break"
+%token <node> CONTINUE "continue"
+%token <node> RETURN "return"
+%token <node> PASS "pass"
+%token <node> ASSERT "assert"
+%token <node> RAISE "raise"
 
-%token <Node*> FROM "from"
+%token <node> FROM "from"
 
-%token <Node*> IF "if"
-%token <Node*> ELSE "else"
-%token <Node*> ELIF "elif"
+%token <node> IF "if"
+%token <node> ELSE "else"
+%token <node> ELIF "elif"
 
-%token <Node*> AND "and"
-%token <Node*> OR "or"
-%token <Node*> NOT  "not"
+%token <node> AND "and"
+%token <node> OR "or"
+%token <node> NOT  "not"
 
-%token <Node*> EQEQUAL "=="
-%token <Node*> NOTEQUAL "!="
-%token <Node*> LESS "<"
-%token <Node*> LESSEQUAL "<="
-%token <Node*> GREATER ">"
-%token <Node*> GREATEREQUAL ">="
-%token <Node*> IS "is"
-%token <Node*> IN "in"
-%token <Node*> VBAR "|"
-%token <Node*> CIRCUMFLEX "^"
-%token <Node*> AMPER "&"
-%token <Node*> LEFTSHIFT "<<"
-%token <Node*> RIGHTSHIFT ">>"
-%token <Node*> PLUS "+"
-%token <Node*> MINUS "-"
-%token <Node*> STAR "*"
-%token <Node*> SLASH "/"
-%token <Node*> PERCENT "%"
-%token <Node*> DOUBLESLASH "//"
-%token <Node*> TILDE "~"
-%token <Node*> DOUBLESTAR "**"
+%token <node> EQEQUAL "=="
+%token <node> NOTEQUAL "!="
+%token <node> LESS "<"
+%token <node> LESSEQUAL "<="
+%token <node> GREATER ">"
+%token <node> GREATEREQUAL ">="
+%token <node> IS "is"
+%token <node> IN "in"
+%token <node> VBAR "|"
+%token <node> CIRCUMFLEX "^"
+%token <node> AMPER "&"
+%token <node> LEFTSHIFT "<<"
+%token <node> RIGHTSHIFT ">>"
+%token <node> PLUS "+"
+%token <node> MINUS "-"
+%token <node> STAR "*"
+%token <node> SLASH "/"
+%token <node> PERCENT "%"
+%token <node> DOUBLESLASH "//"
+%token <node> TILDE "~"
+%token <node> DOUBLESTAR "**"
 
-%token <Node*> PLUSEQUAL "+="
-%token <Node*> MINEQUAL "-="
-%token <Node*> STAREQUAL "*="
-%token <Node*> SLASHEQUAL "/="
-%token <Node*> PERCENTEQUAL "%="
-%token <Node*> DOUBLESLASHEQUAL "//="
-%token <Node*> AMPEREQUAL "&="
-%token <Node*> VBAREQUAL "|="
-%token <Node*> CIRCUMFLEXEQUAL "^="
-%token <Node*> LEFTSHIFTEQUAL "<<="
-%token <Node*> RIGHTSHIFTEQUAL ">>="
-%token <Node*> DOUBLESTAREQUAL "**="
-
-
-%token <Node*> LPAR "("
-%token <Node*> RPAR ")"
-%token <Node*> BACKSLASH_LINEJOINING "\\"
+%token <node> PLUSEQUAL "+="
+%token <node> MINEQUAL "-="
+%token <node> STAREQUAL "*="
+%token <node> SLASHEQUAL "/="
+%token <node> PERCENTEQUAL "%="
+%token <node> DOUBLESLASHEQUAL "//="
+%token <node> AMPEREQUAL "&="
+%token <node> VBAREQUAL "|="
+%token <node> CIRCUMFLEXEQUAL "^="
+%token <node> LEFTSHIFTEQUAL "<<="
+%token <node> RIGHTSHIFTEQUAL ">>="
+%token <node> DOUBLESTAREQUAL "**="
 
 
+%token <node> LPAR "("
+%token <node> RPAR ")"
+%token <node> BACKSLASH_LINEJOINING "\\"
 
 
-%token <Node*> NUMBER
-%token <Node*> STRING
-%token <Node*> TRUE "True"
-%token <Node*> FALSE "False"
-%token <Node*> NONE "None"
+
+
+%token <node> NUMBER
+%token <node> STRING
+%token <node> TRUE "True"
+%token <node> FALSE "False"
+%token <node> NONE "None"
+
+
+%type <node> stmts stmt simple_stmt small_stmt expr_stmt annassign test augassign raise_stmt  assert_stmt return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt if_block_left_factored elif_block while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer
+
 
 
 %start input
@@ -153,7 +167,7 @@ small_stmt: expr_stmt
 ;
 expr_stmt: NAME  annassign
 	| test augassign test
-	| NAME "=" test 
+	| test "=" test 
 
 annassign: ":"  test "=" test
 | ":" test
@@ -162,9 +176,8 @@ test: or_test "if" or_test "else" test
 	| or_test 
 augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
 
-raise_stmt: "raise" | "raise" test maybe_from_test
+raise_stmt: "raise" | "raise" test "from" test |"raise" test 
 
-maybe_from_test: | "from" test
 
 /* global_stmt: "global"  arglist
 
@@ -239,15 +252,22 @@ factor: "+" factor
 power: primary
 	| primary "**" factor 
 
-primary: atom
+primary: atom | primary trailer 
 
 
-atom : NAME /*{ $$ = Node (nodecount ++, "name"); }*/
+atom: NAME 
     | NUMBER 
-    | STRING 
+    | STRING_plus 
     | "True" 
     | "False" 
     | "None" 
+
+STRING_plus: STRING 
+	| STRING_plus STRING
+
+trailer: "." NAME
+	| "[" testlist "]"
+	| "(" testlist ")"
 
 if_stmt: if_block_left_factored
 	| if_block_left_factored "else" ":" suite
@@ -264,7 +284,7 @@ while_stmt: "while" test ":" suite
 arglist: test | arglist "," test 
 
 suite: simple_stmt 
-	| NEWLINE  INDENT  stmts DEDENT  {printf("nice\n\n\n");}
+	| NEWLINE  INDENT  stmts DEDENT 
 
 funcdef: "def" NAME "(" arglist ")" "->" test ":" suite
 	| "def" NAME "(" ")" "->" test ":" suite
@@ -307,12 +327,15 @@ int main(int argc, char* argv[]){
 	yydebug = 1 ;
 	if (argv[1] && argv[1][0] == 'n')
 		yydebug = 0;
-	if (argv[2] && argv[2][0]) {
+	if (argc >2 && argv[2] && argv[2][0]) {
 		graph = fopen (argv[2], "w+");
+		fprintf (graph, "strict digraph ast {\n");
 	}
-	
     yyparse();
-	fclose (graph);
+	if (graph) {
+		fprintf (graph, "}\n");
+		fclose (graph);
+	}
     return 0;
 }
 

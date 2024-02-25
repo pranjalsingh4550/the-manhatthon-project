@@ -18,9 +18,9 @@ comments #[^\r\n]*
 NAME [a-zA-Z_][a-zA-Z0-9_]*
 number [0-9]+
 dunder "__name__"|"__main__"|"__init__"
-emptyline ^[ \t]*\n
+emptyline ^[ \t\f]*\n
 string '[^'\\]*(?:\\.[^'\\]*)*'
-ignore [ \f]|{comments}
+ignore [ \f\t{comments}{emptyline}]+
 
 %%
     {
@@ -40,7 +40,7 @@ ignore [ \f]|{comments}
         }
     }
 {emptyline}+ 
-\n([ \t]*\n)*[ \t]*   {
+\n({ignore})*[ \t\f]*   {
     newline=1;
     int len=yyleng-1;
     if(indent_stack.top()==len){}
@@ -56,7 +56,6 @@ ignore [ \f]|{comments}
         while(indent_stack.top()>len)
         {
             ded++;
-            printf("DEDENT\n");
             indent_stack.pop();
         }
         if(indent_stack.top()!=len)
@@ -132,6 +131,9 @@ ignore [ \f]|{comments}
 "->"	{return FUNCRETTYPE;}
 "("	{return LPAR;}
 ")"	{return RPAR;}
+"[" {return LSQB;}
+"]" {return RSQB;}
+"." {return DOT;}
 
 
 

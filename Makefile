@@ -8,9 +8,9 @@ clean:
 parser: clean
 	bison -d parser.y
 	flex lexer.l
-	g++ -o parser lex.yy.c parser.tab.c -fmax-errors=1
-	
+	g++ -o parser lex.yy.c parser.tab.c
+1=errors-put.txtfmax-	
 
 test: parser
-	./parser < testcases/public1.py
+	./parser < input.py 2>output.txt
 	rm -f lexer lex.yy.c parser.t* parser

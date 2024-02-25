@@ -3,7 +3,7 @@
 strict digraph ast {
 	ifelse [label=ifelse];
 	b [label=dummy_node1];
-	node2 [label=dummy_node2];
 	a -> node2 ;
+	node2 [label=dummy_node2];
 	b -> node2 ;
 }

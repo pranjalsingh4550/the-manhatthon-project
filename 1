@@ -1,0 +1,226 @@
+Starting parse
+Entering state 0
+Stack now 0
+Reading a token
+Next token is token "if" ()
+Shifting token "if" ()
+Entering state 12
+Stack now 0 12
+Reading a token
+Next token is token "True" ()
+Shifting token "True" ()
+Entering state 19
+Stack now 0 12 19
+Reducing stack by rule 98 (line 261):
+   $1 = token "True" ()
+-> $$ = nterm atom ()
+Entering state 45
+Stack now 0 12 45
+Reducing stack by rule 93 (line 255):
+   $1 = nterm atom ()
+-> $$ = nterm primary ()
+Entering state 44
+Stack now 0 12 44
+Reading a token
+Next token is token ":" ()
+Reducing stack by rule 91 (line 252):
+   $1 = nterm primary ()
+-> $$ = nterm power ()
+Entering state 43
+Stack now 0 12 43
+Reducing stack by rule 90 (line 250):
+   $1 = nterm power ()
+-> $$ = nterm factor ()
+Entering state 42
+Stack now 0 12 42
+Reducing stack by rule 86 (line 245):
+   $1 = nterm factor ()
+-> $$ = nterm term ()
+Entering state 41
+Stack now 0 12 41
+Next token is token ":" ()
+Reducing stack by rule 81 (line 239):
+   $1 = nterm term ()
+-> $$ = nterm sum ()
+Entering state 40
+Stack now 0 12 40
+Next token is token ":" ()
+Reducing stack by rule 76 (line 233):
+   $1 = nterm sum ()
+-> $$ = nterm shift_expr ()
+Entering state 39
+Stack now 0 12 39
+Next token is token ":" ()
+Reducing stack by rule 74 (line 230):
+   $1 = nterm shift_expr ()
+-> $$ = nterm ans_expr ()
+Entering state 38
+Stack now 0 12 38
+Next token is token ":" ()
+Reducing stack by rule 72 (line 227):
+   $1 = nterm ans_expr ()
+-> $$ = nterm xor_expr ()
+Entering state 37
+Stack now 0 12 37
+Next token is token ":" ()
+Reducing stack by rule 70 (line 224):
+   $1 = nterm xor_expr ()
+-> $$ = nterm expr ()
+Entering state 36
+Stack now 0 12 36
+Next token is token ":" ()
+Reducing stack by rule 48 (line 199):
+   $1 = nterm expr ()
+-> $$ = nterm comparison ()
+Entering state 35
+Stack now 0 12 35
+Next token is token ":" ()
+Reducing stack by rule 46 (line 196):
+   $1 = nterm comparison ()
+-> $$ = nterm not_test ()
+Entering state 34
+Stack now 0 12 34
+Reducing stack by rule 44 (line 194):
+   $1 = nterm not_test ()
+-> $$ = nterm and_test ()
+Entering state 33
+Stack now 0 12 33
+Next token is token ":" ()
+Reducing stack by rule 42 (line 191):
+   $1 = nterm and_test ()
+-> $$ = nterm or_test ()
+Entering state 32
+Stack now 0 12 32
+Next token is token ":" ()
+Reducing stack by rule 23 (line 176):
+   $1 = nterm or_test ()
+-> $$ = nterm test ()
+Entering state 65
+Stack now 0 12 65
+Next token is token ":" ()
+Shifting token ":" ()
+Entering state 139
+Stack now 0 12 65 139
+Reading a token
+Next token is token NEWLINE ()
+Shifting token NEWLINE ()
+Entering state 179
+Stack now 0 12 65 139 179
+Reading a token
+Next token is token INDENT ()
+Shifting token INDENT ()
+Entering state 203
+Stack now 0 12 65 139 179 203
+Reading a token
+Next token is token NAME ()
+Shifting token NAME ()
+Entering state 1
+Stack now 0 12 65 139 179 203 1
+Reading a token
+Next token is token "=" ()
+Reducing stack by rule 95 (line 258):
+   $1 = token NAME ()
+-> $$ = nterm atom ()
+Entering state 45
+Stack now 0 12 65 139 179 203 45
+Reducing stack by rule 93 (line 255):
+   $1 = nterm atom ()
+-> $$ = nterm primary ()
+Entering state 44
+Stack now 0 12 65 139 179 203 44
+Next token is token "=" ()
+Reducing stack by rule 91 (line 252):
+   $1 = nterm primary ()
+-> $$ = nterm power ()
+Entering state 43
+Stack now 0 12 65 139 179 203 43
+Reducing stack by rule 90 (line 250):
+   $1 = nterm power ()
+-> $$ = nterm factor ()
+Entering state 42
+Stack now 0 12 65 139 179 203 42
+Reducing stack by rule 86 (line 245):
+   $1 = nterm factor ()
+-> $$ = nterm term ()
+Entering state 41
+Stack now 0 12 65 139 179 203 41
+Next token is token "=" ()
+Reducing stack by rule 81 (line 239):
+   $1 = nterm term ()
+-> $$ = nterm sum ()
+Entering state 40
+Stack now 0 12 65 139 179 203 40
+Next token is token "=" ()
+Reducing stack by rule 76 (line 233):
+   $1 = nterm sum ()
+-> $$ = nterm shift_expr ()
+Entering state 39
+Stack now 0 12 65 139 179 203 39
+Next token is token "=" ()
+Reducing stack by rule 74 (line 230):
+   $1 = nterm shift_expr ()
+-> $$ = nterm ans_expr ()
+Entering state 38
+Stack now 0 12 65 139 179 203 38
+Next token is token "=" ()
+Reducing stack by rule 72 (line 227):
+   $1 = nterm ans_expr ()
+-> $$ = nterm xor_expr ()
+Entering state 37
+Stack now 0 12 65 139 179 203 37
+Next token is token "=" ()
+Reducing stack by rule 70 (line 224):
+   $1 = nterm xor_expr ()
+-> $$ = nterm expr ()
+Entering state 36
+Stack now 0 12 65 139 179 203 36
+Next token is token "=" ()
+Reducing stack by rule 48 (line 199):
+   $1 = nterm expr ()
+-> $$ = nterm comparison ()
+Entering state 35
+Stack now 0 12 65 139 179 203 35
+Next token is token "=" ()
+Reducing stack by rule 46 (line 196):
+   $1 = nterm comparison ()
+-> $$ = nterm not_test ()
+Entering state 34
+Stack now 0 12 65 139 179 203 34
+Reducing stack by rule 44 (line 194):
+   $1 = nterm not_test ()
+-> $$ = nterm and_test ()
+Entering state 33
+Stack now 0 12 65 139 179 203 33
+Next token is token "=" ()
+Reducing stack by rule 42 (line 191):
+   $1 = nterm and_test ()
+-> $$ = nterm or_test ()
+Entering state 32
+Stack now 0 12 65 139 179 203 32
+Next token is token "=" ()
+Reducing stack by rule 23 (line 176):
+   $1 = nterm or_test ()
+-> $$ = nterm test ()
+Entering state 28
+Stack now 0 12 65 139 179 203 28
+Next token is token "=" ()
+Shifting token "=" ()
+Entering state 74
+Stack now 0 12 65 139 179 203 28 74
+Reading a token
+Next token is token NUMBER ()
+Shifting token NUMBER ()
+Entering state 17
+Stack now 0 12 65 139 179 203 28 74 17
+Reducing stack by rule 96 (line 259):
+   $1 = token NUMBER ()
+-> $$ = nterm atom ()
+Entering state 45
+Stack now 0 12 65 139 179 203 28 74 45
+Reducing stack by rule 93 (line 255):
+   $1 = nterm atom ()
+-> $$ = nterm primary ()
+Entering state 44
+Stack now 0 12 65 139 179 203 28 74 44
+Reading a token
+Indentation Error

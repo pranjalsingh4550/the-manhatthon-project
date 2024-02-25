@@ -20,7 +20,7 @@ number [0-9]+
 dunder "__name__"|"__main__"|"__init__"
 emptyline ^[ \t\f]*\n
 string '[^'\\]*(?:\\.[^'\\]*)*'
-ignore [ \f\r\t\n{comments}]
+ignore [ \f\t]|{comments}
 
 %%
     {
@@ -40,7 +40,8 @@ ignore [ \f\r\t\n{comments}]
         }
     }
 {emptyline}+ 
-\n({ignore})*[ \t\f]*   {
+\n{ignore}*/\n
+\n[ \t\f]*   {
     newline=1;
     int len=yyleng-1;
     if(indent_stack.top()==len){}

@@ -1,4 +1,4 @@
-a = 0
-
-if a:
-    print('adaf')
+if True:
+    a=3
+else:
+      a=4

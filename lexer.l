@@ -20,7 +20,7 @@ number [0-9]+
 dunder "__name__"|"__main__"|"__init__"
 emptyline ^[ \t\f]*\n
 string '[^'\\]*(?:\\.[^'\\]*)*'
-ignore [ \f\t{comments}{emptyline}]+
+ignore [ \f\r\t\n{comments}]
 
 %%
     {

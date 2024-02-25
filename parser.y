@@ -11,6 +11,7 @@
 	extern void maketree (char* production, int count);
 	int nodecount = 0;
 	class Node {
+		public:
 		int nodeid;
 		string production;
 		vector<struct Node*> children;
@@ -139,7 +140,8 @@ input : |
 	stmts
 
 stmts : 
-	stmt | stmts stmt 	
+	stmt
+	| stmts stmt 	
 
 ;
 
@@ -269,8 +271,8 @@ trailer: "." NAME
 	| "[" testlist "]"
 	| "(" testlist ")"
 
-if_stmt: if_block_left_factored
-	| if_block_left_factored "else" ":" suite
+if_stmt: if_block_left_factored		{$$ = new Node ("if"); }
+	| if_block_left_factored "else" ":" suite	{ $$ = new Node ("if-else"); }
 	| if_block_left_factored elif_block "else" ":" suite
 
 if_block_left_factored: "if" test ":" suite
@@ -307,7 +309,7 @@ classdef: "class" func_class_prototype ":" suite
 */
 
 compound_stmt: 
-	if_stmt
+	if_stmt		{$$ = $1;}
 	| while_stmt
 	| for_stmt
 	| funcdef

@@ -1,25 +1,29 @@
 %{
     #include<bits/stdc++.h>
-    using namespace std;   
+    using namespace std;
+	FILE* graph = NULL;   
     extern int yylex();
-    extern int yyparse(); 
+    extern int yyparse();
     extern void debugprintf (const char *) ;
     extern int yylineno;
 	extern char *yytext;
     int yyerror(const char *s);
 	extern void maketree (char* production, int count);
 	int nodecount = 0;
-	class Node {
-		public:
+	struct Node {
 		int nodeid;
 		string production;
 		vector<Node*> children;
 		Node (int id, string prod) {
 			nodeid = id;
 			production = prod;
+			if (graph)
+				fprintf (graph, "\tnode%d [label=%s]", nodecount ++, prod.c_str());
 		}
 		void addchild (Node* child) {
 			children.push_back(child);
+			if (graph)
+				fprintf (graph, "node%d -> node %d\n", this->nodeid, child->nodeid);
 		}
 		void printnode () {
 			cout << "Node id: " << nodeid << " Production: " << production << endl;
@@ -28,90 +32,90 @@
 			}
 		}
 	};
-	}
 	#define YYDEBUG 1
 %}
 
-%define api.value.type {Node*}
+%union {
+	struct node* node;
+}
 
-%token NEWLINE NAME INDENT
-%token SEMI ";"
-%token EQUAL "="
-%token COLON ":"
-%token COMMA ","
-%token CLASS "class"
-%token FUNCRETTYPE "->"
-%token DEF "def"
-%token WHILE "while"
-%token FOR "for"
+%token <Node*> NEWLINE NAME INDENT DEDENT
+%token <Node*> SEMI ";"
+%token <Node*> EQUAL "="
+%token <Node*> COLON ":"
+%token <Node*> COMMA ","
+%token <Node*> CLASS "class"
+%token <Node*> FUNCRETTYPE "->"
+%token <Node*> DEF "def"
+%token <Node*> WHILE "while"
+%token <Node*> FOR "for"
 
-%token BREAK "break"
-%token CONTINUE "continue"
-%token RETURN "return"
-%token PASS "pass"
-%token ASSERT "assert"
-%token RAISE "raise"
+%token <Node*> BREAK "break"
+%token <Node*> CONTINUE "continue"
+%token <Node*> RETURN "return"
+%token <Node*> PASS "pass"
+%token <Node*> ASSERT "assert"
+%token <Node*> RAISE "raise"
 
-%token FROM "from"
+%token <Node*> FROM "from"
 
-%token IF "if"
-%token ELSE "else"
-%token ELIF "elif"
+%token <Node*> IF "if"
+%token <Node*> ELSE "else"
+%token <Node*> ELIF "elif"
 
-%token AND "and"
-%token OR "or"
-%token NOT  "not"
+%token <Node*> AND "and"
+%token <Node*> OR "or"
+%token <Node*> NOT  "not"
 
-%token EQEQUAL "=="
-%token NOTEQUAL "!="
-%token LESS "<"
-%token LESSEQUAL "<="
-%token GREATER ">"
-%token GREATEREQUAL ">="
-%token IS "is"
-%token IN "in"
-%token VBAR "|"
-%token CIRCUMFLEX "^"
-%token AMPER "&"
-%token LEFTSHIFT "<<"
-%token RIGHTSHIFT ">>"
-%token PLUS "+"
-%token MINUS "-"
-%token STAR "*"
-%token SLASH "/"
-%token PERCENT "%"
-%token DOUBLESLASH "//"
-%token TILDE "~"
-%token DOUBLESTAR "**"
+%token <Node*> EQEQUAL "=="
+%token <Node*> NOTEQUAL "!="
+%token <Node*> LESS "<"
+%token <Node*> LESSEQUAL "<="
+%token <Node*> GREATER ">"
+%token <Node*> GREATEREQUAL ">="
+%token <Node*> IS "is"
+%token <Node*> IN "in"
+%token <Node*> VBAR "|"
+%token <Node*> CIRCUMFLEX "^"
+%token <Node*> AMPER "&"
+%token <Node*> LEFTSHIFT "<<"
+%token <Node*> RIGHTSHIFT ">>"
+%token <Node*> PLUS "+"
+%token <Node*> MINUS "-"
+%token <Node*> STAR "*"
+%token <Node*> SLASH "/"
+%token <Node*> PERCENT "%"
+%token <Node*> DOUBLESLASH "//"
+%token <Node*> TILDE "~"
+%token <Node*> DOUBLESTAR "**"
 
-%token PLUSEQUAL "+="
-%token MINEQUAL "-="
-%token STAREQUAL "*="
-%token SLASHEQUAL "/="
-%token PERCENTEQUAL "%="
-%token DOUBLESLASHEQUAL "//="
-%token AMPEREQUAL "&="
-%token VBAREQUAL "|="
-%token CIRCUMFLEXEQUAL "^="
-%token LEFTSHIFTEQUAL "<<="
-%token RIGHTSHIFTEQUAL ">>="
-%token DOUBLESTAREQUAL "**="
-
-
-%token LPAR "("
-%token RPAR ")"
-%token BACKSLASH_LINEJOINING "\\"
+%token <Node*> PLUSEQUAL "+="
+%token <Node*> MINEQUAL "-="
+%token <Node*> STAREQUAL "*="
+%token <Node*> SLASHEQUAL "/="
+%token <Node*> PERCENTEQUAL "%="
+%token <Node*> DOUBLESLASHEQUAL "//="
+%token <Node*> AMPEREQUAL "&="
+%token <Node*> VBAREQUAL "|="
+%token <Node*> CIRCUMFLEXEQUAL "^="
+%token <Node*> LEFTSHIFTEQUAL "<<="
+%token <Node*> RIGHTSHIFTEQUAL ">>="
+%token <Node*> DOUBLESTAREQUAL "**="
 
 
+%token <Node*> LPAR "("
+%token <Node*> RPAR ")"
+%token <Node*> BACKSLASH_LINEJOINING "\\"
 
 
-%token<ival> NUMBER
-%token<sval> STRING
-%token TRUE "True"
-%token FALSE "False"
-%token NONE "None"
 
-%token<sval> COMMENT
+
+%token <Node*> NUMBER
+%token <Node*> STRING
+%token <Node*> TRUE "True"
+%token <Node*> FALSE "False"
+%token <Node*> NONE "None"
+
 
 %start input
 
@@ -238,7 +242,7 @@ power: primary
 primary: atom
 
 
-atom : NAME 
+atom : NAME /*{ $$ = Node (nodecount ++, "name"); }*/
     | NUMBER 
     | STRING 
     | "True" 
@@ -303,7 +307,12 @@ int main(int argc, char* argv[]){
 	yydebug = 1 ;
 	if (argv[1] && argv[1][0] == 'n')
 		yydebug = 0;
+	if (argv[2] && argv[2][0]) {
+		graph = fopen (argv[2], "w+");
+	}
+	
     yyparse();
+	fclose (graph);
     return 0;
 }
 

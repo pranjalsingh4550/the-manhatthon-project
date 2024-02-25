@@ -1,18 +1,13 @@
 %option noyywrap
 %option yylineno
 %{
-    #include<bits/stdc++.h>
+    #include<bits/stdc++.h> 
     #include "parser.tab.h"
     using namespace std;
     stack<int> indent_stack;
     int ded=0;
     int newline=0;
     int indent=0;
-#ifndef YYSTYPE
-#define YYSTYPE long
-#endif
-#define DEV_DEBUG
-extern YYSTYPE do_token (char);
 %}
 
 keyword "False"|"await"|"else"|"None"|"break"|"except"|"in"|"raise"|"True"|"class"|"finally"|"is"|"return"|"and"|"continue"|"for"|"lambda"|"try"|"as"|"def"|"from"|"nonlocal"|"while"|"assert"|"del"|"global"|"not"|"with"|"async"|"elif"|"if"|"or"|"yield"
@@ -26,8 +21,6 @@ dunder "__name__"|"__main__"|"__init__"
 emptyline ^[ \t]*\n
 string '[^'\\]*(?:\\.[^'\\]*)*'
 ignore [ \f]|{comments}
-
-%s multi
 
 %%
     {

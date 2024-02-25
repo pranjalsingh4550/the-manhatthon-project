@@ -8,7 +8,7 @@ clean:
 parser: clean
 	bison -d parser.y
 	flex lexer.l
-	g++ -o parser lex.yy.c parser.tab.c
+	g++ -o parser lex.yy.c parser.tab.c -fmax-errors=1
 	
 
 test: parser

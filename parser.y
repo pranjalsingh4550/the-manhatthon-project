@@ -235,8 +235,8 @@ if_stmt: if_block_left_factored
 
 if_block_left_factored: "if" test ":" suite
 
-elif_block: "elif" ":" suite
-	| elif_block "elif" ":" suite
+elif_block: "elif" test ":" suite
+	| elif_block "elif" test ":" suite
 
 while_stmt: "while" test ":" suite
 
@@ -271,7 +271,7 @@ compound_stmt:
 	| while_stmt
 	/* | for_stmt { debugprintf ("for_stmt\n"); } */
 	| funcdef
-	/* classdef */
+	classdef
 
 /* TODO: ADD COMMENTS INSIDE COMPOUND STATEMENT ? */
 

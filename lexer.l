@@ -34,7 +34,6 @@ ignore [ \f]|{comments}
         if(indent_stack.empty())
         indent_stack.push(0);
         if(newline==1){
-            printf("woah\n");
             newline=0;
             return NEWLINE;
         }
@@ -44,16 +43,13 @@ ignore [ \f]|{comments}
         }
         if(ded>0){
             ded--;
-            printf("NICE\n");
             return DEDENT;
         }
     }
-{emptyline}+ {printf("empty line\n");}
+{emptyline}+ 
 \n([ \t]*\n)*[ \t]*   {
     newline=1;
     int len=yyleng-1;
-    printf(" size =%d\n",len);
-    printf("indent_stack.top() =%d\n",indent_stack.top());
     if(indent_stack.top()==len){}
     else if(indent_stack.top()<len)
     {
@@ -62,11 +58,8 @@ ignore [ \f]|{comments}
     }
     else
     {
-        printf("yay\n");
         ded=1;
         indent_stack.pop();
-        printf("indent_stack.top() =%d\n",indent_stack.top());
-        printf("yyleng =%d\n",len);
         while(indent_stack.top()>len)
         {
             ded++;

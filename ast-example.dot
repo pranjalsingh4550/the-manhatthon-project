@@ -1,10 +1,10 @@
 // THIS IS A TEMPLATE FOR DOT
 
 strict digraph ast {
-	node0 [label=start_node0];
-	node1 [label=dummy_node1];
+	ifelse [label=ifelse];
+	b [label=dummy_node1];
 	node2 [label=dummy_node2];
-	node1 -> node2 ;
-	node0 -> node2 ;
+	a -> node2 ;
+	b -> node2 ;
 	
 }

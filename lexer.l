@@ -43,6 +43,7 @@ ignore [ \f]
 
 "if"	{return IF;}
 "else"	{return ELSE;}
+"elif"	{return ELIF;}
 
 "and"	{return AND;}
 "or"	{return OR;}
@@ -50,6 +51,8 @@ ignore [ \f]
 
 "class" {return CLASS;}
 "def"	{return DEF;}
+"while"	{return WHILE;}
+"for"	{return FOR;}
 {comments}	{return COMMENT;}
 
 
@@ -93,7 +96,9 @@ ignore [ \f]
 "^="	{return CIRCUMFLEXEQUAL;}
 ">>="	{return RIGHTSHIFTEQUAL;}
 "<<="	{return LEFTSHIFTEQUAL;}
-"->"	{return FUNCRET;}
+"->"	{return FUNCRETTYPE;}
+"("	{return LPAR;}
+")"	{return RPAR;}
 
 
 

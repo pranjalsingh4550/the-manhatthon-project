@@ -24,8 +24,10 @@
 %token COLON ":"
 %token COMMA ","
 %token CLASS "class"
-%token FUNCRET "->"
+%token FUNCRETTYPE "->"
 %token DEF "def"
+%token WHILE "while"
+%token FOR "for"
 
 %token BREAK "break"
 %token CONTINUE "continue"
@@ -38,6 +40,7 @@
 
 %token IF "if"
 %token ELSE "else"
+%token ELIF "elif"
 
 %token AND "and"
 %token OR "or"
@@ -81,6 +84,7 @@
 
 %token LPAR "("
 %token RPAR ")"
+%token BACKSLASH_LINEJOINING "\\"
 
 
 
@@ -106,11 +110,14 @@ stmt:  simple_stmt
 ;
 
 simple_stmt: small_stmt ";"  NEWLINE   
-	| small_stmt ";" COMMENT NEWLINE
 	| small_stmt NEWLINE
-	| small_stmt COMMENT NEWLINE
+	| small_stmt comment_newline
 	| small_stmt ";" simple_stmt 
-	/* | COMMENT NEWLINE */
+	| small_stmt ":" comment_newline
+	| comment_newline
+;
+
+comment_newline: COMMENT NEWLINE
 ;
 
 
@@ -222,11 +229,17 @@ atom : NAME
     | "False" 
     | "None" 
 
-classdef: "class" NAME ":" suite
-	| "class" NAME "(" arglist ")" ":" suite
-	| "class" NAME "(" ")" ":" suite
+if_stmt: if_block_left_factored
+	| if_block_left_factored "else" ":" suite
+	| if_block_left_factored elif_block "else" ":" suite
 
-;
+if_block_left_factored: "if" test ":" suite
+
+elif_block: "elif" ":" suite
+	| elif_block "elif" ":" suite
+
+while_stmt: "while" test ":" suite
+
 
 arglist: test | arglist "," test 
 
@@ -236,13 +249,31 @@ suite: simple_stmt
 funcdef: "def" NAME "(" arglist ")" "->" test ":" suite
 	| "def" NAME "(" ")" "->" test ":" suite
 
+
+classdef: "class" NAME ":" suite
+	| "class" NAME "(" arglist ")" ":" suite
+	| "class" NAME "(" ")" ":" suite
+/* TODO: comments between : and suite */
+ 
+/* LOOK HERE!
+func_class_prototype:
+	  NAME "(" arglist ")"
+	| NAME "(" ")"
+	/* factoring to avoid conflicts 
+
+funcdef: "def" func_class_prototype "->" test : suite
+classdef: "class" func_class_prototype ":" suite
+	| "class" NAME ":" suite
+*/
+
 compound_stmt: 
-	/* if_stmt { debugprintf ("if_stmt\n"); }
-	| while_stmt { debugprintf ("while_stmt\n"); }
-	| for_stmt { debugprintf ("for_stmt\n"); }
-	| funcdef */
-	classdef 
-	 /* | async_stmt { debugprintf ("async_stmt\n"); }  */
+	if_stmt
+	| while_stmt
+	/* | for_stmt { debugprintf ("for_stmt\n"); } */
+	| funcdef
+	/* classdef */
+
+/* TODO: ADD COMMENTS INSIDE COMPOUND STATEMENT ? */
 
 %%
 

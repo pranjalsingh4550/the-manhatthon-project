@@ -3,7 +3,7 @@ extern int yylex();
 
 int main(){
 	printf ("jhello\n");
-    yylex();
+	int ret = yylex();
     printf("\n");
-    return 0;
+    return ret; // for debugging
 }

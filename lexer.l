@@ -31,7 +31,6 @@ ignore [ \f]|{comments}
 
 %%
     {
-        printf ("hello yylex\n");
         if(indent_stack.empty())
         indent_stack.push(0);
         if(newline==1){
@@ -48,7 +47,6 @@ ignore [ \f]|{comments}
             printf("NICE\n");
             return DEDENT;
         }
-        printf ("bye yylex\n");
     }
 {emptyline}+ {printf("empty line\n");}
 \n([ \t]*\n)*[ \t]*   {

@@ -12,5 +12,5 @@ parser: clean
 	
 
 test: parser
-	./parser < input.py
+	./parser < testcases/public1.py
 	rm -f lexer lex.yy.c parser.t* parser

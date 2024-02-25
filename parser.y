@@ -15,7 +15,6 @@
 %union {
     int ival;
     char *sval;
-	int node_num ;
 }
 
 %token NEWLINE NAME INDENT

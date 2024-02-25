@@ -40,7 +40,7 @@ ignore [ \f\t]|{comments}
         }
     }
 {emptyline}+ 
-\n{ignore}*/\n
+\n{ignore}*/\n {printf("Comment\n");return yylex();}
 \n[ \t\f]*   {
     newline=1;
     int len=yyleng-1;

@@ -1,26 +1,4 @@
-if True:
-      
-      dasda                
-      
-else:
-      a
-
-
-a
-
-
-
-
+class fun:
     a=3
-if True:
-            
 
-
-
-                  set
-
-
-
-^[ \t\f]*
-else:
-      a=4
+b=3

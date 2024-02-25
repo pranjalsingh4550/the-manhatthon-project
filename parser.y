@@ -97,11 +97,15 @@
 
 %token<sval> COMMENT
 
-%start stmts
+%start input
 
 
 %%
-stmts : | stmts stmt 
+input : |
+	stmts
+
+stmts : 
+	stmt | stmts stmt 	
 
 ;
 
@@ -111,14 +115,9 @@ stmt:  simple_stmt
 
 simple_stmt: small_stmt ";"  NEWLINE   
 	| small_stmt NEWLINE
-	| small_stmt comment_newline
 	| small_stmt ";" simple_stmt 
-	| small_stmt ":" comment_newline
-	| comment_newline
 ;
 
-comment_newline: COMMENT NEWLINE
-;
 
 
 
@@ -133,14 +132,15 @@ small_stmt: expr_stmt
 	| nonlocal_stmt */
 ;
 expr_stmt: NAME  annassign
-	| test augassign test 
+	| test augassign test
+	| NAME "=" test 
 
 annassign: ":"  test "=" test
 | ":" test
 
 test: or_test "if" or_test "else" test  
 	| or_test 
-augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**=" 
+augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
 
 raise_stmt: "raise" | "raise" test maybe_from_test
 
@@ -244,13 +244,13 @@ while_stmt: "while" test ":" suite
 arglist: test | arglist "," test 
 
 suite: simple_stmt 
-	| NEWLINE INDENT stmts DEDENT
+	| NEWLINE  INDENT  stmts DEDENT  {printf("nice\n\n\n");}
 
 funcdef: "def" NAME "(" arglist ")" "->" test ":" suite
 	| "def" NAME "(" ")" "->" test ":" suite
 
 
-classdef: "class" NAME ":" suite
+classdef: "class" NAME ":"  suite
 	| "class" NAME "(" arglist ")" ":" suite
 	| "class" NAME "(" ")" ":" suite
 /* TODO: comments between : and suite */
@@ -269,11 +269,17 @@ classdef: "class" func_class_prototype ":" suite
 compound_stmt: 
 	if_stmt
 	| while_stmt
-	/* | for_stmt { debugprintf ("for_stmt\n"); } */
+	| for_stmt
 	| funcdef
-	classdef
+	| classdef
 
-/* TODO: ADD COMMENTS INSIDE COMPOUND STATEMENT ? */
+for_stmt: "for" exprlist "in" testlist ":" suite                                           
+        | "for" exprlist "," "in" testlist ":" suite                                       
+exprlist: xor_expr
+        | exprlist "," xor_expr
+testlist: arglist
+        | arglist ",";
+  
 
 %%
 

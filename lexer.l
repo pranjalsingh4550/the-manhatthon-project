@@ -6,6 +6,8 @@
     using namespace std;
     stack<int> indent_stack;
     int ded=0;
+    int newline=0;
+    int indent=0;
 #ifndef YYSTYPE
 #define YYSTYPE long
 #endif
@@ -21,17 +23,66 @@ comments #[^\r\n]*
 NAME [a-zA-Z_][a-zA-Z0-9_]*
 number [0-9]+
 dunder "__name__"|"__main__"|"__init__"
-
+emptyline ^[ \t]*\n
 string '[^'\\]*(?:\\.[^'\\]*)*'
-ignore [ \f]
+ignore [ \f]|{comments}
+
+%s multi
 
 %%
-    if(indent_stack.empty())
+    {
+        printf ("hello yylex\n");
+        if(indent_stack.empty())
         indent_stack.push(0);
-    if(ded>0){
-        ded--;
-        return DEDENT;
+        if(newline==1){
+            printf("woah\n");
+            newline=0;
+            return NEWLINE;
+        }
+        if(indent==1){
+            indent=0;
+            return INDENT;
+        }
+        if(ded>0){
+            ded--;
+            printf("NICE\n");
+            return DEDENT;
+        }
+        printf ("bye yylex\n");
     }
+{emptyline}+ {printf("empty line\n");}
+\n([ \t]*\n)*[ \t]*   {
+    newline=1;
+    int len=yyleng-1;
+    printf(" size =%d\n",len);
+    printf("indent_stack.top() =%d\n",indent_stack.top());
+    if(indent_stack.top()==len){}
+    else if(indent_stack.top()<len)
+    {
+        indent_stack.push(yyleng);
+        indent=1;
+    }
+    else
+    {
+        printf("yay\n");
+        ded=1;
+        indent_stack.pop();
+        printf("indent_stack.top() =%d\n",indent_stack.top());
+        printf("yyleng =%d\n",len);
+        while(indent_stack.top()>len)
+        {
+            ded++;
+            printf("DEDENT\n");
+            indent_stack.pop();
+        }
+        if(indent_stack.top()!=len)
+        {
+            cerr<<"Indentation Error"<<endl;
+            exit(1);
+        }
+    }
+    return yylex();
+}
 "break"	{return BREAK;}
 "continue"	{return CONTINUE;}
 "return"	{return RETURN;}
@@ -53,8 +104,6 @@ ignore [ \f]
 "def"	{return DEF;}
 "while"	{return WHILE;}
 "for"	{return FOR;}
-{comments}	{return COMMENT;}
-
 
 "==" 	{return EQEQUAL;}
 "!=" 	{return NOTEQUAL;}
@@ -109,33 +158,7 @@ ignore [ \f]
 True	{return TRUE;}
 False	{return FALSE;}
 None	{return NONE;}
-
 {NAME}	{return NAME;}
-^[\t ]*\n
-\n  {return NEWLINE;}
-^[\t ]+	{
-    if(indent_stack.top()==yyleng){return 0;}
-    else if(indent_stack.top()<yyleng)
-    {
-        indent_stack.push(yyleng);
-        return INDENT;
-    }
-    else
-    {
-        ded=1;
-        indent_stack.pop();
-        while(indent_stack.top()>yyleng)
-        {
-            ded++;
-            indent_stack.pop();
-        }
-        if(indent_stack.top()!=yyleng)
-        {
-            cerr<<"Indentation Error"<<endl;
-            exit(1);
-        }
-    }
-    indent_stack.push(yyleng);return INDENT;}
 {ignore}
 . {return yytext[0];}
 %%

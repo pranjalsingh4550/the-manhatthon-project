@@ -1,5 +1,5 @@
-hello =3
-class fun : 
-    hello =4; 
-print(hello); 
-print("nice");
+if True:
+    asdfasdf=3
+a=2
+infadsf=2
+b=3

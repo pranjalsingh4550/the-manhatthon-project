@@ -9,13 +9,30 @@
     int yyerror(const char *s);
 	extern void maketree (char* production, int count);
 	int nodecount = 0;
+	class Node {
+		public:
+		int nodeid;
+		string production;
+		vector<Node*> children;
+		Node (int id, string prod) {
+			nodeid = id;
+			production = prod;
+		}
+		void addchild (Node* child) {
+			children.push_back(child);
+		}
+		void printnode () {
+			cout << "Node id: " << nodeid << " Production: " << production << endl;
+			for (auto child: children) {
+				child->printnode();
+			}
+		}
+	};
+	}
 	#define YYDEBUG 1
 %}
 
-%union {
-    int ival;
-    char *sval;
-}
+%define api.value.type {Node*}
 
 %token NEWLINE NAME INDENT
 %token SEMI ";"

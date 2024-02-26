@@ -7,6 +7,23 @@
 
 if a: #comment
 	a += 1
+elif a-1:
+	a+= 1
+		#comment
+	if a==3:
+		if b==4:
+			if c==4:
+				pass
+		elif b==5:
+			b=6;
+#comment
+		else:
+			b=7
+	elif a ==5:
+		pass
+	else:
+		#comment
+		a=6
 else:
 	a += 1
 	a += 1

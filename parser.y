@@ -258,6 +258,7 @@ STRING_plus: STRING
 trailer: "." NAME
 	| "[" testlist "]"
 	| "(" testlist ")"
+	| "(" ")"
 
 if_stmt: if_block_left_factored		{$$ = $1 ;}
 	| if_block_left_factored "else" ":" suite	{ $$ = new Node ("if_else"); $$->addchild($1); $$->addchild($4);}
@@ -269,7 +270,8 @@ if_block_left_factored: "if" test ":" suite { $$ = new Node ("if"); $$->addchild
 while_stmt: "while" test ":" suite
 
 
-arglist: test | arglist "," test 
+arglist:  test 
+	| arglist "," test 
 
 suite: simple_stmt { $$ = $1;}
 	| NEWLINE  INDENT  stmts DEDENT {$$=$3;} 

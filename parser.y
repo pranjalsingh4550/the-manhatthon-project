@@ -29,9 +29,7 @@
 %token <node> BREAK "break"
 %token <node> CONTINUE "continue"
 %token <node> RETURN "return"
-%token <node> PASS "pass"
-%token <node> ASSERT "assert"
-%token <node> RAISE "raise"
+%token <node> PASS "pass"	
 
 %token <node> FROM "from"
 
@@ -101,7 +99,7 @@
 
 %token <node> ENDMARKER
 
-%type <node> stmts stmt simple_stmt small_stmt expr_stmt annassign test augassign raise_stmt  assert_stmt return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt if_block_left_factored while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer
+%type <node> stmts stmt simple_stmt small_stmt expr_stmt annassign test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt if_block_left_factored while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer
 
 
 
@@ -121,24 +119,22 @@ stmts :
 ;
 
 stmt:  simple_stmt { $$ = $1;}
-	| compound_stmt 
+	| compound_stmt { $$ = $1;}
 ;
 
-simple_stmt: small_stmt ";"  NEWLINE   
-	| small_stmt[left] NEWLINE[right] {$$ = new Node ("Small_stmt_NEWLINE"); $$->addchild($left);}
-	| small_stmt ";" simple_stmt 
+simple_stmt: small_stmt ";"  NEWLINE   {$3=new Node("NEWLINE");$$ = new Node ("SEMI"); $$->addchild($1);$$->addchild($3);}
+	| small_stmt[left] NEWLINE[right] {$2=new Node("NEWLINE");$$ = new Node ("Small_stmt_NEWLINE"); $$->addchild($left);$$->addchild($right);}
+	| small_stmt ";" simple_stmt {$$ = new Node ("SEMI"); $$->addchild($1);$$->addchild($3);}
 ;
 
 
 
 
 small_stmt: expr_stmt { $$ = $1;}
-	| return_stmt 
-	|  raise_stmt 
-	| "break"
-	| "continue"
-	| "pass"
-	| assert_stmt
+	| return_stmt { $$ = $1;}
+	| "break" {$$=$1;}
+	| "continue" {$$=$1;}
+	| "pass" {$$=$1;}
 	/* | global_stmt
 	| nonlocal_stmt */
 ;
@@ -147,7 +143,11 @@ expr_stmt: NAME annassign {
 			$$->addchild($1);
 			$$->addchild($2);	
 			 }
-	| test augassign test
+	| test augassign test { 
+			$$ = new Node ("operation");
+			$$->addchild($1);
+			$$->addchild($3);
+	}
 	| test "=" test {
 			$$ = new Node ("simple_assignment");
 			$$->addchild($1);
@@ -160,20 +160,25 @@ annassign: ":"  test "=" test {
 			$$->addchild($2);
 			$$->addchild($4);
 		}
-	| ":" test
+	| ":" test {
+			$$ = new Node ("Annotated_declaration");
+			$$->addchild($2);
+	}
 
-test: or_test "if" or_test "else" test  
+test: or_test "if" or_test "else" test {
+		$$ = new Node ("inline_if_else");
+		$$->addchild($1);
+		$$->addchild($3);
+		$$->addchild($5);
+	}
 	| or_test { $$=$1;}
 augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
-
-raise_stmt: "raise" | "raise" test "from" test |"raise" test 
 
 
 /* global_stmt: "global"  arglist
 
 nonlocal_stmt: "nonlocal"  arglist */
 
-assert_stmt: "assert" test 
 
 return_stmt: "return" test 
 	| "return"

@@ -14,6 +14,10 @@ class Node {
 		// 	children = other.children;
 		// 	return *this;
 		// }
+		Node(int x,const char *y){
+			nodeid = x;
+			production = y;
+		}
 		Node (const char *label) {
 			nodeid = nodecount ++;
 			production = label;

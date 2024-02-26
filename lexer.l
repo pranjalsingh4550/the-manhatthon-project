@@ -78,12 +78,10 @@ ignore2	\n[ \f\t]*{comments}?
     return yylex();
 }
 
-"break"	{return BREAK;}
-"continue"	{return CONTINUE;}
-"return"	{return RETURN;}
-"pass"	{return PASS;}
-"raise"	{return RAISE;}
-"assert"	{return ASSERT;}
+"break"	{yylval.node=new Node(yytext);return BREAK;}
+"continue"	{yylval.node=new Node(yytext);return CONTINUE;}
+"return"	{yylval.node=new Node(yytext);return RETURN;}
+"pass"	{yylval.node=new Node(yytext);return PASS;}
 
 "from"	{return FROM;}
 
@@ -120,7 +118,7 @@ ignore2	\n[ \f\t]*{comments}?
 "="	{return EQUAL;}
 ","	{return COMMA;}
 
-"+"	{return PLUS;}
+"+"	{yylval.node=new Node(0,yytext);return PLUS;}
 "-"	{return MINUS;}
 "*"	{return STAR;}
 "/"	{return SLASH;}
@@ -128,18 +126,18 @@ ignore2	\n[ \f\t]*{comments}?
 "//"	{return DOUBLESLASH;}
 "**"	{return DOUBLESTAR;}
 
-"+="	{return PLUSEQUAL;}
-"-="	{return MINEQUAL;}
-"*="	{return STAREQUAL;}
-"/="	{return SLASHEQUAL;}
-"//="	{return DOUBLESLASHEQUAL;}
-"%="	{return PERCENTEQUAL;}
-"**="	{return DOUBLESTAREQUAL;}
-"&="	{return AMPEREQUAL;}
-"|="	{return VBAREQUAL;}
-"^="	{return CIRCUMFLEXEQUAL;}
-">>="	{return RIGHTSHIFTEQUAL;}
-"<<="	{return LEFTSHIFTEQUAL;}
+"+="	{yylval.node=new Node(0,yytext);return PLUSEQUAL;}
+"-="	{yylval.node=new Node(0,yytext);return MINEQUAL;}
+"*="	{yylval.node=new Node(0,yytext);return STAREQUAL;}
+"/="	{yylval.node=new Node(0,yytext);return SLASHEQUAL;}
+"//="	{yylval.node=new Node(0,yytext);return DOUBLESLASHEQUAL;}
+"%="	{yylval.node=new Node(0,yytext);return PERCENTEQUAL;}
+"**="	{yylval.node=new Node(0,yytext);return DOUBLESTAREQUAL;}
+"&="	{yylval.node=new Node(0,yytext);return AMPEREQUAL;}
+"|="	{yylval.node=new Node(0,yytext);return VBAREQUAL;}
+"^="	{yylval.node=new Node(0,yytext);return CIRCUMFLEXEQUAL;}
+">>="	{yylval.node=new Node(0,yytext);return RIGHTSHIFTEQUAL;}
+"<<="	{yylval.node=new Node(0,yytext);return LEFTSHIFTEQUAL;}
 "->"	{return RARROW;}
 "("	{return LPAR;}
 ")"	{return RPAR;}

@@ -314,13 +314,13 @@ testlist: arglist
 int main(int argc, char* argv[]){
 	fprintf(graph, "strict digraph ast {\n");
 	yydebug = 1 ;
-	yyparse();
 	if (argv[1] && argv[1][0] == 'n')
 		yydebug = 0;
 	if (argc >2 && argv[2] && argv[2][0]) {
 		graph = fopen (argv[2], "w+");
 		fprintf (graph, "strict digraph ast {\n");
 	}
+	yyparse();
 	if (graph) {
 		fprintf (graph, "}\n");
 		fclose (graph);

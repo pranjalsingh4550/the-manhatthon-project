@@ -5,6 +5,11 @@
 #     def baby():
 #         print("baby")
 
+if a: #comment
+	a += 1
+else:
+	a += 1
+	a += 1
 
 
 def func():

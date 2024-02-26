@@ -3,6 +3,9 @@
 %{
     #include<bits/stdc++.h> 
     #include "parser.tab.h"
+    #include "classes.h"
+    extern int nodecount;
+    extern FILE* graph;
     using namespace std;
     stack<int> indent_stack;
     int ded=0;
@@ -41,7 +44,7 @@ ignore [ \f\t]|{comments}
         }
     }
 {emptyline}+ 
-\n{ignore}*/\n {printf("Comment\n");return yylex();}
+\n{ignore}*/\n {}
 \n[ \t\f]*   {
     newline=1;
     int len=yyleng-1;
@@ -134,19 +137,19 @@ ignore [ \f\t]|{comments}
 "("	{return LPAR;}
 ")"	{return RPAR;}
 "[" {return LSQB;}
-"]" {return RSQB;}
+"]" {yylval.node=new Node("]");return RSQB;}
 "." {return DOT;}
 
 
 
 
-[1-9]{number}*|0	{return NUMBER;}
+[1-9]{number}*|0	{yylval.node=new Node(yytext);return NUMBER;}
 {number}	{cerr<<"leading zeros in decimal integer literals are not permitted"<<endl;exit(1);}
 {string}	{return STRING;}
 True	{return TRUE;}
 False	{return FALSE;}
 None	{return NONE;}
-{NAME}	{return NAME;}
+{NAME}	{yylval.node=new Node(yytext);return NAME;}
 {ignore}
 <INITIAL><<EOF>>	{BEGIN(end);return ENDMARKER;}
 . {return yytext[0];}

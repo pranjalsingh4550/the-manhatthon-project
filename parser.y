@@ -1,7 +1,9 @@
 %{
     #include<bits/stdc++.h>
-    using namespace std;
-	FILE* graph = NULL;   
+	#include"classes.h"
+    using namespace std; 
+	int nodecount=0;
+	FILE* graph = fopen ("ast.dot", "w+"); 
     extern int yylex();
     extern int yyparse();
     extern void debugprintf (const char *) ;
@@ -9,36 +11,6 @@
 	extern char *yytext;
     int yyerror(const char *s);
 	extern void maketree (char* production, int count);
-	int nodecount = 0;
-	class Node {
-		public:
-		int nodeid;
-		string production;
-		vector<struct Node*> children;
-		// Node operator=(const Node& other) {
-		// 	nodeid = other.nodeid;
-		// 	production = other.production;
-		// 	children = other.children;
-		// 	return *this;
-		// }
-		Node (const char *label) {
-			nodeid = nodecount ++;
-			production = label;
-			if (graph)
-				fprintf (graph, "\tnode%d [label=%s];\n", nodeid, label);
-		}
-		void addchild (Node* child) {
-			children.push_back(child);
-			if (graph)
-				fprintf (graph, "\tnode%d -> node%d;\n", this->nodeid, child->nodeid);
-		}
-		void printnode () {
-			cout << "Node id: " << nodeid << " Production: " << production << endl;
-			for (auto child: children) {
-				child->printnode();
-			}
-		}
-	};
 	#define YYDEBUG 1
 %}
 
@@ -138,27 +110,27 @@
 
 %%
 input : ENDMARKER|
-	stmts ENDMARKER
+	stmts ENDMARKER 
 
 stmts : 
-	stmt
-	| stmts stmt 	
+	stmt {$$=$1;}
+	| stmts stmt { $$ = new Node ("stmts"); $$->addchild($1); $$->addchild($2);}
 
 ;
 
-stmt:  simple_stmt 
+stmt:  simple_stmt { $$ = $1;}
 	| compound_stmt 
 ;
 
 simple_stmt: small_stmt ";"  NEWLINE   
-	| small_stmt NEWLINE
+	| small_stmt[left] NEWLINE[right] {$$ = new Node ("Small_stmt_NEWLINE"); $$->addchild($left);}
 	| small_stmt ";" simple_stmt 
 ;
 
 
 
 
-small_stmt: expr_stmt 
+small_stmt: expr_stmt { $$ = $1;}
 	| return_stmt 
 	|  raise_stmt 
 	| "break"
@@ -168,15 +140,23 @@ small_stmt: expr_stmt
 	/* | global_stmt
 	| nonlocal_stmt */
 ;
-expr_stmt: NAME  annassign
+expr_stmt: NAME annassign { 
+			$$ = new Node ("expr_stmt");
+			$$->addchild($1);
+			$$->addchild($2);	
+			 }
 	| test augassign test
 	| test "=" test 
 
-annassign: ":"  test "=" test
-| ":" test
+annassign: ":"  test "=" test {
+			$$ = new Node ("Anotated_Assignment");
+			$$->addchild($2);
+			$$->addchild($4);
+		}
+	| ":" test
 
 test: or_test "if" or_test "else" test  
-	| or_test 
+	| or_test { $$=$1;}
 augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
 
 raise_stmt: "raise" | "raise" test "from" test |"raise" test 
@@ -191,15 +171,15 @@ assert_stmt: "assert" test
 return_stmt: "return" test 
 	| "return"
 
-or_test : and_test  
+or_test : and_test  { $$=$1;}
 	| or_test "or" and_test 
 
-and_test : not_test 
+and_test : not_test { $$=$1;}
 	| and_test "and" not_test 
-not_test : comparison  
+not_test : comparison { $$=$1;} 
 	| "not" not_test 
 
-comparison: expr  
+comparison: expr  { $$=$1;}
 	| comparison compare_op_bitwise_or_pair 
 
 compare_op_bitwise_or_pair: eq_bitwise_or 
@@ -224,42 +204,43 @@ in_bitwise_or: "in" expr
 notin_bitwise_or: "not" "in" expr
 isnot_bitwise_or: "is" "not" expr 
 
-expr: xor_expr  
+expr: xor_expr  { $$=$1;}
 	| expr "|" xor_expr 
 
-xor_expr: ans_expr 
+xor_expr: ans_expr { $$=$1;}
 	| xor_expr "^" ans_expr 
 
-ans_expr: shift_expr  
+ans_expr: shift_expr  { $$=$1;}
 	| ans_expr "&" shift_expr 
 
-shift_expr: sum  
+shift_expr: sum  { $$=$1;	}
 	| shift_expr "<<" sum  
 	| shift_expr ">>" sum 
 
 sum : sum "+" term  
 	| sum "-" term 
-	| term 
+	| term { $$=$1;}
 
 term: term "*" factor 
 	| term "/" factor  
 	| term "%" factor 
 	| term DOUBLESLASH factor 
-	|factor  
+	|factor  { $$=$1;}
 
 factor: "+" factor 
 	| "-" factor 
 	| "~" factor 
-	| power 
+	| power { $$=$1;}
 
-power: primary
+power: primary	{$$=$1;}
 	| primary "**" factor 
 
-primary: atom | primary trailer 
+primary: atom {$$=$1;}
+	| primary trailer 
 
 
-atom: NAME 
-    | NUMBER 
+atom: NAME {$$=$1;}
+    | NUMBER {$$=$1;}
     | STRING_plus 
     | "True" 
     | "False" 
@@ -273,7 +254,7 @@ trailer: "." NAME
 	| "(" testlist ")"
 
 if_stmt: if_block_left_factored		{$$ = new Node ("if"); }
-	| if_block_left_factored "else" ":" suite	{ $$ = new Node ("if-else"); }
+	| if_block_left_factored "else" ":" suite	{ $$ = new Node ("if_else"); }
 	| if_block_left_factored elif_block "else" ":" suite
 
 if_block_left_factored: "if" test ":" suite
@@ -327,14 +308,15 @@ testlist: arglist
 %%
 
 int main(int argc, char* argv[]){
+	fprintf(graph, "strict digraph ast {\n");
 	yydebug = 1 ;
+	yyparse();
 	if (argv[1] && argv[1][0] == 'n')
 		yydebug = 0;
 	if (argc >2 && argv[2] && argv[2][0]) {
 		graph = fopen (argv[2], "w+");
 		fprintf (graph, "strict digraph ast {\n");
 	}
-    yyparse();
 	if (graph) {
 		fprintf (graph, "}\n");
 		fclose (graph);

@@ -43,7 +43,7 @@ ignore [ \f\t]|{comments}
             return DEDENT;
         }
     }
-\n{ignore}*/\n {printf("middle\n");}
+\n{ignore}*/\n {}
 \n[ \t\f]*   {
     cout<<"line no: "<<yylineno<<endl;
     newline=1;
@@ -137,7 +137,7 @@ ignore [ \f\t]|{comments}
 "("	{return LPAR;}
 ")"	{return RPAR;}
 "[" {return LSQB;}
-"]" {yylval.node=new Node("]");return RSQB;}
+"]" {return RSQB;}
 "." {return DOT;}
 
 
@@ -145,7 +145,7 @@ ignore [ \f\t]|{comments}
 
 [1-9]{number}*|0	{yylval.node=new Node(yytext);return NUMBER;}
 {number}	{cerr<<"leading zeros in decimal integer literals are not permitted"<<endl;exit(1);}
-{string}	{return STRING;}
+{string}	{ yylval.node=new Node(yytext);return STRING;}
 True	{return TRUE;}
 False	{return FALSE;}
 None	{return NONE;}

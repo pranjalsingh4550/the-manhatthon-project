@@ -12,8 +12,8 @@ else:
 	a += 1
 
 
-def func():
-    k=arm()
+def func()->str:
+    k=arm
 
 
 
@@ -21,18 +21,9 @@ def func():
 
 
 
-def fun():
-<<<<<<< HEAD
-    day=int()
- day=month=4
-    k=arm;
-    k.c=3
-    k=day=month
-=======
+def fun() -> float:
     day:int;
     month:int;
-    t:str = "adsfdasf\asdfasdf"
->>>>>>> 83fd91b (Co-authored-by: pranjalsingh4550 <pranjalsingh4550@users.noreply.github.com>)
     print(k.c)
     year=int();
     hour=int()
@@ -50,3 +41,4 @@ def fun():
     #testing method having method/data attribute
 
 print(fun())
+t:str = "adsfdasf\asdfasdf"

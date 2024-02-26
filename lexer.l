@@ -24,12 +24,14 @@ dunder "__name__"|"__main__"|"__init__"
 emptyline ^[ \t\f]*\n
 string '[^'\\]*(?:\\.[^'\\]*)*'
 ignore [ \f\t]|{comments}
+ignore2	\n[ \f\t]*{comments}?
 
 %s end
 %%
     { 
+	// fprintf (stderr, "YYLEX call %d %d %d\n", newline, indent, ded);
         if(indent_stack.empty())
-        indent_stack.push(0);
+		indent_stack.push(0);
         if(newline==1){
             newline=0;
             return NEWLINE;
@@ -43,15 +45,18 @@ ignore [ \f\t]|{comments}
             return DEDENT;
         }
     }
-\n{ignore}*/\n {}
+
+{ignore2}+/\n	{ fprintf (stderr, "ignore2 block length %d\n", yyleng); }
+\n{ignore}*/\n {printf("middle\n");}
 \n[ \t\f]*   {
-    cout<<"line no: "<<yylineno<<endl;
     newline=1;
     int len=yyleng-1;
-    if(indent_stack.top()==len){}
-    else if(indent_stack.top()<len)
+    cerr<<"Non-empty line: line no: "<<yylineno << " whitespace length excluding preceding newline"<< len <<endl;
+    if(indent_stack.top()==len){
+    	cerr << "Line " << yylineno << " at same indent level\n" ;
+    } else if(indent_stack.top()<len)
     {
-        indent_stack.push(yyleng);
+        indent_stack.push(len);
         indent=1;
     }
     else
@@ -71,6 +76,7 @@ ignore [ \f\t]|{comments}
     }
     return yylex();
 }
+
 "break"	{return BREAK;}
 "continue"	{return CONTINUE;}
 "return"	{return RETURN;}
@@ -137,7 +143,7 @@ ignore [ \f\t]|{comments}
 "("	{return LPAR;}
 ")"	{return RPAR;}
 "[" {return LSQB;}
-"]" {return RSQB;}
+"]" {yylval.node=new Node("]");return RSQB;}
 "." {return DOT;}
 
 
@@ -145,7 +151,7 @@ ignore [ \f\t]|{comments}
 
 [1-9]{number}*|0	{yylval.node=new Node(yytext);return NUMBER;}
 {number}	{cerr<<"leading zeros in decimal integer literals are not permitted"<<endl;exit(1);}
-{string}	{ yylval.node=new Node(yytext);return STRING;}
+{string}	{return STRING;}
 True	{return TRUE;}
 False	{return FALSE;}
 None	{return NONE;}

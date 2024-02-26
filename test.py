@@ -1,10 +1,3 @@
-# class arm:
-#     weight=12
-#     def __init__(self):
-#         print("arm created")
-#     def baby():
-#         print("baby")
-
 if a: #comment
 	a += 1
 elif a-1:

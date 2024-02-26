@@ -22,7 +22,7 @@ NAME [a-zA-Z_][a-zA-Z0-9_]*
 number [0-9]+
 dunder "__name__"|"__main__"|"__init__"
 emptyline ^[ \t\f]*\n
-string '[^'\\]*(?:\\.[^'\\]*)*'
+string \"[^\"]*\"|'[^']*'
 ignore [ \f\t]|{comments}
 ignore2	\n[ \f\t]*{comments}?
 
@@ -47,7 +47,8 @@ ignore2	\n[ \f\t]*{comments}?
     }
 
 {ignore2}+/\n	{ fprintf (stderr, "ignore2 block length %d\n", yyleng); }
-\n{ignore}*/\n {printf("middle\n");}
+ /* \n{ignore}* /\n {printf("middle\n");} */
+\\{ignore}*\n
 \n[ \t\f]*   {
     newline=1;
     int len=yyleng-1;
@@ -146,9 +147,6 @@ ignore2	\n[ \f\t]*{comments}?
 "]" {yylval.node=new Node("]");return RSQB;}
 "." {return DOT;}
 
-
-
-
 [1-9]{number}*|0	{yylval.node=new Node(yytext);return NUMBER;}
 {number}	{cerr<<"leading zeros in decimal integer literals are not permitted"<<endl;exit(1);}
 {string}	{return STRING;}
@@ -158,5 +156,5 @@ None	{return NONE;}
 {NAME}	{yylval.node=new Node(yytext);return NAME;}
 {ignore}
 <INITIAL><<EOF>>	{BEGIN(end);return ENDMARKER;}
-. {return yytext[0];}
+. {cout<<yytext<<endl;return yytext[0];}
 %%

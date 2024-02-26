@@ -153,6 +153,7 @@ expr_stmt: NAME annassign {
 			$$->addchild($1);
 			$$->addchild($3);
 	}
+	|	test
 
 annassign: ":"  test "=" test {
 			$$ = new Node ("Anotated_Assignment");

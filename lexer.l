@@ -22,6 +22,7 @@ emptyline ^[ \t\f]*\n
 string '[^'\\]*(?:\\.[^'\\]*)*'
 ignore [ \f\t]|{comments}
 
+%s end
 %%
     {
         if(indent_stack.empty())
@@ -129,7 +130,7 @@ ignore [ \f\t]|{comments}
 "^="	{return CIRCUMFLEXEQUAL;}
 ">>="	{return RIGHTSHIFTEQUAL;}
 "<<="	{return LEFTSHIFTEQUAL;}
-"->"	{return FUNCRETTYPE;}
+"->"	{return RARROW;}
 "("	{return LPAR;}
 ")"	{return RPAR;}
 "[" {return LSQB;}
@@ -147,5 +148,6 @@ False	{return FALSE;}
 None	{return NONE;}
 {NAME}	{return NAME;}
 {ignore}
+<INITIAL><<EOF>>	{BEGIN(end);return ENDMARKER;}
 . {return yytext[0];}
 %%

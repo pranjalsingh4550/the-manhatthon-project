@@ -1,4 +1,1 @@
-class fun:
-    a=3
-
-b=3
+a:int =3

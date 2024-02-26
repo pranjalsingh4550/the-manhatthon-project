@@ -48,15 +48,8 @@
 }
 
 %token <node> NEWLINE NAME INDENT DEDENT
-%token <node> SEMI ";"
-%token <node> EQUAL "="
-%token <node> COLON ":"
-%token <node> COMMA ","
-%token <node> LSQB "["
-%token <node> RSQB "]"
-%token <node> DOT "."
+%token <node> RARROW "->"
 %token <node> CLASS "class"
-%token <node> FUNCRETTYPE "->"
 %token <node> DEF "def"
 %token <node> WHILE "while"
 %token <node> FOR "for"
@@ -78,6 +71,13 @@
 %token <node> OR "or"
 %token <node> NOT  "not"
 
+%token <node> SEMI ";"
+%token <node> EQUAL "="
+%token <node> COLON ":"
+%token <node> COMMA ","
+%token <node> LSQB "["
+%token <node> RSQB "]"
+%token <node> DOT "."
 %token <node> EQEQUAL "=="
 %token <node> NOTEQUAL "!="
 %token <node> LESS "<"
@@ -127,6 +127,7 @@
 %token <node> FALSE "False"
 %token <node> NONE "None"
 
+%token <node> ENDMARKER
 
 %type <node> stmts stmt simple_stmt small_stmt expr_stmt annassign test augassign raise_stmt  assert_stmt return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt if_block_left_factored elif_block while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer
 
@@ -136,8 +137,8 @@
 
 
 %%
-input : |
-	stmts
+input : ENDMARKER|
+	stmts ENDMARKER
 
 stmts : 
 	stmt

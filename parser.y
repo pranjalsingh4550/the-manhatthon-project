@@ -101,7 +101,7 @@
 
 %token <node> ENDMARKER
 
-%type <node> stmts stmt simple_stmt small_stmt expr_stmt annassign test augassign raise_stmt  assert_stmt return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt if_block_left_factored elif_block while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer
+%type <node> stmts stmt simple_stmt small_stmt expr_stmt annassign test augassign raise_stmt  assert_stmt return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt if_block_left_factored while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer
 
 
 
@@ -109,7 +109,9 @@
 
 
 %%
-input : ENDMARKER|
+input: start|NEWLINE input
+
+start : ENDMARKER|
 	stmts ENDMARKER 
 
 stmts : 
@@ -146,7 +148,11 @@ expr_stmt: NAME annassign {
 			$$->addchild($2);	
 			 }
 	| test augassign test
-	| test "=" test 
+	| test "=" test {
+			$$ = new Node ("simple_assignment");
+			$$->addchild($1);
+			$$->addchild($3);
+	}
 
 annassign: ":"  test "=" test {
 			$$ = new Node ("Anotated_Assignment");
@@ -253,22 +259,20 @@ trailer: "." NAME
 	| "[" testlist "]"
 	| "(" testlist ")"
 
-if_stmt: if_block_left_factored		{$$ = new Node ("if"); }
-	| if_block_left_factored "else" ":" suite	{ $$ = new Node ("if_else"); }
-	| if_block_left_factored elif_block "else" ":" suite
+if_stmt: if_block_left_factored		{$$ = $1 ;}
+	| if_block_left_factored "else" ":" suite	{ $$ = new Node ("if_else"); $$->addchild($1); $$->addchild($4);}
 
-if_block_left_factored: "if" test ":" suite
+if_block_left_factored: "if" test ":" suite { $$ = new Node ("if"); $$->addchild($2); $$->addchild($4);}
+	| if_block_left_factored "elif" test ":" suite { $$ = new Node ("if_elif"); $$->addchild($1); $$->addchild($3); $$->addchild($5);}
 
-elif_block: "elif" test ":" suite
-	| elif_block "elif" test ":" suite
 
 while_stmt: "while" test ":" suite
 
 
 arglist: test | arglist "," test 
 
-suite: simple_stmt 
-	| NEWLINE  INDENT  stmts DEDENT 
+suite: simple_stmt { $$ = $1;}
+	| NEWLINE  INDENT  stmts DEDENT {$$=$3;} 
 
 funcdef: "def" NAME "(" arglist ")" "->" test ":" suite
 	| "def" NAME "(" ")" "->" test ":" suite

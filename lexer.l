@@ -27,7 +27,7 @@ ignore [ \f\t]|{comments}
 
 %s end
 %%
-    {
+    { 
         if(indent_stack.empty())
         indent_stack.push(0);
         if(newline==1){
@@ -43,9 +43,9 @@ ignore [ \f\t]|{comments}
             return DEDENT;
         }
     }
-{emptyline}+ 
-\n{ignore}*/\n {}
+\n{ignore}*/\n {printf("middle\n");}
 \n[ \t\f]*   {
+    cout<<"line no: "<<yylineno<<endl;
     newline=1;
     int len=yyleng-1;
     if(indent_stack.top()==len){}

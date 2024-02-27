@@ -10,7 +10,6 @@
     extern int yylineno;
 	extern char *yytext;
     int yyerror(const char *s);
-	extern void maketree (char* production, int count);
 	#define YYDEBUG 1
 %}
 
@@ -279,15 +278,18 @@ while_stmt: "while" test ":" suite
 arglist:  test 
 	| arglist "," test 
 
+typedarglist:  test ":" test
+	| typedarglist "," test ":" test
+
 suite: simple_stmt { $$ = $1;}
 	| NEWLINE  INDENT  stmts DEDENT {$$=$3;} 
 
-funcdef: "def" NAME "(" arglist ")" "->" test ":" suite
+funcdef: "def" NAME "(" typedarglist ")" "->" test ":" suite
 	| "def" NAME "(" ")" "->" test ":" suite
 
 
 classdef: "class" NAME ":"  suite
-	| "class" NAME "(" arglist ")" ":" suite
+	| "class" NAME "(" typedarglist ")" ":" suite
 	| "class" NAME "(" ")" ":" suite
 /* TODO: comments between : and suite */
  
@@ -328,13 +330,13 @@ tfpdef: NAME | NAME ":" test
 int main(int argc, char* argv[]){
 	fprintf(graph, "strict digraph ast {\n");
 	yydebug = 1 ;
-	yyparse();
 	if (argv[1] && argv[1][0] == 'n')
 		yydebug = 0;
 	if (argc >2 && argv[2] && argv[2][0]) {
 		graph = fopen (argv[2], "w+");
 		fprintf (graph, "strict digraph ast {\n");
 	}
+	yyparse();
 	if (graph) {
 		fprintf (graph, "}\n");
 		fclose (graph);
@@ -345,31 +347,4 @@ int main(int argc, char* argv[]){
 int yyerror(const char *s){
     cout<<"Error: "<<s<<" at line number: "<<yylineno<<endl;
     return 0;
-}
-
-void debugprintf ( const char *msg) {
-	fprintf (stderr, msg, 44);
-	return ;
-}
-
-// usage - initialise an array of size count
-void maketree (char* production, int count, int n[]) {
-	char * cur = production;
-	FILE* out = stdout;
-	int ctr;
-	fprintf (out,"// NEW PRODUCTION %d %s\n// ", count, production);
-	for (ctr = 0; ctr < count; ctr ++ ) {
-		while (*cur == ' ') cur++ ; // move to first non-space character
-		if (*cur == '\n') break ;
-		fprintf (out, "child node %d:\t",ctr);
-		while (*cur != ' ' && *cur != '\n') {
-			fprintf (out, "%c", *cur);
-			cur ++;
-		}
-		fprintf (out, "\n// node_%d", n[ctr]);
-		fprintf (out, "nodecount -> node_%d\n", n[ctr]);
-	}
-	fprintf (out,"// END OF PRODUCTION %d %s\n", count, production);
-	
-	return ;
 }

@@ -46,15 +46,15 @@ ignore2	\n[ \f\t]*{comments}?
         }
     }
 
-{ignore2}+/\n	{ fprintf (stderr, "ignore2 block length %d\n", yyleng); }
+{ignore2}+/\n	{ /* fprintf (stderr, "ignore2 block length %d\n", yyleng);*/ ; }
  /* \n{ignore}* /\n {printf("middle\n");} */
 \\{ignore}*\n
 \n[ \t\f]*   {
     newline=1;
     int len=yyleng-1;
-    cerr<<"Non-empty line: line no: "<<yylineno << " whitespace length excluding preceding newline"<< len <<endl;
+    /* cerr<<"Non-empty line: line no: "<<yylineno << " whitespace length excluding preceding newline"<< len <<endl;*/ ;
     if(indent_stack.top()==len){
-    	cerr << "Line " << yylineno << " at same indent level\n" ;
+    	/* cerr << "Line " << yylineno << " at same indent level\n" ;*/ ;
     } else if(indent_stack.top()<len)
     {
         indent_stack.push(len);
@@ -71,7 +71,7 @@ ignore2	\n[ \f\t]*{comments}?
         }
         if(indent_stack.top()!=len)
         {
-            cerr<<"Indentation Error"<<endl;
+           /* cerr<<"Indentation Error"<<endl;*/ ;
             exit(1);
         }
     }

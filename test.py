@@ -3,15 +3,21 @@ if a: #comment
 elif a-1:
 	a+= 1
 		#comment
+	a+= 1
+	a+= 1
+	aA+= 1; 44
 	if a==3:
 		if b==4:
 			if c==4:
+				pass
+				pass
 				pass
 		elif b==5:
 			b=6;
 #comment
 		else:
 			b=7
+			
 	elif a ==5:
 		pass
 	else:
@@ -31,7 +37,7 @@ def func()->str:
 
 
 
-def fun() -> float:
+def fun(a:int) -> float:
     day:int;
     month:int;
     print(k.c)

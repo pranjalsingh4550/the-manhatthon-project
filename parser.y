@@ -315,6 +315,12 @@ exprlist: xor_expr
         | exprlist "," xor_expr
 testlist: arglist
         | arglist ",";
+
+arguments: argument | arguments "," argument
+
+argument: tfpdef | tfpdef "=" test
+
+tfpdef: NAME | NAME ":" test
   
 
 %%

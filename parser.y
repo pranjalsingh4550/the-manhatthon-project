@@ -98,7 +98,7 @@
 
 %token <node> ENDMARKER
 
-%type <node> stmts stmt simple_stmt small_stmt expr_stmt annassign test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt if_block_left_factored while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist
+%type <node> stmts stmt simple_stmt small_stmt expr_stmt annassign test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist elif_block
 
 
 
@@ -109,8 +109,7 @@
 input: start 
 	|NEWLINE input { /* assuming no production needed */ }
 
-start : ENDMARKER|
-	stmts ENDMARKER 
+start : |	stmts 
 
 stmts : 
 	stmt
@@ -148,8 +147,8 @@ expr_stmt: NAME annassign {
 	}
 	| test "=" test {
 			$$ = new Node ("simple_assignment");
-			$$->addchild($1);
-			$$->addchild($3);
+			$$->addchild($1,"write");
+			$$->addchild($3,"read");
 	}
 	|	test
 
@@ -199,16 +198,16 @@ compare_op_bitwise_or_pair: eq_bitwise_or
 	| notin_bitwise_or 
 	| isnot_bitwise_or 
 
-eq_bitwise_or: "==" expr {$$ = new Node("Equal_comparision;");$$->addchild($2);}
-noteq_bitwise_or: "!=" expr {$$ = new Node("Not_Equal_comparision;"); $$->addchild($2);}
-lt_bitwise_or: "<" expr {$$ = new Node("Less_than_comparision;");$$->addchild($2);}
-lte_bitwise_or: "<=" expr {$$ = new Node("Less_than_or_equal_comparision;");$$->addchild($2);}
-gt_bitwise_or: ">" expr {$$ = new Node("Greater_than_comparision;");$$->addchild($2);}
-gte_bitwise_or: ">=" expr {$$ = new Node("Greater_than_or_equal_comparision;");$$->addchild($2);}
+eq_bitwise_or: "==" expr {$$ = new Node("==");$$->addchild($2);}
+noteq_bitwise_or: "!=" expr {$$ = new Node("!="); $$->addchild($2);}
+lt_bitwise_or: "<" expr {$$ = new Node("<");$$->addchild($2);}
+lte_bitwise_or: "<=" expr {$$ = new Node("<=");$$->addchild($2);}
+gt_bitwise_or: ">" expr {$$ = new Node(">");$$->addchild($2);}
+gte_bitwise_or: ">=" expr {$$ = new Node(">=");$$->addchild($2);}
 is_bitwise_or: "is" expr {$$ = new Node("is");$$->addchild($2);}
 in_bitwise_or: "in" expr {$$= new Node("in");$$->addchild($2);}
-notin_bitwise_or: "not" "in" expr {$$ = new Node("not_in");$$->addchild($3);}
-isnot_bitwise_or: "is" "not" expr {$$ = new Node("is_not");$$->addchild($3);}
+notin_bitwise_or: "not" "in" expr {$$ = new Node("not in");$$->addchild($3);}
+isnot_bitwise_or: "is" "not" expr {$$ = new Node("is not");$$->addchild($3);}
 
 expr: xor_expr 
 	| expr "|" xor_expr { $$ = new Node ("Bitwise OR\n|"); $$->addchild ($1); $$->addchild ($3);}
@@ -255,19 +254,27 @@ atom: NAME
 	| "[" testlist "]" { $$ = new Node ("LIST"); $$->addchild($2); }
 
 STRING_plus: STRING 
-	| STRING_plus STRING { $$ = new Node ("MULTI_STRING"); $$->addchild($1); $$->addchild($2);}
+	| STRING_plus STRING { $$ = new Node ("MULTI STRING"); $$->addchild($1); $$->addchild($2);}
 
 trailer: "." NAME {$$=new Node("ATTRIBUTE");$$->addchild($2);}
 	| "[" testlist "]" {$$=new Node("SUBSCRIPT");$$->addchild($2);}
 	| "(" testlist ")" {$$=new Node("FUNCTION/METHOD_CALL");$$->addchild($2);}
-	| "(" ")" {$$=new Node("EMPTY_CALL");}
+	| "(" ")" {$$=new Node("EMPTY CALL");}
 
+if_stmt: "if" test ":" suite { $$ = new Node ("If block"); $$->addchild($2, "if"); $$->addchild($4, "then");}
+	|  "if" test ":" suite elif_block { $$ = new Node ("If else block"); $$->addchild($2, "if"); $$->addchild($4, "then"); $$->addchild($5, "else"); }
+
+elif_block:
+	"else" ":" suite	{ $$ = $3; }
+	| "elif" test ":" suite elif_block	{ $$ = new Node ("IF"); $$->addchild ($2, "if"); $$->addchild($4, "then"); $$->addchild ($5, "else"); }
+
+/*
 if_stmt: if_block_left_factored
 	| if_block_left_factored "else" ":" suite	{ $$ = new Node ("IF-ELSE"); $$->addchild($1, "true"); $$->addchild($4, "else");}
 
 if_block_left_factored: "if" test ":" suite { $$ = new Node ("IF"); $$->addchild($2, "if"); $$->addchild($4, "then");}
 	| if_block_left_factored "elif" test ":" suite { $$ = new Node ("IF-ELIF"); $$->addchild($1, "if"); $$->addchild($3, "elif"); $$->addchild($5, "elif");}
-
+*/
 
 while_stmt: "while" test ":" suite {$$ = new Node ("WHILE"); $$->addchild($2, "condition"); $$->addchild($4, "do");}
 

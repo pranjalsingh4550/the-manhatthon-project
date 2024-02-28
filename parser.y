@@ -3,7 +3,7 @@
 	#include"classes.h"
     using namespace std; 
 	int nodecount=0;
-	FILE* graph = fopen ("ast.dot", "w+"); 
+	FILE* graph = NULL;
     extern int yylex();
     extern int yyparse();
     extern void debugprintf (const char *) ;
@@ -98,7 +98,7 @@
 
 %token <node> ENDMARKER
 
-%type <node> stmts stmt simple_stmt small_stmt expr_stmt annassign test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt if_block_left_factored while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer
+%type <node> stmts stmt simple_stmt small_stmt expr_stmt annassign test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt if_block_left_factored while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist
 
 
 
@@ -106,36 +106,35 @@
 
 
 %%
-input: start|NEWLINE input
+input: start 
+	|NEWLINE input { /* assuming no production needed */ }
 
 start : ENDMARKER|
 	stmts ENDMARKER 
 
 stmts : 
-	stmt {$$=$1;}
+	stmt
 	| stmts stmt { $$ = new Node ("stmts"); $$->addchild($1); $$->addchild($2);}
 
 ;
 
-stmt:  simple_stmt { $$ = $1;}
-	| compound_stmt { $$ = $1;}
+stmt:  simple_stmt 
+	| compound_stmt 
 ;
 
-simple_stmt: small_stmt ";"  NEWLINE   {$3=new Node("NEWLINE");$$ = new Node ("SEMI"); $$->addchild($1);$$->addchild($3);}
-	| small_stmt[left] NEWLINE[right] {$2=new Node("NEWLINE");$$ = new Node ("Small_stmt_NEWLINE"); $$->addchild($left);$$->addchild($right);}
-	| small_stmt ";" simple_stmt {$$ = new Node ("SEMI"); $$->addchild($1);$$->addchild($3);}
+simple_stmt: small_stmt ";"  NEWLINE
+	| small_stmt[left] NEWLINE[right] 
+	| small_stmt ";" simple_stmt {$$ = new Node ("statements"); $$->addchild($1);$$->addchild($3);}
 ;
 
 
 
 
-small_stmt: expr_stmt { $$ = $1;}
-	| return_stmt { $$ = $1;}
-	| "break" {$$=$1;}
-	| "continue" {$$=$1;}
-	| "pass" {$$=$1;}
-	/* | global_stmt
-	| nonlocal_stmt */
+small_stmt: expr_stmt
+	| return_stmt
+	| "break" 
+	| "continue" 
+	| "pass" 
 ;
 expr_stmt: NAME annassign { 
 			$$ = new Node ("expr_stmt");
@@ -143,7 +142,7 @@ expr_stmt: NAME annassign {
 			$$->addchild($2);	
 			 }
 	| test augassign test { 
-			$$ = new Node ("operation");
+			$$ = new Node ($2->production.c_str());
 			$$->addchild($1);
 			$$->addchild($3);
 	}
@@ -170,28 +169,24 @@ test: or_test "if" or_test "else" test {
 		$$->addchild($3);
 		$$->addchild($5);
 	}
-	| or_test { $$=$1;}
+	| or_test
 augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
+/* augassign hs been handled */
 
 
-/* global_stmt: "global"  arglist
+return_stmt: "return" test { $$ = new Node ("return"); $$->addchild($2); }
+	| "return" { $$ = new Node ("return");	}
 
-nonlocal_stmt: "nonlocal"  arglist */
+or_test : and_test 
+	| or_test "or" and_test { $$ = new Node ("or"); $$->addchild ($1); $$->addchild ($3);}
 
+and_test : not_test
+	| and_test "and" not_test { $$ = new Node ("and"); $$->addchild ($1); $$->addchild ($3);}
+not_test : comparison
+	| "not" not_test	{ $$ = new Node ("not"); $$->addchild ($2);}
 
-return_stmt: "return" test 
-	| "return"
-
-or_test : and_test  { $$=$1;}
-	| or_test "or" and_test 
-
-and_test : not_test { $$=$1;}
-	| and_test "and" not_test 
-not_test : comparison { $$=$1;} 
-	| "not" not_test 
-
-comparison: expr  { $$=$1;}
-	| comparison compare_op_bitwise_or_pair 
+comparison: expr  
+	| comparison compare_op_bitwise_or_pair		{$$ = $2; $$->addchild ($1);}
 
 compare_op_bitwise_or_pair: eq_bitwise_or 
 	| noteq_bitwise_or  
@@ -204,138 +199,135 @@ compare_op_bitwise_or_pair: eq_bitwise_or
 	| notin_bitwise_or 
 	| isnot_bitwise_or 
 
-eq_bitwise_or: "==" expr 
-noteq_bitwise_or: "!=" expr 
-lt_bitwise_or: "<" expr 
-lte_bitwise_or: "<=" expr 
-gt_bitwise_or: ">" expr 
-gte_bitwise_or: ">=" expr 
-is_bitwise_or: "is" expr 
-in_bitwise_or: "in" expr 
-notin_bitwise_or: "not" "in" expr
-isnot_bitwise_or: "is" "not" expr 
+eq_bitwise_or: "==" expr {$$ = new Node("Equal_comparision;");$$->addchild($2);}
+noteq_bitwise_or: "!=" expr {$$ = new Node("Not_Equal_comparision;"); $$->addchild($2);}
+lt_bitwise_or: "<" expr {$$ = new Node("Less_than_comparision;");$$->addchild($2);}
+lte_bitwise_or: "<=" expr {$$ = new Node("Less_than_or_equal_comparision;");$$->addchild($2);}
+gt_bitwise_or: ">" expr {$$ = new Node("Greater_than_comparision;");$$->addchild($2);}
+gte_bitwise_or: ">=" expr {$$ = new Node("Greater_than_or_equal_comparision;");$$->addchild($2);}
+is_bitwise_or: "is" expr {$$ = new Node("is");$$->addchild($2);}
+in_bitwise_or: "in" expr {$$= new Node("in");$$->addchild($2);}
+notin_bitwise_or: "not" "in" expr {$$ = new Node("not_in");$$->addchild($3);}
+isnot_bitwise_or: "is" "not" expr {$$ = new Node("is_not");$$->addchild($3);}
 
-expr: xor_expr  { $$=$1;}
-	| expr "|" xor_expr 
+expr: xor_expr 
+	| expr "|" xor_expr { $$ = new Node ("Bitwise OR\n|"); $$->addchild ($1); $$->addchild ($3);}
 
-xor_expr: ans_expr { $$=$1;}
-	| xor_expr "^" ans_expr 
+xor_expr: ans_expr
+	| xor_expr "^" ans_expr	{ $$ = new Node ("Bitwise XOR\n^"); $$->addchild ($1); $$->addchild ($3);}
 
-ans_expr: shift_expr  { $$=$1;}
-	| ans_expr "&" shift_expr 
+ans_expr: shift_expr 
+	| ans_expr "&" shift_expr	{ $$ = new Node ("Bitwise AND\n&"); $$->addchild ($1); $$->addchild ($3);}
 
-shift_expr: sum  { $$=$1;	}
-	| shift_expr "<<" sum  
-	| shift_expr ">>" sum 
+shift_expr: sum 
+	| shift_expr "<<" sum	{ $$ = new Node ("Left Shift\n<<"); $$->addchild ($1); $$->addchild ($3);}
+	| shift_expr ">>" sum	{ $$ = new Node ("Right Shift\n>>"); $$->addchild ($1); $$->addchild ($3);}
 
-sum : sum "+" term  
-	| sum "-" term 
-	| term { $$=$1;}
+sum : sum "+" term  { $$ = new Node ("+"); $$->addchild ($1); $$->addchild($3); }
+	| sum "-" term	{ $$ = new Node ("-"); $$->addchild ($1); $$->addchild($3); }
+	| term
 
-term: term "*" factor 
-	| term "/" factor  
-	| term "%" factor 
-	| term DOUBLESLASH factor 
-	|factor  { $$=$1;}
+term: term "*" factor	{ $$ = new Node ("*"); $$->addchild ($1); $$->addchild($3); }
+	| term "/" factor	{ $$ = new Node ("/"); $$->addchild ($1); $$->addchild($3); }
+	| term "%" factor	{ $$ = new Node ("%"); $$->addchild ($1); $$->addchild($3); }
+	| term DOUBLESLASH factor { $$ = new Node ("Floor division\n //"); $$->addchild ($1); $$->addchild($3); }
+	|factor	
 
-factor: "+" factor 
-	| "-" factor 
-	| "~" factor 
-	| power { $$=$1;}
+factor: "+" factor	{ $$ = new Node ("Unary\n+"); $$->addchild($2); }
+	| "-" factor	{ $$ = new Node ("Unary\n-"); $$->addchild($2); }
+	| "~" factor	{ $$ = new Node ("Unary\n~"); $$->addchild($2); }
+	| power
 
-power: primary	{$$=$1;}
-	| primary "**" factor 
+power: primary
+	| primary "**" factor	{ $$ = new Node ("Exponent\n**"); $$->addchild($1); $$->addchild($3); }
 
-primary: atom {$$=$1;}
-	| primary trailer 
+primary: atom 
+	| primary trailer { $$ = new Node ("Attribute/Method/Subscript\nOBJECT.ATTR\\/SUBSCRIPT"); $$->addchild($1); $$->addchild($2); }
 
 
-atom: NAME {$$=$1;}
-    | NUMBER {$$=$1;}
+atom: NAME 
+    | NUMBER
     | STRING_plus 
     | "True" 
     | "False" 
     | "None" 
+	| "(" testlist ")" { $$ = new Node ("PARENTHESIZED"); $$->addchild($2); }
+	| "[" testlist "]" { $$ = new Node ("LIST"); $$->addchild($2); }
 
 STRING_plus: STRING 
-	| STRING_plus STRING
+	| STRING_plus STRING { $$ = new Node ("MULTI_STRING"); $$->addchild($1); $$->addchild($2);}
 
-trailer: "." NAME
-	| "[" testlist "]"
-	| "(" testlist ")"
-	| "(" ")"
+trailer: "." NAME {$$=new Node("ATTRIBUTE");$$->addchild($2);}
+	| "[" testlist "]" {$$=new Node("SUBSCRIPT");$$->addchild($2);}
+	| "(" testlist ")" {$$=new Node("FUNCTION/METHOD_CALL");$$->addchild($2);}
+	| "(" ")" {$$=new Node("EMPTY_CALL");}
 
-if_stmt: if_block_left_factored		{$$ = $1 ;}
-	| if_block_left_factored "else" ":" suite	{ $$ = new Node ("if_else"); $$->addchild($1); $$->addchild($4);}
+if_stmt: if_block_left_factored
+	| if_block_left_factored "else" ":" suite	{ $$ = new Node ("IF-ELSE"); $$->addchild($1, "true"); $$->addchild($4, "else");}
 
-if_block_left_factored: "if" test ":" suite { $$ = new Node ("if"); $$->addchild($2); $$->addchild($4);}
-	| if_block_left_factored "elif" test ":" suite { $$ = new Node ("if_elif"); $$->addchild($1); $$->addchild($3); $$->addchild($5);}
+if_block_left_factored: "if" test ":" suite { $$ = new Node ("IF"); $$->addchild($2, "if"); $$->addchild($4, "then");}
+	| if_block_left_factored "elif" test ":" suite { $$ = new Node ("IF-ELIF"); $$->addchild($1, "if"); $$->addchild($3, "elif"); $$->addchild($5, "elif");}
 
 
-while_stmt: "while" test ":" suite
+while_stmt: "while" test ":" suite {$$ = new Node ("WHILE"); $$->addchild($2, "condition"); $$->addchild($4, "do");}
 
 
 arglist:  test 
-	| arglist "," test 
+	| arglist "," test { $$ = new Node ("arglist"); $$->addchild($1); $$->addchild($3);}
 
-typedarglist:  test ":" test
-	| typedarglist "," test ":" test
-
-suite: simple_stmt { $$ = $1;}
+typedarglist:  test ":" test { $$ = new Node ("argument"); $$->addchild($1); $$->addchild($3);}
+	| typedarglist "," test ":" test {$$ = new Node ("typedarglist"); $$->addchild($1); $$->addchild($3); $$->addchild($5);}
+	|	test ":" test "=" test { $$ = new Node ("argument_with_default"); $$->addchild($1); $$->addchild($3); $$->addchild($5);}
+	|	typedarglist "," test ":" test "=" test {$$ = new Node ("typedarglist_with_default"); $$->addchild($1); $$->addchild($3); $$->addchild($5); $$->addchild($7);}
+suite: simple_stmt
 	| NEWLINE  INDENT  stmts DEDENT {$$=$3;} 
 
 funcdef: "def" NAME "(" typedarglist ")" "->" test ":" suite
 	| "def" NAME "(" ")" "->" test ":" suite
+	| "def" NAME "(" typedarglist ")" ":" suite
+	| "def" NAME "(" ")" ":" suite
 
 
-classdef: "class" NAME ":"  suite
-	| "class" NAME "(" typedarglist ")" ":" suite
-	| "class" NAME "(" ")" ":" suite
-/* TODO: comments between : and suite */
- 
-/* LOOK HERE!
-func_class_prototype:
-	  NAME "(" arglist ")"
-	| NAME "(" ")"
-	/* factoring to avoid conflicts 
+classdef: "class" NAME ":"  suite { $$ = new Node ("CLASS DEFN"); $$->addchild($2, "name"); $$->addchild($4, "attributes");}
+	| "class" NAME "(" typedarglist ")" ":" suite { $$ = new Node ("CLASS DEFN"); $$->addchild($2, "name"); $$->addchild($4, "arguments"); $$->addchild($7,"attributes");}
+	| "class" NAME "(" ")" ":" suite { $$ = new Node ("CLASS DEFN"); $$->addchild($2, "name"); $$->addchild($5, "attributes");}
 
-funcdef: "def" func_class_prototype "->" test : suite
-classdef: "class" func_class_prototype ":" suite
-	| "class" NAME ":" suite
-*/
 
 compound_stmt: 
-	if_stmt		{$$ = $1;}
+	if_stmt
 	| while_stmt
 	| for_stmt
 	| funcdef
 	| classdef
 
-for_stmt: "for" exprlist "in" testlist ":" suite                                           
-        | "for" exprlist "," "in" testlist ":" suite                                       
+for_stmt: "for" exprlist "in" testlist ":" suite {
+				$$ = new Node ("FOR LOOP");				
+				/*
+				fprintf (graph, "\tnode%d -> node%d [label=\"iterator\"]\n", $$->nodeid, $2->nodeid);	// $$->addchild($2); 
+				fprintf (graph, "\tnode%d -> node%d [label=\"range\"]\n", $$->nodeid, $4->nodeid);		// $$->addchild($4); 
+				fprintf (graph, "\tnode%d -> node%d [label=\"action\"]\n", $$->nodeid, $6->nodeid);		// $$->addchild($6);
+				*/
+			}                                     
+        | "for" exprlist "," "in" testlist ":" suite  { $$ = new Node ("FOR LOOP"); $$->addchild($2); $$->addchild($5); $$->addchild($7);}                                    
 exprlist: xor_expr
-        | exprlist "," xor_expr
+        | exprlist "," xor_expr { $$ = new Node ("exprlist"); $$->addchild($1); $$->addchild($3);}
 testlist: arglist
-        | arglist ",";
-
-arguments: argument | arguments "," argument
-
-argument: tfpdef | tfpdef "=" test
-
-tfpdef: NAME | NAME ":" test
-  
+        | arglist "," { $$ = new Node ("testlist_COMMA_end"); $$->addchild($1); $$->addchild($2);}
+;
 
 %%
 
 int main(int argc, char* argv[]){
-	fprintf(graph, "strict digraph ast {\n");
 	yydebug = 1 ;
 	if (argv[1] && argv[1][0] == 'n')
 		yydebug = 0;
 	if (argc >2 && argv[2] && argv[2][0]) {
 		graph = fopen (argv[2], "w+");
-		fprintf (graph, "strict digraph ast {\n");
+	} else {
+		graph = fopen ("ast.dot", "w+");
 	}
+	fprintf (graph, "strict digraph ast {\n");
+
 	yyparse();
 	if (graph) {
 		fprintf (graph, "}\n");

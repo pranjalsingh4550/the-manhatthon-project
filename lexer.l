@@ -22,11 +22,12 @@ NAME [a-zA-Z_][a-zA-Z0-9_]*
 number [0-9]+
 dunder "__name__"|"__main__"|"__init__"
 emptyline ^[ \t\f]*\n
-string \"[^\"]*\"|'[^']*'
+string (\"[^\"\\\n]*(\\.[^\"\\\n]*)*\")|(\'[^\'\\\n]*(\\.[^\'\\\n]*)*\')
+triple_string (\'\'\'[^\'\\]*(((\\.)|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\"\"\"[^\"\\]*(((\\.)|(\"){1,2}([^\"\\]|\\.))[^\"\\]*)*\"\"\")
 ignore [ \f\t]|{comments}
 ignore2	\n[ \f\t]*{comments}?
 
-%s end
+%s end multiline
 %%
     { 
 	// fprintf (stderr, "YYLEX call %d %d %d\n", newline, indent, ded);
@@ -48,7 +49,7 @@ ignore2	\n[ \f\t]*{comments}?
 
 {ignore2}+/\n	{ /* fprintf (stderr, "ignore2 block length %d\n", yyleng);*/ ; }
  /* \n{ignore}* /\n {printf("middle\n");} */
-\\{ignore}*\n
+\\[ \f\t]*\n
 \n[ \t\f]*   {
     newline=1;
     int len=yyleng-1;
@@ -139,18 +140,31 @@ ignore2	\n[ \f\t]*{comments}?
 ">>="	{yylval.node=new Node(0,yytext);return RIGHTSHIFTEQUAL;}
 "<<="	{yylval.node=new Node(0,yytext);return LEFTSHIFTEQUAL;}
 "->"	{return RARROW;}
-"("	{return LPAR;}
-")"	{return RPAR;}
-"[" {return LSQB;}
-"]" {yylval.node=new Node("]");return RSQB;}
+"("	{
+    BEGIN multiline;
+    return LPAR;
+}
+")"	{
+    BEGIN multiline;
+    return RPAR;
+}
+"[" {
+    BEGIN multiline;
+    return LSQB;
+}
+"]" {
+    BEGIN multiline;
+    return RSQB;
+}
 "." {return DOT;}
 
 [1-9]{number}*|0	{yylval.node=new Node(yytext);return NUMBER;}
 {number}	{cerr<<"leading zeros in decimal integer literals are not permitted"<<endl;exit(1);}
-{string}	{return STRING;}
-True	{return TRUE;}
-False	{return FALSE;}
-None	{return NONE;}
+{string}	{ yylval.node=new Node(yytext);return STRING;}
+{triple_string} { yylval.node=new Node(yytext);return STRING;}
+True	{yylval.node = new Node(yytext);return TRUE;}
+False	{yylval.node = new Node(yytext);return FALSE;}
+None	{yylval.node = new Node(yytext);return NONE;}
 {NAME}	{yylval.node=new Node(yytext);return NAME;}
 {ignore}
 <INITIAL><<EOF>>	{BEGIN(end);return ENDMARKER;}

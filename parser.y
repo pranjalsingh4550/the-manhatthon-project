@@ -109,11 +109,11 @@
 input: start 
 	|NEWLINE input { /* assuming no production needed */ }
 
-start : |	stmts 
+start : | stmts 
 
 stmts : 
 	stmt
-	| stmts stmt { $$ = new Node ("stmts"); $$->addchild($1); $$->addchild($2);}
+	| stmts stmt { $$ = new Node ("statements"); $$->addchild($1); $$->addchild($2);}
 
 ;
 
@@ -123,7 +123,7 @@ stmt:  simple_stmt
 
 simple_stmt: small_stmt ";"  NEWLINE
 	| small_stmt[left] NEWLINE[right] 
-	| small_stmt ";" simple_stmt {$$ = new Node ("statements"); $$->addchild($1);$$->addchild($3);}
+	| small_stmt ";" simple_stmt {$$ = new Node ("inline statement"); $$->addchild($1);$$->addchild($3);}
 ;
 
 
@@ -173,8 +173,8 @@ augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "
 /* augassign hs been handled */
 
 
-return_stmt: "return" test { $$ = new Node ("return"); $$->addchild($2); }
-	| "return" { $$ = new Node ("return");	}
+return_stmt: "return" test {$1->addchild($2); $$=$1;}
+	| "return"
 
 or_test : and_test 
 	| or_test "or" and_test { $$ = new Node ("or"); $$->addchild ($1); $$->addchild ($3);}
@@ -241,13 +241,13 @@ power: primary
 	| primary "**" factor	{ $$ = new Node ("Exponent\n**"); $$->addchild($1); $$->addchild($3); }
 
 primary: atom 
-	| primary trailer { $$ = new Node ("Attribute/Method/Subscript\nOBJECT.ATTR\\/SUBSCRIPT"); $$->addchild($1); $$->addchild($2); }
+	| primary trailer { $$ = new Node ("complex atom"); $$->addchild($1); $$->addchild($2); }
 
 
 atom: NAME 
-    | NUMBER
-    | STRING_plus 
-    | "True" 
+    | NUMBER {cout<<$1->nodeid<<endl;}
+    | STRING_plus {cout<<$1->nodeid<<endl;}
+    | "True" {cout<<$1->nodeid<<endl;}
     | "False" 
     | "None" 
 	| "(" testlist ")" { $$ = new Node ("PARENTHESIZED"); $$->addchild($2); }
@@ -258,15 +258,15 @@ STRING_plus: STRING
 
 trailer: "." NAME {$$=new Node("ATTRIBUTE");$$->addchild($2);}
 	| "[" testlist "]" {$$=new Node("SUBSCRIPT");$$->addchild($2);}
-	| "(" testlist ")" {$$=new Node("FUNCTION/METHOD_CALL");$$->addchild($2);}
+	| "(" testlist ")" {$$=new Node("FUNCTION/METHOD CALL");$$->addchild($2);}
 	| "(" ")" {$$=new Node("EMPTY CALL");}
 
 if_stmt: "if" test ":" suite { $$ = new Node ("If block"); $$->addchild($2, "if"); $$->addchild($4, "then");}
-	|  "if" test ":" suite elif_block { $$ = new Node ("If else block"); $$->addchild($2, "if"); $$->addchild($4, "then"); $$->addchild($5, "else"); }
+	|  "if" test ":" suite elif_block {cout<<"Node count="<<nodecount<<endl;;cout<<$2->nodeid<<"  "<<$4->nodeid<<" "<<$5->nodeid<<endl; $$ = new Node ("If else block"); $$->addchild($2, "if"); $$->addchild($4, "then"); $$->addchild($5, "else"); }
 
 elif_block:
 	"else" ":" suite	{ $$ = $3; }
-	| "elif" test ":" suite elif_block	{ $$ = new Node ("IF"); $$->addchild ($2, "if"); $$->addchild($4, "then"); $$->addchild ($5, "else"); }
+	| "elif" test ":" suite elif_block	{$$ = new Node ("if"); $$->addchild ($2, "if"); $$->addchild($5, "then"); $$->addchild ($5, "else"); }
 
 /*
 if_stmt: if_block_left_factored
@@ -286,8 +286,8 @@ typedarglist:  test ":" test { $$ = new Node ("argument"); $$->addchild($1); $$-
 	| typedarglist "," test ":" test {$$ = new Node ("typedarglist"); $$->addchild($1); $$->addchild($3); $$->addchild($5);}
 	|	test ":" test "=" test { $$ = new Node ("argument_with_default"); $$->addchild($1); $$->addchild($3); $$->addchild($5);}
 	|	typedarglist "," test ":" test "=" test {$$ = new Node ("typedarglist_with_default"); $$->addchild($1); $$->addchild($3); $$->addchild($5); $$->addchild($7);}
-suite: simple_stmt
-	| NEWLINE  INDENT  stmts DEDENT {$$=$3;} 
+suite: simple_stmt { $$ = $1;}
+	| NEWLINE  INDENT  stmts DEDENT {$$=$3;cout<<"inside suite "<<$3->nodeid<<endl;} 
 
 funcdef: "def" NAME "(" typedarglist ")" "->" test ":" suite
 	| "def" NAME "(" ")" "->" test ":" suite
@@ -307,17 +307,11 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" exprlist "in" testlist ":" suite {
-				$$ = new Node ("FOR LOOP");				
-				/*
-				fprintf (graph, "\tnode%d -> node%d [label=\"iterator\"]\n", $$->nodeid, $2->nodeid);	// $$->addchild($2); 
-				fprintf (graph, "\tnode%d -> node%d [label=\"range\"]\n", $$->nodeid, $4->nodeid);		// $$->addchild($4); 
-				fprintf (graph, "\tnode%d -> node%d [label=\"action\"]\n", $$->nodeid, $6->nodeid);		// $$->addchild($6);
-				*/
-			}                                     
-        | "for" exprlist "," "in" testlist ":" suite  { $$ = new Node ("FOR LOOP"); $$->addchild($2); $$->addchild($5); $$->addchild($7);}                                    
-exprlist: xor_expr
-        | exprlist "," xor_expr { $$ = new Node ("exprlist"); $$->addchild($1); $$->addchild($3);}
+for_stmt: "for" exprlist "in" testlist ":" suite "else" ":" suite { $$ = new Node ("FOR LOOP"); $$->addchild($2); $$->addchild($5); $$->addchild($7); $$->addchild($10);}                        
+        | "for" exprlist "in" testlist ":" suite  { $$ = new Node ("FOR LOOP"); $$->addchild($2); $$->addchild($5); $$->addchild($7);}                                    
+exprlist: expr
+        | expr "," { $$ = new Node ("exprlist"); $$->addchild($1); $$->addchild($3);}
+		| expr "," exprlist { $$ = new Node ("exprlist"); $$->addchild($1); $$->addchild($3); $$->addchild($4);}
 testlist: arglist
         | arglist "," { $$ = new Node ("testlist_COMMA_end"); $$->addchild($1); $$->addchild($2);}
 ;

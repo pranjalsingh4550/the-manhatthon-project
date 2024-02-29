@@ -15,11 +15,11 @@ class Node {
 		// 	return *this;
 		// }
 		Node(int x,const char *y){
-			nodeid = x;
+			nodeid = nodecount++;
 			production = y;
 		}
 		Node (const char *label) {
-			nodeid = nodecount ++;
+			nodeid = nodecount++;
 			production = label;
 			if (graph)
 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label);

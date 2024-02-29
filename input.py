@@ -1,39 +1,5 @@
-
-
-return "strr example"
-
-a=4
-
-if a:   
-        a =2
-elif a:
-        a=2
-elif a:
-        a=2
-elif a:
-        a=2
-elif a:
-        a=2
+for i in range(10):
+    print("nice")
 else:
-        a=3
-a=4
-
-def ifbl()->int:
-        if a:   
-                a =2
-        elif a:
-                a=2
-        elif a:
-                a=2
-        elif a:
-                a=2
-        elif a:
-                a=2
-                def nesteddef(a:int = 44, b:int = 43) ->str:
-                        pass
-        else:
-                a=3
-        return "string heree"
-a=4
-
-
+    print("not nice")
+(a)=3

@@ -98,7 +98,7 @@
 %token <node> NONE "None"
 
 
-%type <node> stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma elif_block
+%type <node> stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block
 
 
 
@@ -109,11 +109,11 @@
 input: start 
 	|NEWLINE input { /* assuming no production needed */ }
 
-start : | stmts 
+start :{new Node("Empty file");}| stmts 
 
 stmts : 
 	stmt
-	| stmts stmt { $$ = new Node ("statement"); $$->addchild($1); $$->addchild($2);}
+	| stmts stmt { $$ = new Node ("statements"); $$->addchild($1); $$->addchild($2);}
 
 ;
 
@@ -181,7 +181,7 @@ not_test : comparison
 	| "not" not_test	{ $$ = new Node ("not"); $$->addchild ($2);}
 
 comparison: expr  
-	| comparison compare_op_bitwise_or_pair		{$$ = $2; $$->addchild ($1);	 $$->addchild (rightchild_to_be_added_later); }	
+	| comparison compare_op_bitwise_or_pair	{$$ = $2; $$->addchild ($1);	 $$->addchild (rightchild_to_be_added_later); }	
 
 compare_op_bitwise_or_pair: eq_bitwise_or 
 	| noteq_bitwise_or  
@@ -225,7 +225,7 @@ sum : sum "+" term  { $$ = new Node ("+"); $$->addchild ($1); $$->addchild($3); 
 term: term "*" factor	{ $$ = new Node ("*"); $$->addchild ($1); $$->addchild($3); }
 	| term "/" factor	{ $$ = new Node ("/"); $$->addchild ($1); $$->addchild($3); }
 	| term "%" factor	{ $$ = new Node ("%"); $$->addchild ($1); $$->addchild($3); }
-	| term DOUBLESLASH factor { $$ = new Node ("Floor division\n //"); $$->addchild ($1); $$->addchild($3); }
+	| term DOUBLESLASH factor { $$ = new Node ("//"); $$->addchild ($1); $$->addchild($3); }
 	|factor	
 
 factor: "+" factor	{ $$ = new Node ("+"); $$->addchild($2); }
@@ -250,10 +250,10 @@ atom: NAME
 	| "[" testlist "]" { $$ =$2, $$->rename("List"); }
 
 STRING_plus: STRING 
-	| STRING_plus STRING { $$ = new Node ("MULTI STRING"); $$->addchild($1); $$->addchild($2);}
+	| STRING_plus STRING { $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
 trailer: "." NAME {$$=new Node(".");rightchild_to_be_added_later = $2; }
-	| "[" testlist "]" {$$=new Node("SUBSCRIPT");rightchild_to_be_added_later = $2;edge_string = "indices";}
+	| "[" testlist "]" {$$=new Node("Subscript");rightchild_to_be_added_later = $2;edge_string = "indices";}
 	| "(" testlist ")" {$$=new Node("Function/Method call");rightchild_to_be_added_later = $2; edge_string = "arguments";}
 	| "(" ")" {$$=new Node("EMPTY CALL"); rightchild_to_be_added_later = NULL;}
 

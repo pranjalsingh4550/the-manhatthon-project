@@ -98,7 +98,7 @@
 %token <node> NONE "None"
 
 
-%type <node> stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist elif_block
+%type <node> stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma elif_block
 
 
 
@@ -275,17 +275,20 @@ typedarglist:  test ":" test { $$ = new Node ("argument"); $$->addchild($1); $$-
 	| typedarglist "," test ":" test {$$ = new Node ("typedarglist"); $$->addchild($1); $$->addchild($3); $$->addchild($5);}
 	|	test ":" test "=" test { $$ = new Node ("argument_with_default"); $$->addchild($1); $$->addchild($3); $$->addchild($5);}
 	|	typedarglist "," test ":" test "=" test {$$ = new Node ("typedarglist_with_default"); $$->addchild($1); $$->addchild($3); $$->addchild($5); $$->addchild($7);}
+
+typedarglist_comma: typedarglist | typedarglist ","
+
 suite: simple_stmt { $$ = $1;}
 	| NEWLINE  INDENT  stmts DEDENT {$$=$3;} 
 
-funcdef: "def" NAME "(" typedarglist ")" "->" test ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($4, "arguments"); $$->addchild($7, "return type"); $$->addchild($9, "body");}
+funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($4, "arguments"); $$->addchild($7, "return type"); $$->addchild($9, "body");}
 	| "def" NAME "(" ")" "->" test ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($6, "return type"); $$->addchild($8, "body");}
-	| "def" NAME "(" typedarglist ")" ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($4, "arguments"); $$->addchild($7, "body");}
+	| "def" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($4, "arguments"); $$->addchild($7, "body");}
 	| "def" NAME "(" ")" ":" suite {$$ = new Node ("FUNC DEF"); $$->addchild($2, "name");$$->addchild($6, "body");}
 
 
 classdef: "class" NAME ":"  suite { $$ = new Node ("CLASS DEFN"); $$->addchild($2, "name"); $$->addchild($4, "attributes");}
-	| "class" NAME "(" typedarglist ")" ":" suite { $$ = new Node ("CLASS DEFN"); $$->addchild($2, "name"); $$->addchild($4, "arguments"); $$->addchild($7,"attributes");}
+	| "class" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("CLASS DEFN"); $$->addchild($2, "name"); $$->addchild($4, "arguments"); $$->addchild($7,"attributes");}
 	| "class" NAME "(" ")" ":" suite { $$ = new Node ("CLASS DEFN"); $$->addchild($2, "name"); $$->addchild($5, "attributes");}
 
 

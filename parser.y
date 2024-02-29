@@ -11,6 +11,7 @@
 	extern char *yytext;
     int yyerror(const char *s);
 	#define YYDEBUG 1
+	static Node* rightchild_to_be_added_later;
 %}
 
 %union {
@@ -185,7 +186,7 @@ not_test : comparison
 	| "not" not_test	{ $$ = new Node ("not"); $$->addchild ($2);}
 
 comparison: expr  
-	| comparison compare_op_bitwise_or_pair		{$$ = $2; $$->addchild ($1);}
+	| comparison compare_op_bitwise_or_pair		{$$ = $2; $$->addchild ($1);	 $$->addchild (rightchild_to_be_added_later); }	
 
 compare_op_bitwise_or_pair: eq_bitwise_or 
 	| noteq_bitwise_or  
@@ -198,16 +199,16 @@ compare_op_bitwise_or_pair: eq_bitwise_or
 	| notin_bitwise_or 
 	| isnot_bitwise_or 
 
-eq_bitwise_or: "==" expr {$$ = new Node("==");$$->addchild($2);}
-noteq_bitwise_or: "!=" expr {$$ = new Node("!="); $$->addchild($2);}
-lt_bitwise_or: "<" expr {$$ = new Node("<");$$->addchild($2);}
-lte_bitwise_or: "<=" expr {$$ = new Node("<=");$$->addchild($2);}
-gt_bitwise_or: ">" expr {$$ = new Node(">");$$->addchild($2);}
-gte_bitwise_or: ">=" expr {$$ = new Node(">=");$$->addchild($2);}
-is_bitwise_or: "is" expr {$$ = new Node("is");$$->addchild($2);}
-in_bitwise_or: "in" expr {$$= new Node("in");$$->addchild($2);}
-notin_bitwise_or: "not" "in" expr {$$ = new Node("not in");$$->addchild($3);}
-isnot_bitwise_or: "is" "not" expr {$$ = new Node("is not");$$->addchild($3);}
+eq_bitwise_or: "==" expr {$$ = new Node("=="); rightchild_to_be_added_later = $2;}
+noteq_bitwise_or: "!=" expr {$$ = new Node("!="); rightchild_to_be_added_later = $2;}
+lt_bitwise_or: "<" expr {$$ = new Node("<");rightchild_to_be_added_later = $2;}
+lte_bitwise_or: "<=" expr {$$ = new Node("<=");rightchild_to_be_added_later = $2;}
+gt_bitwise_or: ">" expr {$$ = new Node(">");rightchild_to_be_added_later = $2;}
+gte_bitwise_or: ">=" expr {$$ = new Node(">=");rightchild_to_be_added_later = $2;}
+is_bitwise_or: "is" expr {$$ = new Node("is");rightchild_to_be_added_later = $2;}
+in_bitwise_or: "in" expr {$$= new Node("in");rightchild_to_be_added_later = $2;}
+notin_bitwise_or: "not" "in" expr {$$ = new Node("not in");rightchild_to_be_added_later = $2;}
+isnot_bitwise_or: "is" "not" expr {$$ = new Node("is not");rightchild_to_be_added_later = $2;}
 
 expr: xor_expr 
 	| expr "|" xor_expr { $$ = new Node ("Bitwise OR\n|"); $$->addchild ($1); $$->addchild ($3);}
@@ -241,7 +242,7 @@ power: primary
 	| primary "**" factor	{ $$ = new Node ("Exponent\n**"); $$->addchild($1); $$->addchild($3); }
 
 primary: atom 
-	| primary trailer {$$ = new Node ("complex atom"); $$->addchild($1); $$->addchild($2); }
+	| primary trailer { cerr<<"complex test"<<endl;$$ = new Node ("complex atom"); $$->addchild($1); $$->addchild($2); }
 
 
 atom: NAME 
@@ -256,9 +257,9 @@ atom: NAME
 STRING_plus: STRING 
 	| STRING_plus STRING { $$ = new Node ("MULTI STRING"); $$->addchild($1); $$->addchild($2);}
 
-trailer: "." NAME {$$=new Node(".");$$->addchild($2,"attribute");}
-	| "[" testlist "]" {$$=new Node("SUBSCRIPT");$$->addchild($2,"indices");}
-	| "(" testlist ")" {$$=new Node("FUNCTION/METHOD CALL");$$->addchild($2,"arguments");}
+trailer: "." NAME {$$=new Node("ATTRIBUTE");$$->addchild($2);}
+	| "[" testlist "]" {$$=new Node("SUBSCRIPT");$$->addchild($2);}
+	| "(" testlist ")" {$$=new Node("FUNCTION/METHOD CALL");$$->addchild($2);}
 	| "(" ")" {$$=new Node("EMPTY CALL");}
 
 if_stmt: "if" test ":" suite { $$ = new Node ("If block"); $$->addchild($2, "if"); $$->addchild($4, "then");}
@@ -267,7 +268,7 @@ if_stmt: "if" test ":" suite { $$ = new Node ("If block"); $$->addchild($2, "if"
 elif_block:
 	"else" ":" suite	{ $$ = $3; }
 	| "elif" test ":" suite	{$$ = new Node ("if"); $$->addchild ($2, "if"); $$->addchild($4, "then"); } /* ok????? fine */ 
-	| "elif" test ":" suite elif_block	{$$ = new Node ("if"); $$->addchild ($2, "if"); $$->addchild($4 , "then"); $$->addchild ($5, "else"); }
+	| "elif" test ":" suite elif_block	{$$ = new Node ("if"); $$->addchild ($2, "if"); $$->addchild($4, "then"); $$->addchild ($5, "else"); }
 
 /*
 if_stmt: if_block_left_factored
@@ -308,13 +309,13 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" exprlist "in" testlist ":" suite "else" ":" suite { $$ = new Node ("For block"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
-        | "for" exprlist "in" testlist ":" suite  { $$ = new Node ("For Block"); $$->addchild($2,"iterator"); $$->addchild($4,"object"); $$->addchild($6,"body");}                                    
+for_stmt: "for" exprlist "in" testlist ":" suite "else" ":" suite { $$ = new Node ("FOR LOOP"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
+        | "for" exprlist "in" testlist ":" suite  { $$ = new Node ("FOR LOOP"); $$->addchild($2); $$->addchild($4); $$->addchild($6);}                                    
 exprlist: expr
         | expr ","
 		| expr "," exprlist { $$ = new Node ("exprlist"); $$->addchild($1); $$->addchild($3);}
 testlist: arglist
-        | arglist ","
+        | arglist "," { $$ = new Node ("testlist_COMMA_end"); $$->addchild($1); $$->addchild($2);}
 ;
 
 %%

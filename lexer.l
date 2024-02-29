@@ -46,7 +46,7 @@ abd (\'\'\'[^\'\\]*(((\\.)|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\"\"\"[^\"\
 ignore [ \f\t]|{comments}
 ignore2	\n[ \f\t]*{comments}?
 
-%s end multiline
+
 %%
     { 
 	// fprintf (stderr, "YYLEX call %d %d %d\n", newline, indent, ded);
@@ -159,19 +159,15 @@ ignore2	\n[ \f\t]*{comments}?
 "<<="	{yylval.node=new Node(0,yytext);return LEFTSHIFTEQUAL;}
 "->"	{return RARROW;}
 "("	{
-    BEGIN multiline;
     return LPAR;
 }
 ")"	{
-    BEGIN multiline;
     return RPAR;
 }
 "[" {
-    BEGIN multiline;
     return LSQB;
 }
 "]" {
-    BEGIN multiline;
     return RSQB;
 }
 "." {return DOT;}

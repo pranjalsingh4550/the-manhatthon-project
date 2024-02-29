@@ -1,5 +1,6 @@
 def bubbleSort(array: list[int]) -> None:
   i: int = 0
+class mine:
   for i in range(len(array)):
     swapped: bool = False
     for j in range(0, len(array) - i - 1):

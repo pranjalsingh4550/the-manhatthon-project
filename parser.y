@@ -307,11 +307,11 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" exprlist "in" testlist ":" suite "else" ":" suite { $$ = new Node ("FOR LOOP"); $$->addchild($2); $$->addchild($5); $$->addchild($7); $$->addchild($10);}                        
-        | "for" exprlist "in" testlist ":" suite  { $$ = new Node ("FOR LOOP"); $$->addchild($2); $$->addchild($5); $$->addchild($7);}                                    
+for_stmt: "for" exprlist "in" testlist ":" suite "else" ":" suite { $$ = new Node ("FOR LOOP"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
+        | "for" exprlist "in" testlist ":" suite  { $$ = new Node ("FOR LOOP"); $$->addchild($2); $$->addchild($4); $$->addchild($6);}                                    
 exprlist: expr
-        | expr "," { $$ = new Node ("exprlist"); $$->addchild($1); $$->addchild($3);}
-		| expr "," exprlist { $$ = new Node ("exprlist"); $$->addchild($1); $$->addchild($3); $$->addchild($4);}
+        | expr ","
+		| expr "," exprlist { $$ = new Node ("exprlist"); $$->addchild($1); $$->addchild($3);}
 testlist: arglist
         | arglist "," { $$ = new Node ("testlist_COMMA_end"); $$->addchild($1); $$->addchild($2);}
 ;

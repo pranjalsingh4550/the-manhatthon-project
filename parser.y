@@ -1,6 +1,9 @@
 %{
     #include<bits/stdc++.h>
 	#include"classes.h"
+	#include<fcntl.h>
+	#include<sys/stat.h>
+	#include<sys/types.h>
     using namespace std; 
 	int nodecount=0;
 	FILE* graph = NULL;
@@ -311,45 +314,52 @@ testlist: arglist
 
 %%
 
-int main(int argc, char* argv[]){
+int main(int argc, char** argv){
 	yydebug = 1 ;
 	int input_fd = -1;
-	char outputfile[] = "ast.dot" ;
+	char *outputfile = (char *) malloc (128);
+	sprintf (outputfile, "ast.dot");
 
 	// command line options
-	argv ++ ; // now points to first command line option
-	while (*argv) {
-		if (strcmp (argv[0], "-input" == 0) { // input file - replace stdin with it
-			if (argv[1] == NULL) {
+	// now points to first command line option
+	cout << "argc: " << argc << endl;
+	for(int i=1;i<argc;i++){
+		cout<<*argv<<endl;
+		if (strcmp (argv[i], "-input") == 0) { // input file - replace stdin with it
+			printf("input file: %s\n", argv[i+1]);
+			if (argv[i+1] == NULL) {
 				fprintf (stderr, "Missing argument: -input must be followed by input file. stdin if not specified\n");
 				return 1;
 			}
-			input_fd = open (argv[1], O_RDONLY);
+			input_fd = open (argv[i+1], O_RDONLY);
 			if (input_fd < 0) {
-				fprintf (stderr, "Invalid input file name: %s\n", argv[1]);
+				fprintf (stderr, "Invalid input file name: %s\n", argv[i+1]);
 				return 1;
 			}
 			close (0);
 			dup (input_fd);
-			argv =+ 2;
+			cout << "input file: " << argv[i+1] << endl;
 		}
-		if (strcmp(argv[0], "-output") == 0) { // outpur file name, default ast.dot
-			outputfile = argv[0];
-			argv += 2;
+		if (strcmp(argv[i], "-output") == 0) { // outpur file name, default ast.dot
+			if (argv[i+1] == NULL) {
+				fprintf (stderr, "Missing argument: -output must be followed by output file name\n");
+				return 1;
+			}
+			if (strlen (*(argv+1)) > 127) {
+				fprintf (stderr, "Output file name too long. Max 128 characters\n");
+				return 1;
+			}
+			*(&outputfile)= *argv;
 		}
-		if (strcmp(argv[0], "-verbose") == 0) {
+		if (strcmp(argv[i], "-verbose") == 0) {
 			printf ("Printing parser logs to stderr\n");
 			yydebug = 1;
-			argv ++;
 		}
-		if (strcmp (argv[0], "-help") == 0) {
-			printf ("This is a basic python compiler made by dev*\nCommand-line options:\n\t-input:\tInput file (default - standart input console. Use Ctrl-D for EOF)\n\t-output:\tOutput file (default: ast.dot; overwritten if exists)\n\t-verbose:\tPrint debugging information to stderr\n\t-help:\tPrint this summary\n" )
-			argv ++;
-			return 0;
+		if (strcmp (argv[i], "-help") == 0) {
+			printf ("This is a basic python compiler made by Dev*\nCommand-line options:\n\t-input:\tInput file (default - standart input console. Use Ctrl-D for EOF)\n\t-output:\tOutput file (default: ast.dot; overwritten if exists)\n\t-verbose:\tPrint debugging information to stderr\n\t-help:\tPrint this summary\n" );
 		}
-
-
 	}
+	/* printf ("done"); */
 	
 	if (argv[1] && argv[1][0] == 'n')
 		yydebug = 0;

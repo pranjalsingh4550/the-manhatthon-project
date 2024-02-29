@@ -14,12 +14,18 @@ class Node {
 		// 	children = other.children;
 		// 	return *this;
 		// }
+
 		Node(int x,const char *y){
 			nodeid = nodecount++;
 			production = y;
 		}
 		Node (const char *label) {
 			nodeid = nodecount++;
+			production = label;
+			if (graph)
+				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label);
+		}
+		void rename(const char *label) {
 			production = label;
 			if (graph)
 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label);

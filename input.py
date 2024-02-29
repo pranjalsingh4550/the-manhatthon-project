@@ -1,25 +1,34 @@
-def bubbleSort(array: list[int]) -> None:
-    i: int = 0
-    for i in range(len(array)):
-      swapped: bool = False
-      for j in range(0, len(array) - i - 1):
-        if array[j] > array[j + 1]:
-          temp: int = array[j]
-          array[j] = array[j + 1]
-          array[j + 1] = temp
-          swapped = True
-      if not swapped:
-        break
+data: list[float] = [-2.3, 3.14, 0.9, 11, -9.1]
+
+
+def compute_min() -> float:
+  min_value: float = None
+  i: int = 0
+  for i in range(len(data)):
+    if not min_value:
+      min_value = data[i]
+    elif data[i] < min_value:
+      min_value = data[i]
+  return min_value
+
+
+def compute_avg() -> float:
+  avg_value: float = None
+  sum: int = 0
+  i: int = 0
+  for i in range(len(data)):
+    sum += data[i]
+  return sum / len(data)
+
 
 def main():
-    data: list[int] = [-2, 45, 0, 11, -9]
-    bubbleSort(data)
+  min_value: float = compute_min()
+  print("Minimum value: ")
+  print(min_value)
+  avg_value: float = compute_avg()
+  print("Average value: ")
+  print(avg_value)
 
-    print('Sorted Array in Ascending Order:')
-    i: int = 0
-    for i in range(len(data)):
-      print(data[i])
-    
 
 if __name__ == "__main__":
-    main()
+  main()

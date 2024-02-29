@@ -12,6 +12,7 @@
     int yyerror(const char *s);
 	#define YYDEBUG 1
 	static Node* rightchild_to_be_added_later;
+	const char* edge_string;
 %}
 
 %union {
@@ -147,20 +148,20 @@ expr_stmt: NAME annassign {
 			$$->addchild($3);
 	}
 	| test "=" test {
-			$$ = new Node ("simple_assignment");
+			$$ = new Node ("=");
 			$$->addchild($1);
 			$$->addchild($3);
 	}
 	|	test
 
 annassign: ":"  test "=" test {
-			$$ = new Node ("Anotated_Assignment");
-			$$->addchild($2);
-			$$->addchild($4);
+			$$ = new Node ("Annotated assignment\n : =");
+			$$->addchild($2, "type");
+			$$->addchild($4, "value");
 		}
 	| ":" test {
-			$$ = new Node ("Annotated_declaration");
-			$$->addchild($2);
+			$$ = new Node ("Annotated declaration : ");
+			$$->addchild($2, "type");
 	}
 
 test: or_test "if" or_test "else" test {
@@ -242,24 +243,24 @@ power: primary
 	| primary "**" factor	{ $$ = new Node ("Exponent\n**"); $$->addchild($1); $$->addchild($3); }
 
 primary: atom 
-	| primary trailer {$$ = new Node ("complex atom"); $$->addchild($1); $$->addchild($2); }
+	| primary trailer {$$=$2;$$->addchild($1,"Name");$$->addchild(rightchild_to_be_added_later,edge_string);}
 
 
 atom: NAME 
-    | NUMBER 
+    | NUMBER 	
     | STRING_plus 
     | "True"
     | "False" 
     | "None" 
-	| "(" testlist ")" { $$ = new Node ("PARENTHESIZED"); $$->addchild($2); }
-	| "[" testlist "]" { $$ = new Node ("LIST"); $$->addchild($2); }
+	| "(" testlist ")" { $$ = $2; $$->rename("Tuple");}
+	| "[" testlist "]" { $$ =$2, $$->rename("List"); }
 
 STRING_plus: STRING 
 	| STRING_plus STRING { $$ = new Node ("MULTI STRING"); $$->addchild($1); $$->addchild($2);}
 
-trailer: "." NAME {$$=new Node(".");$$->addchild($2,"attribute");}
-	| "[" testlist "]" {$$=new Node("SUBSCRIPT");$$->addchild($2,"indices");}
-	| "(" testlist ")" {$$=new Node("FUNCTION/METHOD CALL");$$->addchild($2,"arguments");}
+trailer: "." NAME {$$=new Node(".");rightchild_to_be_added_later = $2; }
+	| "[" testlist "]" {$$=new Node("SUBSCRIPT");rightchild_to_be_added_later = $2;edge_string = "indices";}
+	| "(" testlist ")" {$$=new Node("Function/Method call");rightchild_to_be_added_later = $2; edge_string = "arguments";}
 	| "(" ")" {$$=new Node("EMPTY CALL");}
 
 if_stmt: "if" test ":" suite { $$ = new Node ("If block"); $$->addchild($2, "if"); $$->addchild($4, "then");}
@@ -274,7 +275,7 @@ while_stmt: "while" test ":" suite {$$ = new Node ("WHILE"); $$->addchild($2, "c
 
 
 arglist:  test 
-	| arglist "," test { $$ = new Node ("arglist"); $$->addchild($1); $$->addchild($3);}
+	| arglist "," test { $$ = new Node ("testlist"); $$->addchild($1); $$->addchild($3);}
 
 typedarglist:  test ":" test { $$ = new Node ("argument"); $$->addchild($1); $$->addchild($3);}
 	| typedarglist "," test ":" test {$$ = new Node ("typedarglist"); $$->addchild($1); $$->addchild($3); $$->addchild($5);}

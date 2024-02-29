@@ -66,12 +66,12 @@ ignore2	\n[ \f\t]*{comments}?
         }
     }
 
-{ignore2}+/\n	{ /* fprintf (stderr, "ignore2 block length %d\n", yyleng);*/ ; }
+{ignore2}+/\n	{ }
 \\[ \f\t]*\n
 \n[ \t\f]*   {
     newline=1;
     int len=yyleng-1;
-    cerr<<"Non-empty line: line no: "<<yylineno << " whitespace length excluding preceding newline"<< len << endl;
+    // cerr<<"Non-empty line: line no: "<<yylineno << " whitespace length excluding preceding newline"<< len << endl;
     if(indent_stack.top()==len){
     	/* cerr << "Line " << yylineno << " at same indent level\n" ;*/ ;
     } else if(indent_stack.top()<len)

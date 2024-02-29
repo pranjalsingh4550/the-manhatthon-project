@@ -119,7 +119,7 @@ start :{new Node("Empty file");}| stmts
 
 stmts : 
 	stmt
-	| stmts stmt { $$ = new Node ("statements"); $$->addchild($1); $$->addchild($2);}
+	| stmts NEWLINE stmt { $$ = new Node ("statements"); $$->addchild($1); $$->addchild($2);}
 
 ;
 
@@ -127,8 +127,8 @@ stmt:  simple_stmt
 	| compound_stmt 
 ;
 
-simple_stmt: small_stmt ";"  NEWLINE
-	| small_stmt NEWLINE
+simple_stmt: small_stmt ";"
+	| small_stmt
 	| small_stmt ";" simple_stmt {$$ = new Node ("inline statement"); $$->addchild($1);$$->addchild($3);}
 ;
 
@@ -317,7 +317,7 @@ testlist: arglist
 %%
 
 int main(int argc, char** argv){
-	yydebug = 0 ;
+	yydebug = 0;
 	int input_fd = -1;
 	char *outputfile = (char *) malloc (128);
 	sprintf (outputfile, "ast.dot");

@@ -60,11 +60,11 @@ ignore2	\n[ \f\t]*{comments}?
         }
         if(indent==1){
             indent=0;
-            return INDENT;
+            if (YY_START != Multiline) return INDENT;
         }
         if(ded>0){
             ded--;
-            return DEDENT;
+            if (YY_START != Multiline) return DEDENT;
         }
     }
 

@@ -1,5 +1,4 @@
-'''
-strict digraph ast {
-	node0 [label="Empty file"];
-}
-'''
+[1,
+(2,
+3),
+4]

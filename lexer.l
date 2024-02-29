@@ -1,5 +1,6 @@
 %option noyywrap
 %option yylineno
+%option stack
 %{
     #include<bits/stdc++.h> 
     #include "parser.tab.h"
@@ -45,6 +46,7 @@ triple_string (\'\'\'[^\'\\]*(((\\.)|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\
 ignore [ \f\t]|{comments}
 ignore2	\n[ \f\t]*{comments}?
 
+%s Multiline
 
 %%
     { 
@@ -53,7 +55,8 @@ ignore2	\n[ \f\t]*{comments}?
 		indent_stack.push("");
         if(newline==1){
             newline=0;
-            return NEWLINE;
+            //ignore newline if multline
+            if (YY_START != Multiline) return NEWLINE;
         }
         if(indent==1){
             indent=0;
@@ -174,15 +177,19 @@ ignore2	\n[ \f\t]*{comments}?
 "<<="	{yylval.node=new Node(0,yytext);return LEFTSHIFTEQUAL;}
 "->"	{return RARROW;}
 "("	{
+	yy_push_state(Multiline);
     return LPAR;
 }
 ")"	{
+	yy_pop_state();
     return RPAR;
 }
 "[" {
+	yy_push_state(Multiline);
     return LSQB;
 }
 "]" {
+	yy_pop_state();
     return RSQB;
 }
 "." {return DOT;}

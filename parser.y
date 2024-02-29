@@ -1,5 +1,7 @@
 %{
     #include<bits/stdc++.h>
+    #include<unistd.h>
+    #include<fcntl.h>
 	#include"classes.h"
 	#include<fcntl.h>
 	#include<sys/stat.h>
@@ -126,7 +128,7 @@ stmt:  simple_stmt
 ;
 
 simple_stmt: small_stmt ";"  NEWLINE
-	| small_stmt[left] NEWLINE[right] 
+	| small_stmt NEWLINE
 	| small_stmt ";" simple_stmt {$$ = new Node ("inline statement"); $$->addchild($1);$$->addchild($3);}
 ;
 
@@ -333,7 +335,7 @@ int main(int argc, char** argv){
 				fprintf (stderr, "Invalid input file name: %s\n", argv[i+1]);
 				return 1;
 			}
-			close (0);
+			close(0);
 			dup (input_fd);
 			cout << "input file: " << argv[i+1] << endl;
 		}

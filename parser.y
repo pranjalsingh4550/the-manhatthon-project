@@ -243,7 +243,7 @@ power: primary
 	| primary "**" factor	{ $$ = new Node ("Exponent\n**"); $$->addchild($1); $$->addchild($3); }
 
 primary: atom 
-	| primary trailer {$$=$2;$$->addchild($1,"Name");$$->addchild(rightchild_to_be_added_later,edge_string);}
+	| primary trailer {$$=$2;  $$->addchild($1,"Name");  if (rightchild_to_be_added_later) $$->addchild(rightchild_to_be_added_later,edge_string);}
 
 
 atom: NAME 
@@ -261,7 +261,7 @@ STRING_plus: STRING
 trailer: "." NAME {$$=new Node(".");rightchild_to_be_added_later = $2; }
 	| "[" testlist "]" {$$=new Node("SUBSCRIPT");rightchild_to_be_added_later = $2;edge_string = "indices";}
 	| "(" testlist ")" {$$=new Node("Function/Method call");rightchild_to_be_added_later = $2; edge_string = "arguments";}
-	| "(" ")" {$$=new Node("EMPTY CALL");}
+	| "(" ")" {$$=new Node("EMPTY CALL"); rightchild_to_be_added_later = NULL;}
 
 if_stmt: "if" test ":" suite { $$ = new Node ("If block"); $$->addchild($2, "if"); $$->addchild($4, "then");}
 	|  "if" test ":" suite elif_block {$$ = new Node ("If else block"); $$->addchild($2, "if"); $$->addchild($4, "then"); $$->addchild($5, "else"); }

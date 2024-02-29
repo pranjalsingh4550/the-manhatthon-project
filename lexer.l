@@ -41,8 +41,7 @@ emptyline ^[ \t\f]*\n
 string (\"[^\"\\\n]*(\\[^\n][^\"\\\n]*)*\")|(\'[^\'\\\n]*(\\[^\n][^\'\\\n]*)*\')
 /*   "  sdafasdf asdf \t asdfasdf"  */
 /* string (\"    [^\"\\\n]*      (\\.[^\"\\\n]*)*   \")   |       (\'[^\'\\\n]*(\\.[^\'\\\n]*)*\') */
-triple_string $$$ 
-abd (\'\'\'[^\'\\]*(((\\.)|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\"\"\"[^\"\\]*(((\\.)|(\"){1,2}([^\"\\]|\\.))[^\"\\]*)*\"\"\")
+triple_string (\'\'\'[^\'\\]*(((\\.)|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\"\"\"[^\"\\]*(((\\.)|(\"){1,2}([^\"\\]|\\.))[^\"\\]*)*\"\"\")
 ignore [ \f\t]|{comments}
 ignore2	\n[ \f\t]*{comments}?
 
@@ -204,7 +203,7 @@ ignore2	\n[ \f\t]*{comments}?
 
 
 
-{triple_string} { yylval.node=new Node(yytext);return STRING;}
+{triple_string} { cout<<"yeahoooo"<<yytext<<endl;}
 True	{yylval.node = new Node(yytext);return TRUE;}
 False	{yylval.node = new Node(yytext);return FALSE;}
 None	{yylval.node = new Node(yytext);return NONE;}

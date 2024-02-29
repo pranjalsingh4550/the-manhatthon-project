@@ -241,7 +241,7 @@ power: primary
 	| primary "**" factor	{ $$ = new Node ("Exponent\n**"); $$->addchild($1); $$->addchild($3); }
 
 primary: atom 
-	| primary trailer { cerr<<"complex test"<<endl;$$ = new Node ("complex atom"); $$->addchild($1); $$->addchild($2); }
+	| primary trailer {$$ = new Node ("complex atom"); $$->addchild($1); $$->addchild($2); }
 
 
 atom: NAME 
@@ -256,9 +256,9 @@ atom: NAME
 STRING_plus: STRING 
 	| STRING_plus STRING { $$ = new Node ("MULTI STRING"); $$->addchild($1); $$->addchild($2);}
 
-trailer: "." NAME {$$=new Node("ATTRIBUTE");$$->addchild($2);}
-	| "[" testlist "]" {$$=new Node("SUBSCRIPT");$$->addchild($2);}
-	| "(" testlist ")" {$$=new Node("FUNCTION/METHOD CALL");$$->addchild($2);}
+trailer: "." NAME {$$=new Node(".");$$->addchild($2,"attribute");}
+	| "[" testlist "]" {$$=new Node("SUBSCRIPT");$$->addchild($2,"indices");}
+	| "(" testlist ")" {$$=new Node("FUNCTION/METHOD CALL");$$->addchild($2,"arguments");}
 	| "(" ")" {$$=new Node("EMPTY CALL");}
 
 if_stmt: "if" test ":" suite { $$ = new Node ("If block"); $$->addchild($2, "if"); $$->addchild($4, "then");}
@@ -267,7 +267,7 @@ if_stmt: "if" test ":" suite { $$ = new Node ("If block"); $$->addchild($2, "if"
 elif_block:
 	"else" ":" suite	{ $$ = $3; }
 	| "elif" test ":" suite	{$$ = new Node ("if"); $$->addchild ($2, "if"); $$->addchild($4, "then"); } /* ok????? fine */ 
-	| "elif" test ":" suite elif_block	{$$ = new Node ("if"); $$->addchild ($2, "if"); $$->addchild($5, "then"); $$->addchild ($5, "else"); }
+	| "elif" test ":" suite elif_block	{$$ = new Node ("if"); $$->addchild ($2, "if"); $$->addchild($4 , "then"); $$->addchild ($5, "else"); }
 
 /*
 if_stmt: if_block_left_factored
@@ -308,13 +308,13 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" exprlist "in" testlist ":" suite "else" ":" suite { $$ = new Node ("FOR LOOP"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
-        | "for" exprlist "in" testlist ":" suite  { $$ = new Node ("FOR LOOP"); $$->addchild($2); $$->addchild($4); $$->addchild($6);}                                    
+for_stmt: "for" exprlist "in" testlist ":" suite "else" ":" suite { $$ = new Node ("For block"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
+        | "for" exprlist "in" testlist ":" suite  { $$ = new Node ("For Block"); $$->addchild($2,"iterator"); $$->addchild($4,"object"); $$->addchild($6,"body");}                                    
 exprlist: expr
         | expr ","
 		| expr "," exprlist { $$ = new Node ("exprlist"); $$->addchild($1); $$->addchild($3);}
 testlist: arglist
-        | arglist "," { $$ = new Node ("testlist_COMMA_end"); $$->addchild($1); $$->addchild($2);}
+        | arglist ","
 ;
 
 %%

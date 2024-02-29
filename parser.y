@@ -4,6 +4,7 @@
     using namespace std; 
 	int nodecount=0;
 	FILE* graph = NULL;
+	FILE* inputfile = NULL;
     extern int yylex();
     extern int yyparse();
     extern void debugprintf (const char *) ;
@@ -312,6 +313,44 @@ testlist: arglist
 
 int main(int argc, char* argv[]){
 	yydebug = 1 ;
+	int input_fd = -1;
+	char outputfile[] = "ast.dot" ;
+
+	// command line options
+	argv ++ ; // now points to first command line option
+	while (*argv) {
+		if (strcmp (argv[0], "-input" == 0) { // input file - replace stdin with it
+			if (argv[1] == NULL) {
+				fprintf (stderr, "Missing argument: -input must be followed by input file. stdin if not specified\n");
+				return 1;
+			}
+			input_fd = open (argv[1], O_RDONLY);
+			if (input_fd < 0) {
+				fprintf (stderr, "Invalid input file name: %s\n", argv[1]);
+				return 1;
+			}
+			close (0);
+			dup (input_fd);
+			argv =+ 2;
+		}
+		if (strcmp(argv[0], "-output") == 0) { // outpur file name, default ast.dot
+			outputfile = argv[0];
+			argv += 2;
+		}
+		if (strcmp(argv[0], "-verbose") == 0) {
+			printf ("Printing parser logs to stderr\n");
+			yydebug = 1;
+			argv ++;
+		}
+		if (strcmp (argv[0], "-help") == 0) {
+			printf ("This is a basic python compiler made by dev*\nCommand-line options:\n\t-input:\tInput file (default - standart input console. Use Ctrl-D for EOF)\n\t-output:\tOutput file (default: ast.dot; overwritten if exists)\n\t-verbose:\tPrint debugging information to stderr\n\t-help:\tPrint this summary\n" )
+			argv ++;
+			return 0;
+		}
+
+
+	}
+	
 	if (argv[1] && argv[1][0] == 'n')
 		yydebug = 0;
 	if (argc >2 && argv[2] && argv[2][0]) {

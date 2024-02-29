@@ -91,16 +91,14 @@
 
 
 
-
 %token <node> NUMBER
 %token <node> STRING
 %token <node> TRUE "True"
 %token <node> FALSE "False"
 %token <node> NONE "None"
 
-%token <node> ENDMARKER
 
-%type <node> stmts stmt simple_stmt small_stmt expr_stmt annassign test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist elif_block
+%type <node> stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist elif_block
 
 
 
@@ -115,7 +113,7 @@ start : | stmts
 
 stmts : 
 	stmt
-	| stmts stmt { $$ = new Node ("statements"); $$->addchild($1); $$->addchild($2);}
+	| stmts stmt { $$ = new Node ("statement"); $$->addchild($1); $$->addchild($2);}
 
 ;
 
@@ -137,11 +135,17 @@ small_stmt: expr_stmt
 	| "continue" 
 	| "pass" 
 ;
-expr_stmt: NAME annassign { 
-			$$ = new Node ("expr_stmt");
-			$$->addchild($1);
-			$$->addchild($2);	
+expr_stmt: NAME ":" test { 
+			$$ = new Node ("Declaration");
+			$$->addchild($1, "Name");
+			$$->addchild($2, "Type");	
 			 }
+	| NAME ":" test "=" test {
+			$$ = new Node ("Declartion");
+			$$->addchild($1, "Name");
+			$$->addchild($3, "Type");
+			$$->addchild($5, "Value");
+	}		
 	| test augassign test { 
 			$$ = new Node ($2->production.c_str());
 			$$->addchild($1);
@@ -153,16 +157,6 @@ expr_stmt: NAME annassign {
 			$$->addchild($3);
 	}
 	|	test
-
-annassign: ":"  test "=" test {
-			$$ = new Node ("Annotated assignment\n : =");
-			$$->addchild($2, "type");
-			$$->addchild($4, "value");
-		}
-	| ":" test {
-			$$ = new Node ("Annotated declaration : ");
-			$$->addchild($2, "type");
-	}
 
 test: or_test "if" or_test "else" test {
 		$$ = new Node ("inline_if_else");
@@ -234,13 +228,13 @@ term: term "*" factor	{ $$ = new Node ("*"); $$->addchild ($1); $$->addchild($3)
 	| term DOUBLESLASH factor { $$ = new Node ("Floor division\n //"); $$->addchild ($1); $$->addchild($3); }
 	|factor	
 
-factor: "+" factor	{ $$ = new Node ("Unary\n+"); $$->addchild($2); }
-	| "-" factor	{ $$ = new Node ("Unary\n-"); $$->addchild($2); }
-	| "~" factor	{ $$ = new Node ("Unary\n~"); $$->addchild($2); }
+factor: "+" factor	{ $$ = new Node ("+"); $$->addchild($2); }
+	| "-" factor	{ $$ = new Node ("-"); $$->addchild($2); }
+	| "~" factor	{ $$ = new Node ("~"); $$->addchild($2); }
 	| power
 
 power: primary
-	| primary "**" factor	{ $$ = new Node ("Exponent\n**"); $$->addchild($1); $$->addchild($3); }
+	| primary "**" factor	{ $$ = new Node ("**"); $$->addchild($1); $$->addchild($3); }
 
 primary: atom 
 	| primary trailer {$$=$2;  $$->addchild($1,"Name");  if (rightchild_to_be_added_later) $$->addchild(rightchild_to_be_added_later,edge_string);}

@@ -148,8 +148,8 @@ expr_stmt: NAME annassign {
 	}
 	| test "=" test {
 			$$ = new Node ("simple_assignment");
-			$$->addchild($1,"write");
-			$$->addchild($3,"read");
+			$$->addchild($1);
+			$$->addchild($3);
 	}
 	|	test
 
@@ -286,7 +286,7 @@ suite: simple_stmt { $$ = $1;}
 funcdef: "def" NAME "(" typedarglist ")" "->" test ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($4, "arguments"); $$->addchild($7, "return type"); $$->addchild($9, "body");}
 	| "def" NAME "(" ")" "->" test ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($6, "return type"); $$->addchild($8, "body");}
 	| "def" NAME "(" typedarglist ")" ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($4, "arguments"); $$->addchild($7, "body");}
-	| "def" NAME "(" ")" ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($5, "body");}
+	| "def" NAME "(" ")" ":" suite {$$ = new Node ("FUNC DEF"); $$->addchild($2, "name");$$->addchild($6, "body");}
 
 
 classdef: "class" NAME ":"  suite { $$ = new Node ("CLASS DEFN"); $$->addchild($2, "name"); $$->addchild($4, "attributes");}

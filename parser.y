@@ -268,15 +268,7 @@ if_stmt: "if" test ":" suite { $$ = new Node ("If block"); $$->addchild($2, "if"
 elif_block:
 	"else" ":" suite	{ $$ = $3; }
 	| "elif" test ":" suite	{$$ = new Node ("if"); $$->addchild ($2, "if"); $$->addchild($4, "then"); } /* ok????? fine */ 
-	| "elif" test ":" suite elif_block	{$$ = new Node ("if"); $$->addchild ($2, "if"); $$->addchild($4 , "then"); $$->addchild ($5, "else"); }
-
-/*
-if_stmt: if_block_left_factored
-	| if_block_left_factored "else" ":" suite	{ $$ = new Node ("IF-ELSE"); $$->addchild($1, "true"); $$->addchild($4, "else");}
-
-if_block_left_factored: "if" test ":" suite { $$ = new Node ("IF"); $$->addchild($2, "if"); $$->addchild($4, "then");}
-	| if_block_left_factored "elif" test ":" suite { $$ = new Node ("IF-ELIF"); $$->addchild($1, "if"); $$->addchild($3, "elif"); $$->addchild($5, "elif");}
-*/
+	| "elif" test ":" suite elif_block	{$$ = new Node ("if"); $$->addchild ($2, "if"); $$->addchild($4, "then"); $$->addchild ($5, "else"); }
 
 while_stmt: "while" test ":" suite {$$ = new Node ("WHILE"); $$->addchild($2, "condition"); $$->addchild($4, "do");}
 
@@ -294,7 +286,7 @@ suite: simple_stmt { $$ = $1;}
 funcdef: "def" NAME "(" typedarglist ")" "->" test ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($4, "arguments"); $$->addchild($7, "return type"); $$->addchild($9, "body");}
 	| "def" NAME "(" ")" "->" test ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($6, "return type"); $$->addchild($8, "body");}
 	| "def" NAME "(" typedarglist ")" ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($4, "arguments"); $$->addchild($7, "body");}
-	| "def" NAME "(" ")" ":" suite { $$ = new Node ("FUNC DEF"); $$->addchild($2, "name");$$->addchild($5, "body");}
+	| "def" NAME "(" ")" ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($5, "body");}
 
 
 classdef: "class" NAME ":"  suite { $$ = new Node ("CLASS DEFN"); $$->addchild($2, "name"); $$->addchild($4, "attributes");}

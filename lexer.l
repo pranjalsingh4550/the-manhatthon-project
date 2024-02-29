@@ -172,7 +172,7 @@ ignore2	\n[ \f\t]*{comments}?
 }
 "." {return DOT;}
 
-[1-9]{number}*|0	{yylval.node=new Node(yytext);return NUMBER;}
+[1-9]{number}*|0	{cerr<<"Decimal integer literal "<<yytext<<endl;;yylval.node=new Node(yytext);return NUMBER;}
 {number}	{cerr<<"leading zeros in decimal integer literals are not permitted"<<endl;exit(1);}
 0[oO](_?[0-7]+)+	{yylval.node=new Node(yytext);return NUMBER;}
 0[xX](_?[0-9a-fA-F]+)+	{yylval.node=new Node(yytext);return NUMBER;}

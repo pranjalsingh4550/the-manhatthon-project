@@ -241,13 +241,13 @@ power: primary
 	| primary "**" factor	{ $$ = new Node ("Exponent\n**"); $$->addchild($1); $$->addchild($3); }
 
 primary: atom 
-	| primary trailer { $$ = new Node ("complex atom"); $$->addchild($1); $$->addchild($2); }
+	| primary trailer { cerr<<"complex test"<<endl;$$ = new Node ("complex atom"); $$->addchild($1); $$->addchild($2); }
 
 
 atom: NAME 
-    | NUMBER {cout<<$1->nodeid<<endl;}
-    | STRING_plus {cout<<$1->nodeid<<endl;}
-    | "True" {cout<<$1->nodeid<<endl;}
+    | NUMBER 
+    | STRING_plus 
+    | "True"
     | "False" 
     | "None" 
 	| "(" testlist ")" { $$ = new Node ("PARENTHESIZED"); $$->addchild($2); }
@@ -262,10 +262,11 @@ trailer: "." NAME {$$=new Node("ATTRIBUTE");$$->addchild($2);}
 	| "(" ")" {$$=new Node("EMPTY CALL");}
 
 if_stmt: "if" test ":" suite { $$ = new Node ("If block"); $$->addchild($2, "if"); $$->addchild($4, "then");}
-	|  "if" test ":" suite elif_block {cout<<"Node count="<<nodecount<<endl;;cout<<$2->nodeid<<"  "<<$4->nodeid<<" "<<$5->nodeid<<endl; $$ = new Node ("If else block"); $$->addchild($2, "if"); $$->addchild($4, "then"); $$->addchild($5, "else"); }
+	|  "if" test ":" suite elif_block {$$ = new Node ("If else block"); $$->addchild($2, "if"); $$->addchild($4, "then"); $$->addchild($5, "else"); }
 
 elif_block:
 	"else" ":" suite	{ $$ = $3; }
+	| "elif" test ":" suite	{$$ = new Node ("if"); $$->addchild ($2, "if"); $$->addchild($4, "then"); } /* ok????? fine */ 
 	| "elif" test ":" suite elif_block	{$$ = new Node ("if"); $$->addchild ($2, "if"); $$->addchild($5, "then"); $$->addchild ($5, "else"); }
 
 /*
@@ -287,12 +288,12 @@ typedarglist:  test ":" test { $$ = new Node ("argument"); $$->addchild($1); $$-
 	|	test ":" test "=" test { $$ = new Node ("argument_with_default"); $$->addchild($1); $$->addchild($3); $$->addchild($5);}
 	|	typedarglist "," test ":" test "=" test {$$ = new Node ("typedarglist_with_default"); $$->addchild($1); $$->addchild($3); $$->addchild($5); $$->addchild($7);}
 suite: simple_stmt { $$ = $1;}
-	| NEWLINE  INDENT  stmts DEDENT {$$=$3;cout<<"inside suite "<<$3->nodeid<<endl;} 
+	| NEWLINE  INDENT  stmts DEDENT {$$=$3;} 
 
-funcdef: "def" NAME "(" typedarglist ")" "->" test ":" suite
-	| "def" NAME "(" ")" "->" test ":" suite
-	| "def" NAME "(" typedarglist ")" ":" suite
-	| "def" NAME "(" ")" ":" suite
+funcdef: "def" NAME "(" typedarglist ")" "->" test ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($4, "arguments"); $$->addchild($7, "return type"); $$->addchild($9, "body");}
+	| "def" NAME "(" ")" "->" test ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($6, "return type"); $$->addchild($8, "body");}
+	| "def" NAME "(" typedarglist ")" ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($4, "arguments"); $$->addchild($7, "body");}
+	| "def" NAME "(" ")" ":" suite { $$ = new Node ("FUNC DEFN"); $$->addchild($2, "name"); $$->addchild($5, "body");}
 
 
 classdef: "class" NAME ":"  suite { $$ = new Node ("CLASS DEFN"); $$->addchild($2, "name"); $$->addchild($4, "attributes");}

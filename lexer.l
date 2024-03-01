@@ -12,6 +12,8 @@
     int ded=0;
     int newline=0;
     int indent=0;
+    int bracketline=0;
+    char brackettype;
 %}
 comments #[^\r\n]*
 NAME [a-zA-Z_][a-zA-Z0-9_]*
@@ -34,10 +36,10 @@ imagnumber ({floatnumber}|{digitpart})[jJ]
 
 string (\"[^\"\\\n]*(\\[^\n][^\"\\\n]*)*\")|(\'[^\'\\\n]*(\\[^\n][^\'\\\n]*)*\')
 triple_string (\'\'\'[^\'\\]*(((\\.)|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\"\"\"[^\"\\]*(((\\.)|(\"){1,2}([^\"\\]|\\.))[^\"\\]*)*\"\"\")
-ignore [ \f\t]|{comments}
+ignore [ \r\f\t]|{comments}
 ignore2	\n[ \f\t]*{comments}?
 
-%s Multiline
+%s parOpen squareOpen
 
 %%
     { 
@@ -57,9 +59,14 @@ ignore2	\n[ \f\t]*{comments}?
         }
     }
 {ignore2}+/\n
+
 \\[ \f\t]*\n
-<Multiline>\n[ \t\f]*
-\n[ \t\f]*   {
+<parOpen,squareOpen>\n[ \t\f]*
+^[ \f\t]*{comments}?$
+^[ \f\t]+ {
+    return indent;
+    }
+\n[ \t\f]* {
     newline=1;
     string s=yytext+1;
     if(indent_stack.top()==s){
@@ -100,6 +107,7 @@ ignore2	\n[ \f\t]*{comments}?
     }
     return yylex();
 }
+
 
 "break"	{yylval.node=new Node(yytext);return BREAK;}
 "continue"	{yylval.node=new Node(yytext);return CONTINUE;}
@@ -163,20 +171,33 @@ ignore2	\n[ \f\t]*{comments}?
 "<<="	{yylval.node=new Node(0,yytext);return LEFTSHIFTEQUAL;}
 "->"	{return RARROW;}
 "("	{
-	yy_push_state(Multiline);
+    bracketline=yylineno;
+    brackettype='(';
+	yy_push_state(parOpen);
     return LPAR;
 }
-")"	{
+
+<parOpen>")"	{    
 	yy_pop_state();
     return RPAR;
 }
+")"	{
+    cerr<<"Bracket Mismatch at line no: "<<bracketline<<endl;
+    exit(1);
+}
 "[" {
-	yy_push_state(Multiline);
+    bracketline=yylineno;
+    brackettype='[';
+	yy_push_state(squareOpen);
     return LSQB;
 }
-"]" {
+<squareOpen>"]" {
 	yy_pop_state();
     return RSQB;
+}
+"]" {
+    cerr<<"Bracket Mismatch at line no: "<<bracketline<<endl;
+    exit(1);
 }
 "." {return DOT;}
 
@@ -218,6 +239,7 @@ True	{yylval.node = new Node(yytext);return TRUE;}
 False	{yylval.node = new Node(yytext);return FALSE;}
 None	{yylval.node = new Node(yytext);return NONE;}
 {NAME}	{yylval.node=new Node(yytext);return NAME;}
-{ignore}
-. {cerr<<"Invalid character"<<endl;exit(1);}
+{ignore} 
+<parOpen,squareOpen><<EOF>>	{cerr<<"Unopened bracket "<< brackettype <<" at line no: "<<bracketline<<endl;exit(1);} 
+. {cerr<<"Invalid character"<<yytext[0] <<"at line no: "<<yylineno<<endl;exit(1);}
 %%

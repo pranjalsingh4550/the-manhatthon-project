@@ -11,7 +11,7 @@ parser: clean
 
 
 test: parser
-	./parser -verbose < input.py 2>output.txt
+	./parser -verbose -output ast.dot < input.py 2>output.txt
 	sed -i 's/Shifting/=======================================+\nShifting/; s/^->/\t\t->/' output.txt
 	dot -Tpdf -Gordering=out ast.dot > temp.pdf
 	rm -f a.out lex.yy.c converter.exe lexer parser.t* parser

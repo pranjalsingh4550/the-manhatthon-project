@@ -115,11 +115,13 @@
 input: start 
 	|NEWLINE input
 
-start :{new Node("Empty file");}| stmts 
+start :{new Node("Empty file");}| stmts
 
 stmts : 
 	stmt
 	| stmts stmt { $$ = new Node ("statements"); $$->addchild($1); $$->addchild($2);}
+	| INDENT {yyerror("Unexpected indent"); exit(1);}stmt 
+	| stmts INDENT {yyerror("Unexpected indent"); exit(1);} stmt 
 
 ;
 
@@ -242,7 +244,7 @@ power: primary
 	| primary "**" factor	{ $$ = new Node ("**"); $$->addchild($1); $$->addchild($3); }
 
 primary: atom 
-	| primary trailer {$$=$2;  $$->addchild($1,"Name");  if (later) $$->addchild(later,edge_string);}
+	| primary trailer {$$=$2;  $$->addchild($1,"Primary");  if (later) $$->addchild(later,edge_string);}
 
 
 atom: NAME 
@@ -253,6 +255,8 @@ atom: NAME
     | "None" 
 	| "(" testlist ")" { $$ = $2; $$->rename("Tuple");}
 	| "[" testlist "]" { $$ =$2, $$->rename("List"); }
+	| "("")" { $$ = new Node ("Empty Tuple"); }
+	| "[" "]" { $$ = new Node ("Empty List"); }
 
 STRING_plus: STRING 
 	| STRING_plus STRING { $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
@@ -338,7 +342,7 @@ int main(int argc, char** argv){
 			dup (input_fd);
 			cout << "input file: " << argv[i+1] << endl;
 		}
-		if (strcmp(argv[i], "-output") == 0) { // outpur file name, default ast.dot
+		else if (strcmp(argv[i], "-output") == 0) { // outpur file name, default ast.dot
 			if (argv[i+1] == NULL) {
 				fprintf (stderr, "Missing argument: -output must be followed by output file name\n");
 				return 1;
@@ -349,11 +353,11 @@ int main(int argc, char** argv){
 			}
 			sprintf (outputfile, "%s", argv[i+1]);
 		}
-		if (strcmp(argv[i], "-verbose") == 0) {
+		else if (strcmp(argv[i], "-verbose") == 0) {
 			printf ("Printing parser logs to stderr\n");
 			yydebug = 1;
 		}
-		if (strcmp (argv[i], "-help") == 0) {
+		else if (strcmp (argv[i], "-help") == 0) {
 			printf ("This is a basic python compiler made by Dev*\nCommand-line options:\n\t-input:\t\tInput file (default - standart input console. Use Ctrl-D for EOF)\n\t-output:\tOutput file (default: ast.dot; overwritten if exists)\n\t-verbose:\tPrint debugging information to stderr\n\t-help:\t\tPrint this summary\n" );
 			return 0;
 		}

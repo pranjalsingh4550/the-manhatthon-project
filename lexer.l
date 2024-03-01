@@ -70,13 +70,14 @@ ignore2	\n[ \f\t]*{comments}?
     newline=1;
     string s=yytext+1;
     if(indent_stack.top()==s){
-    } else if(indent_stack.top().size()<s.size())
+    }
+    else if(indent_stack.top().size()<s.size())
     {
         for(int i=0;i<indent_stack.top().size();i++)
         {
             if(indent_stack.top()[i]!=s[i])
             {
-                cout<<"Indentation/Tab Error at line no:"<<yylineno<<endl;
+                cout<<"Inconsistent use of tabs and spaces in indentation"<<yylineno<<endl;
                 exit(1);
             }
         }
@@ -89,7 +90,7 @@ ignore2	\n[ \f\t]*{comments}?
         {
             if(indent_stack.top()[i]!=s[i])
             {
-                cout<<"Indentation/Tab Error at line no: "<<yylineno<<endl;
+                cout<<"Inconsistent use of tabs and spaces in indentation"<<yylineno<<endl;
                 exit(1);
             }
         }
@@ -99,9 +100,9 @@ ignore2	\n[ \f\t]*{comments}?
             ded++;
             indent_stack.pop();
         }
-        if(indent_stack.top().size()!=s.size())
+        if(indent_stack.top()!=s)
         {
-           cerr<<"Indentation/Tab Error at line no: "<<yylineno<<endl; ;
+           cerr<<"Unindent amount does not match previous indent"<<yylineno<<endl; ;
             exit(1);
         }
     }

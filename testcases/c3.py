@@ -4,7 +4,7 @@ if 4:
 	print ()
 	""" comment here: strings can appear anywhere as atoms """ ## comment again
 	tstr:str = ''' but triple-quote strings can also be assigned to variables\n'''
- warning:str = "our parser permits mixing tabs and spaces. we'll let this be because test cases will have two spaces only"
+    warning:str = "our parser permits mixing tabs and spaces. we'll let this be because test cases will have two spaces only"
 	True >> 1024;
 	a:int = 3; a+=3; #comment
 	a-=3

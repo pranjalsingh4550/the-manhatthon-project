@@ -17,7 +17,7 @@
 	extern char *yytext;
     int yyerror(const char *s);
 	#define YYDEBUG 1
-	static Node* rightchild_to_be_added_later;
+	static Node* later;
 	const char* edge_string;
 %}
 
@@ -113,7 +113,7 @@
 
 %%
 input: start 
-	|NEWLINE input { /* assuming no production needed */ }
+	|NEWLINE input
 
 start :{new Node("Empty file");}| stmts 
 
@@ -147,7 +147,7 @@ expr_stmt: NAME ":" test {
 			$$->addchild($2, "Type");	
 			 }
 	| NAME ":" test "=" test {
-			$$ = new Node ("Declartion");
+			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
 			$$->addchild($5, "Value");
@@ -172,7 +172,6 @@ test: or_test "if" or_test "else" test {
 	}
 	| or_test
 augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
-/* augassign hs been handled */
 
 
 return_stmt: "return" test {$1->addchild($2); $$=$1;}
@@ -187,7 +186,7 @@ not_test : comparison
 	| "not" not_test	{ $$ = new Node ("not"); $$->addchild ($2);}
 
 comparison: expr  
-	| comparison compare_op_bitwise_or_pair	{$$ = $2; $$->addchild ($1);	 $$->addchild (rightchild_to_be_added_later); }	
+	| comparison compare_op_bitwise_or_pair	{$$ = $2; $$->addchild ($1);	 $$->addchild (later); }	
 
 compare_op_bitwise_or_pair: eq_bitwise_or 
 	| noteq_bitwise_or  
@@ -200,16 +199,16 @@ compare_op_bitwise_or_pair: eq_bitwise_or
 	| notin_bitwise_or 
 	| isnot_bitwise_or 
 
-eq_bitwise_or: "==" expr {$$ = new Node("=="); rightchild_to_be_added_later = $2;}
-noteq_bitwise_or: "!=" expr {$$ = new Node("!="); rightchild_to_be_added_later = $2;}
-lt_bitwise_or: "<" expr {$$ = new Node("<");rightchild_to_be_added_later = $2;}
-lte_bitwise_or: "<=" expr {$$ = new Node("<=");rightchild_to_be_added_later = $2;}
-gt_bitwise_or: ">" expr {$$ = new Node(">");rightchild_to_be_added_later = $2;}
-gte_bitwise_or: ">=" expr {$$ = new Node(">=");rightchild_to_be_added_later = $2;}
-is_bitwise_or: "is" expr {$$ = new Node("is");rightchild_to_be_added_later = $2;}
-in_bitwise_or: "in" expr {$$= new Node("in");rightchild_to_be_added_later = $2;}
-notin_bitwise_or: "not" "in" expr {$$ = new Node("not in");rightchild_to_be_added_later = $2;}
-isnot_bitwise_or: "is" "not" expr {$$ = new Node("is not");rightchild_to_be_added_later = $2;}
+eq_bitwise_or: "==" expr {$$ = new Node("=="); later = $2;}
+noteq_bitwise_or: "!=" expr {$$ = new Node("!="); later = $2;}
+lt_bitwise_or: "<" expr {$$ = new Node("<");later = $2;}
+lte_bitwise_or: "<=" expr {$$ = new Node("<=");later = $2;}
+gt_bitwise_or: ">" expr {$$ = new Node(">");later = $2;}
+gte_bitwise_or: ">=" expr {$$ = new Node(">=");later = $2;}
+is_bitwise_or: "is" expr {$$ = new Node("is");later = $2;}
+in_bitwise_or: "in" expr {$$= new Node("in");later = $2;}
+notin_bitwise_or: "not" "in" expr {$$ = new Node("not in");later = $2;}
+isnot_bitwise_or: "is" "not" expr {$$ = new Node("is not");later = $2;}
 
 expr: xor_expr 
 	| expr "|" xor_expr { $$ = new Node ("Bitwise OR\n|"); $$->addchild ($1); $$->addchild ($3);}
@@ -243,7 +242,7 @@ power: primary
 	| primary "**" factor	{ $$ = new Node ("**"); $$->addchild($1); $$->addchild($3); }
 
 primary: atom 
-	| primary trailer {$$=$2;  $$->addchild($1,"Name");  if (rightchild_to_be_added_later) $$->addchild(rightchild_to_be_added_later,edge_string);}
+	| primary trailer {$$=$2;  $$->addchild($1,"Name");  if (later) $$->addchild(later,edge_string);}
 
 
 atom: NAME 
@@ -258,10 +257,10 @@ atom: NAME
 STRING_plus: STRING 
 	| STRING_plus STRING { $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
-trailer: "." NAME {$$=new Node(".");rightchild_to_be_added_later = $2; }
-	| "[" testlist "]" {$$=new Node("Subscript");rightchild_to_be_added_later = $2;edge_string = "indices";}
-	| "(" testlist ")" {$$=new Node("Function/Method call");rightchild_to_be_added_later = $2; edge_string = "arguments";}
-	| "(" ")" {$$=new Node("EMPTY CALL"); rightchild_to_be_added_later = NULL;}
+trailer: "." NAME {$$=new Node(".");later = $2; }
+	| "[" testlist "]" {$$=new Node("Subscript");later = $2;edge_string = "indices";}
+	| "(" testlist ")" {$$=new Node("Function/Method call");later = $2; edge_string = "arguments";}
+	| "(" ")" {$$=new Node("EMPTY CALL"); later = NULL;}
 
 if_stmt: "if" test ":" suite { $$ = new Node ("If block"); $$->addchild($2, "if"); $$->addchild($4, "then");}
 	|  "if" test ":" suite elif_block {$$ = new Node ("If else block"); $$->addchild($2, "if"); $$->addchild($4, "then"); $$->addchild($5, "else"); }

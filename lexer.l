@@ -13,11 +13,6 @@
     int newline=0;
     int indent=0;
 %}
-
-keyword "False"|"await"|"else"|"None"|"break"|"except"|"in"|"raise"|"True"|"class"|"finally"|"is"|"return"|"and"|"continue"|"for"|"lambda"|"try"|"as"|"def"|"from"|"nonlocal"|"while"|"assert"|"del"|"global"|"not"|"with"|"async"|"elif"|"if"|"or"|"yield"
-operator "+"|"-"|"*"|"**"|"/"|"//"|"%"|"@"|"<<"|">>"|"&"|"|"|"^"|"~"|"<"|">"|"<="|">="|"=="|"!="
-delimiter "("|")"|"["|"]"|"{"|"}"|","|":"|"."|";"|"@"|"="|"->"|"+="|"-="|"*="|"/="|"//="|"%="|"@="|"&="|"|="|"^="|">>="|"<<="|"**="
-literal \"[^\"]*\"|'[^']*'
 comments #[^\r\n]*
 NAME [a-zA-Z_][a-zA-Z0-9_]*
 
@@ -37,11 +32,7 @@ imagnumber ({floatnumber}|{digitpart})[jJ]
 
 /*end <<EOF>>|<<INITIAL>>\n */
 
-dunder "__name__"|"__main__"|"__init__"
-emptyline ^[ \t\f]*\n
 string (\"[^\"\\\n]*(\\[^\n][^\"\\\n]*)*\")|(\'[^\'\\\n]*(\\[^\n][^\'\\\n]*)*\')
-/*   "  sdafasdf asdf \t asdfasdf"  */
-/* string (\"    [^\"\\\n]*      (\\.[^\"\\\n]*)*   \")   |       (\'[^\'\\\n]*(\\.[^\'\\\n]*)*\') */
 triple_string (\'\'\'[^\'\\]*(((\\.)|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\"\"\"[^\"\\]*(((\\.)|(\"){1,2}([^\"\\]|\\.))[^\"\\]*)*\"\"\")
 ignore [ \f\t]|{comments}
 ignore2	\n[ \f\t]*{comments}?
@@ -50,12 +41,10 @@ ignore2	\n[ \f\t]*{comments}?
 
 %%
     { 
-	// fprintf (stderr, "YYLEX call %d %d %d\n", newline, indent, ded);
         if(indent_stack.empty())
 		indent_stack.push("");
         if(newline==1){
             newline=0;
-            //ignore newline if multline
             return NEWLINE;
         }
         if(indent==1){
@@ -73,9 +62,7 @@ ignore2	\n[ \f\t]*{comments}?
 \n[ \t\f]*   {
     newline=1;
     string s=yytext+1;
-    // cerr<<"Non-empty line: line no: "<<yylineno << " whitespace length excluding preceding newline"<< len << endl;
     if(indent_stack.top()==s){
-    	/* cerr << "Line " << yylineno << " at same indent level\n" ;*/ ;
     } else if(indent_stack.top().size()<s.size())
     {
         for(int i=0;i<indent_stack.top().size();i++)
@@ -83,7 +70,6 @@ ignore2	\n[ \f\t]*{comments}?
             if(indent_stack.top()[i]!=s[i])
             {
                 cout<<"Indentation/Tab Error at line no:"<<yylineno<<endl;
-                /*cerr<<"Indentation Error"<<endl;*/ ;
                 exit(1);
             }
         }
@@ -202,40 +188,36 @@ ignore2	\n[ \f\t]*{comments}?
 
 
 
-{floatnumber}	{yylval.node=new Node(yytext);return NUMBER;}
+{floatnumber}   {yylval.node=new Node(yytext);return NUMBER;}
 
 
 
 
 
 
-{imagnumber}	{yylval.node=new Node(yytext);return NUMBER;}
+{imagnumber}    {yylval.node=new Node(yytext);return NUMBER;}
 
 
 
-{string}	{ //yylval.node=new Node(yytext);return STRING
+{string}    { 
                 char temp[yyleng+3];
-                /// yytext[yyleng-1] = 0;
                 yytext[yyleng-1] = '\\';
                 sprintf(temp,"\\\"%s\"",yytext+1);
                 yylval.node=new Node(temp);return STRING;
             }
 
-
-
-
 {triple_string} {
-            char temp[yyleng+7];
-            char c=yytext[0];
-            yytext[yyleng-3] = '\0';
-            sprintf(temp,"\\%c\\%c\\%c%s\\%c\\%c\\%c",c,c,c,yytext+3,c,c,c);
-            yylval.node=new Node(temp);return STRING;
-            }
+                    char temp[yyleng+7];
+                    char c=yytext[0];
+                    yytext[yyleng-3] = '\0';
+                    sprintf(temp,"\\%c\\%c\\%c%s\\%c\\%c\\%c",c,c,c,yytext+3,c,c,c);
+                    yylval.node=new Node(temp);return STRING;
+                }
+
 True	{yylval.node = new Node(yytext);return TRUE;}
 False	{yylval.node = new Node(yytext);return FALSE;}
 None	{yylval.node = new Node(yytext);return NONE;}
 {NAME}	{yylval.node=new Node(yytext);return NAME;}
 {ignore}
- /*<INITIAL><<EOF>> {BEGIN(end);return ENDMARKER;} */
 . {cerr<<"Invalid character"<<endl;exit(1);}
 %%

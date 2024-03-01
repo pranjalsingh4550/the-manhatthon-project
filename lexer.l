@@ -33,8 +33,6 @@ floatnumber ({pointfloat}|{exponentfloat})
 
 imagnumber ({floatnumber}|{digitpart})[jJ]
 
-string (\"[^\"\\\n]*(\\[^\n][^\"\\\n]*)*\")|(\'[^\'\\\n]*(\\[^\n][^\'\\\n]*)*\')
-triple_string (\'\'\'[^\'\\]*(((\\.)|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\"\"\"[^\"\\]*(((\\.)|(\"){1,2}([^\"\\]|\\.))[^\"\\]*)*\"\"\")
 ignore [ \r\f\t]|{comments}
 ignore2	\n[ \f\t]*{comments}?
 
@@ -61,10 +59,18 @@ ignore2	\n[ \f\t]*{comments}?
             return DEDENT;
         }
     }
+
 <start>^[ \f\t]+{comments}$
 <start>^[ \f\t]+/. {yy_pop_state();return INDENT;}
 {ignore2}+/\n 
-\\[ \f\t]*\n 
+
+\\\n {/*line continuation must not have any chars after except newline */}
+
+\\.+\n {
+	cerr << "Syntax error: no characters on same line after line continuation character at line no: " << yylineno << endl;
+	exit(1);
+}
+
 <parOpen,squareOpen>\n[ \t\f]*
 \n[ \t\f]* {
     newline=1;
@@ -217,20 +223,60 @@ ignore2	\n[ \f\t]*{comments}?
 
 
 
-{string}    { 
-                char temp[yyleng+3];
-                yytext[yyleng-1] = '\\';
-                sprintf(temp,"\\\"%s\"",yytext+1);
-                yylval.node=new Node(temp);return STRING;
-            }
+(?x: /* normal string */ 
+(r|R)?
+(\"
+[^\"\\\n]*
+(
+	\\(.|\n) /* allow newlines after backslash*/
+	[^\"\\\n]*
+)*
+\")
+|
+(\'
+[^\'\\\n]*
+(
+	\\(.|\n)
+	[^\'\\\n]*
+)*
+\')
+)   {
+	char temp[yyleng+3];
+	yytext[yyleng-1] = '\\';
+	sprintf(temp,"\\\"%s\"",yytext+1);
+	yylval.node=new Node(temp);return STRING;
+}
 
-{triple_string} {
-                    char temp[yyleng+7];
-                    char c=yytext[0];
-                    yytext[yyleng-3] = '\0';
-                    sprintf(temp,"\\%c\\%c\\%c%s\\%c\\%c\\%c",c,c,c,yytext+3,c,c,c);
-                    yylval.node=new Node(temp);return STRING;
-                }
+(?x: /* triple string */ 
+(r|R)?
+(\'\'\'
+[^\'\\]*
+(
+	(
+		(\\(.|\n))
+		|(\'){1,2}([^\'\\]|\\.)
+	)
+	[^\'\\]*
+)*
+\'\'\')
+|
+(\"\"\"
+[^\"\\]*
+(
+	(
+		(\\(.|\n))
+		|(\"){1,2}([^\"\\]|\\.)
+	)
+	[^\"\\]*
+)*
+\"\"\")
+) {
+	char temp[yyleng+7];
+	char c=yytext[0];
+	yytext[yyleng-3] = '\0';
+	sprintf(temp,"\\%c\\%c\\%c%s\\%c\\%c\\%c",c,c,c,yytext+3,c,c,c);
+	yylval.node=new Node(temp);return STRING;
+}
 
 True	{yylval.node = new Node(yytext);return TRUE;}
 False	{yylval.node = new Node(yytext);return FALSE;}

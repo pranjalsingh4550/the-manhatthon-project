@@ -115,8 +115,6 @@ ignore2	\n[ \f\t]*{comments}?
 "return"	{yylval.node=new Node(yytext);return RETURN;}
 "pass"	{yylval.node=new Node(yytext);return PASS;}
 
-"from"	{return FROM;}
-
 "if"	{return IF;}
 "else"	{return ELSE;}
 "elif"	{return ELIF;}
@@ -207,8 +205,6 @@ ignore2	\n[ \f\t]*{comments}?
 0[oO](_?[0-7]+)+	{yylval.node=new Node(yytext);return NUMBER;}
 0[xX](_?[0-9a-fA-F]+)+	{yylval.node=new Node(yytext);return NUMBER;}
 0[bB](_?[01]+)+	{yylval.node=new Node(yytext);return NUMBER;}
-
-
 
 {floatnumber}   {yylval.node=new Node(yytext);return NUMBER;}
 

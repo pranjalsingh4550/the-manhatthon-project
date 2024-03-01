@@ -67,7 +67,6 @@ ignore2	\n[ \f\t]*{comments}?
 \\[ \f\t]*\n 
 <parOpen,squareOpen>\n
 \n[ \t\f]* {
-    cout<<"empty line 2"<<endl;
     newline=1;
     string s=yytext+1;
     if(indent_stack.top()==s){
@@ -78,7 +77,7 @@ ignore2	\n[ \f\t]*{comments}?
         {
             if(indent_stack.top()[i]!=s[i])
             {
-                cout<<"Inconsistent use of tabs and spaces in indentation"<<yylineno<<endl;
+                cerr<<"Inconsistent use of tabs and spaces in indentation"<<yylineno<<endl;
                 exit(1);
             }
         }
@@ -91,7 +90,7 @@ ignore2	\n[ \f\t]*{comments}?
         {
             if(indent_stack.top()[i]!=s[i])
             {
-                cout<<"Inconsistent use of tabs and spaces in indentation"<<yylineno<<endl;
+                cerr<<"Inconsistent use of tabs and spaces in indentation"<<yylineno<<endl;
                 exit(1);
             }
         }

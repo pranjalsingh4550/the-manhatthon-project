@@ -65,7 +65,7 @@ ignore2	\n[ \f\t]*{comments}?
 <start>^[ \f\t]+/. {yy_pop_state();return INDENT;}
 {ignore2}+/\n 
 \\[ \f\t]*\n 
-<parOpen,squareOpen>\n
+<parOpen,squareOpen>\n[ \t\f]*
 \n[ \t\f]* {
     newline=1;
     string s=yytext+1;

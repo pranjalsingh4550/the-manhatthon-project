@@ -115,7 +115,7 @@
 input: start 
 	|NEWLINE input
 
-start :{new Node("Empty file");} | stmts| INDENT {yyerror("Unexpected indent"); exit(1);} stmts 
+start :{new Node("Empty file");} | stmts | INDENT {yyerror("Unexpected indent"); exit(1);} stmts 
 
 stmts : 
 	stmt

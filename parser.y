@@ -119,7 +119,7 @@ start :{new Node("Empty file");}| stmts
 
 stmts : 
 	stmt
-	| stmts NEWLINE stmt { $$ = new Node ("statements"); $$->addchild($1); $$->addchild($2);}
+	| stmts stmt { $$ = new Node ("statements"); $$->addchild($1); $$->addchild($2);}
 
 ;
 
@@ -127,8 +127,8 @@ stmt:  simple_stmt
 	| compound_stmt 
 ;
 
-simple_stmt: small_stmt ";"
-	| small_stmt
+simple_stmt: small_stmt ";" NEWLINE
+	| small_stmt NEWLINE
 	| small_stmt ";" simple_stmt {$$ = new Node ("inline statement"); $$->addchild($1);$$->addchild($3);}
 ;
 

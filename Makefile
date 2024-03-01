@@ -11,21 +11,21 @@ parser: clean
 
 
 test: parser
-	./parser < input.py 2>output.txt
+	./parser -verbose < input.py 2>output.txt
 	sed -i 's/Shifting/=======================================+\nShifting/; s/^->/\t\t->/' output.txt
 	dot -Tpdf -Gordering=out ast.dot > temp.pdf
 	rm -f a.out lex.yy.c converter.exe lexer parser.t* parser
 	rm -f lexer lex.yy.c parser.t* parser
 
 run: parser
-	./parser n < input.py 2>output.txt
+	./parser < input.py 2>output.txt
 	sed -i 's/Shifting/=======================================+\nShifting/; s/^->/\t\t->/' output.txt
 	dot -Tpdf -Gordering=out ast.dot > temp.pdf
 	rm -f a.out lex.yy.c converter.exe lexer parser.t* parser
 	rm -f lexer lex.yy.c parser.t* parser
 
 temp:
-	./parser n < input.py 2>output.txt
+	./parser < input.py 2>output.txt
 	sed -i 's/Shifting/=======================================+\nShifting/; s/^->/\t\t->/' output.txt
 	dot -Tpdf -Gordering=out ast.dot > temp.pdf
 

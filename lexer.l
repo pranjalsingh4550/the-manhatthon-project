@@ -56,20 +56,20 @@ ignore2	\n[ \f\t]*{comments}?
         if(newline==1){
             newline=0;
             //ignore newline if multline
-            if (YY_START != Multiline) return NEWLINE;
+            return NEWLINE;
         }
         if(indent==1){
             indent=0;
-            if (YY_START != Multiline) return INDENT;
+            return INDENT;
         }
         if(ded>0){
             ded--;
-            if (YY_START != Multiline) return DEDENT;
+            return DEDENT;
         }
     }
-
-{ignore2}+/\n	{ }
+{ignore2}+/\n
 \\[ \f\t]*\n
+<Multiline>\n[ \t\f]*
 \n[ \t\f]*   {
     newline=1;
     string s=yytext+1;

@@ -1,4 +1,3 @@
-[1,
-(2,
-3),
-4]
+( # I can comment here
+    3,5 # and here
+) # and here

@@ -14,6 +14,7 @@
     int indent=0;
     int bracketline=0;
     char brackettype;
+    int flag=1;
 %}
 comments #[^\r\n]*
 NAME [a-zA-Z_][a-zA-Z0-9_]*
@@ -32,17 +33,19 @@ floatnumber ({pointfloat}|{exponentfloat})
 
 imagnumber ({floatnumber}|{digitpart})[jJ]
 
-/*end <<EOF>>|<<INITIAL>>\n */
-
 string (\"[^\"\\\n]*(\\[^\n][^\"\\\n]*)*\")|(\'[^\'\\\n]*(\\[^\n][^\'\\\n]*)*\')
 triple_string (\'\'\'[^\'\\]*(((\\.)|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\"\"\"[^\"\\]*(((\\.)|(\"){1,2}([^\"\\]|\\.))[^\"\\]*)*\"\"\")
 ignore [ \r\f\t]|{comments}
 ignore2	\n[ \f\t]*{comments}?
 
-%s parOpen squareOpen
+%s parOpen squareOpen start
 
 %%
     { 
+        if(flag){
+            flag=0;
+            yy_push_state(start);
+        }
         if(indent_stack.empty())
 		indent_stack.push("");
         if(newline==1){
@@ -58,15 +61,13 @@ ignore2	\n[ \f\t]*{comments}?
             return DEDENT;
         }
     }
-{ignore2}+/\n
-
-\\[ \f\t]*\n
-<parOpen,squareOpen>\n[ \t\f]*
-^[ \f\t]*{comments}?$
-^[ \f\t]+ {
-    return indent;
-    }
+<start>^[ \f\t]+{comments}$
+<start>^[ \f\t]+/. {yy_pop_state();return INDENT;}
+{ignore2}+/\n 
+\\[ \f\t]*\n 
+<parOpen,squareOpen>\n
 \n[ \t\f]* {
+    cout<<"empty line 2"<<endl;
     newline=1;
     string s=yytext+1;
     if(indent_stack.top()==s){
@@ -150,7 +151,7 @@ ignore2	\n[ \f\t]*{comments}?
 "="	{return EQUAL;}
 ","	{return COMMA;}
 
-"+"	{yylval.node=new Node(0,yytext);return PLUS;}
+"+"	{return PLUS;}
 "-"	{return MINUS;}
 "*"	{return STAR;}
 "/"	{return SLASH;}
@@ -240,7 +241,7 @@ True	{yylval.node = new Node(yytext);return TRUE;}
 False	{yylval.node = new Node(yytext);return FALSE;}
 None	{yylval.node = new Node(yytext);return NONE;}
 {NAME}	{yylval.node=new Node(yytext);return NAME;}
-{ignore} 
+{ignore}
 <parOpen,squareOpen><<EOF>>	{cerr<<"Unopened bracket "<< brackettype <<" at line no: "<<bracketline<<endl;exit(1);} 
 . {cerr<<"Invalid character"<<yytext[0] <<"at line no: "<<yylineno<<endl;exit(1);}
 %%

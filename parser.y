@@ -102,9 +102,9 @@
 %token <node> TRUE "True"
 %token <node> FALSE "False"
 %token <node> NONE "None"
+%token ENDMARKER
 
-
-%type <node> stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block
+%type <node> stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block 
 
 
 
@@ -115,7 +115,7 @@
 input: start 
 	|NEWLINE input
 
-start :{new Node("Empty file");}| stmts
+start :{new Node("Empty file");} | stmts
 
 stmts : 
 	stmt

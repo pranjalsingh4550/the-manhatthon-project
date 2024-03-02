@@ -281,8 +281,8 @@ STRING_plus: STRING
 
 trailer: "." NAME {$$=new Node(".");later = $2;edge_string = "Refers";}
 	| "[" testlist "]" {$$=new Node("Subscript");later = $2;edge_string = "Indices";}
-	| "(" testlist ")" {$$=new Node("Function/Method call");later = $2; edge_string = "Argument";}
-	| "(" ")" {$$=new Node("Empty Call\n()"); later = NULL;}
+	| "(" testlist ")" {$$=new Node("Function/Method call");later = $2; edge_string = "Arguments";}
+	| "(" ")" {$$=new Node("Function/Method call"); later = NULL;}
 
 if_stmt: "if" test ":" suite { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($4, "Then");}
 	|  "if" test ":" suite elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($4, "Then"); $$->addchild($5, "Else"); }

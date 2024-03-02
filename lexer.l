@@ -273,7 +273,6 @@ ignore2	\n[ \f\t]*{comments}?
             case '\"': s.push_back('\\');s.push_back('\"');break;
             default: s.push_back(yytext[i]);
         }
-        s.push_back(yytext[i]);
     }
     yylval.node=new Node(s);return STRING;
 }

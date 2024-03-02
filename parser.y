@@ -1,3 +1,5 @@
+%define parse.lac full 
+%define parse.error detailed
 %{
     #include<bits/stdc++.h>
     #include<unistd.h>

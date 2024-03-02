@@ -343,60 +343,6 @@ testlist: arglist
 
 %%
 
-/* int main(int argc, char** argv){
-	yydebug = 0;
-	int input_fd = -1;
-	char *outputfile = (char *) malloc (128);
-	sprintf (outputfile, "ast.dot");
-
-	// command line options
-	// now points to first command line option
-	for(int i=1;i<argc;i++){
-		if (strcmp (argv[i], "-input") == 0) { // input file - replace stdin with it
-			if (argv[i+1] == NULL) {
-				fprintf (stderr, "Missing argument: -input must be followed by input file. stdin if not specified\n");
-				return 1;
-			}
-			input_fd = open (argv[i+1], O_RDONLY);
-			if (input_fd < 0) {
-				fprintf (stderr, "Invalid input file name: %s\n", argv[i+1]);
-				return 1;
-			}
-			close(0);
-			dup (input_fd);
-			cout << "input file: " << argv[i+1] << endl;
-		}
-		else if (strcmp(argv[i], "-output") == 0) { // outpur file name, default ast.dot
-			if (argv[i+1] == NULL) {
-				fprintf (stderr, "Missing argument: -output must be followed by output file name\n");
-				return 1;
-			}
-			if (strlen (*(argv+1)) > 127) {
-				fprintf (stderr, "Output file name too long. Max 128 characters\n");
-				return 1;
-			}
-			sprintf (outputfile, "%s", argv[i+1]);
-		}
-		else if (strcmp(argv[i], "-verbose") == 0) {
-			printf ("Printing parser logs to stderr\n");
-			yydebug = 1;
-		}
-		else if (strcmp (argv[i], "-help") == 0) {
-			printf ("This is a basic python compiler made by Dev*\nCommand-line options:\n\t-input:\t\tInput file (default - standart input console. Use Ctrl-D for EOF)\n\t-output:\tOutput file (default: ast.dot; overwritten if exists)\n\t-verbose:\tPrint debugging information to stderr\n\t-help:\t\tPrint this summary\n" );
-			return 0;
-		}
-	}
-	
-	graph = fopen (outputfile, "w+");
-	fprintf (graph, "strict digraph ast {\n");
-
-	yyparse();
-	if (graph) {
-		fprintf (graph, "}\n");
-		fclose (graph);
-	}
-    return 0;
-} */
 
 
 int main(int argc, char** argv){

@@ -321,7 +321,7 @@ funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" suite { $$ = new No
 
 
 classdef: "class" NAME ":"  suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Contains");}
-	| "class" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Argument"); $$->addchild($7,"Contains");}
+	| "class" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Inherits"); $$->addchild($7,"Contains");}
 	| "class" NAME "(" ")" ":" suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($5, "Contains");}
 
 

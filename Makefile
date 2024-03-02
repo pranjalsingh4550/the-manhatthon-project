@@ -1,8 +1,8 @@
-base: parser
+base: test
 
-.PHONY: clean test run debug temp
+.PHONY: clean test
 clean:
-	rm -f a.out lex.yy.c converter.exe lexer parser.t* parser temp.pdf
+	rm -f a.out lex.yy.c converter.exe lexer parser.t* parser temp.pdf 1 cleaer
 
 parser: clean
 	bison -d parser.y
@@ -10,12 +10,8 @@ parser: clean
 	g++ -o parser lex.yy.c parser.tab.c
 
 
-debug: test
-	# only to annotate the output log
-	sed -i 's/Shifting/=======================================+\nShifting/; s/^->/\t\t->/' output.txt
-
 test: parser
-	./parser -output ast.dot < input.py 2>output.txt
+	./parser -verbose shift -output ast.dot < input.py 2>output.txt
 	sed -i 's/Shifting/=======================================+\nShifting/; s/^->/\t\t->/' output.txt
 	dot -Tpdf -Gordering=out ast.dot > temp.pdf
 	rm -f a.out lex.yy.c converter.exe lexer parser.t* parser
@@ -29,7 +25,6 @@ run: parser
 	rm -f lexer lex.yy.c parser.t* parser
 
 temp:
-	# run parser but don't recompile it. temp is the pdf's name
 	./parser < input.py 2>output.txt
 	sed -i 's/Shifting/=======================================+\nShifting/; s/^->/\t\t->/' output.txt
 	dot -Tpdf -Gordering=out ast.dot > temp.pdf

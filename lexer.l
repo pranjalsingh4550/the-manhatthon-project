@@ -222,12 +222,6 @@ ignore2	\n[ \f\t]*{comments}?
 0[bB](_?[01]+)+	{yylval.node=new Node(yytext);return NUMBER;}
 
 {floatnumber}   {yylval.node=new Node(yytext);return NUMBER;}
-
-
-
-
-
-
 {imagnumber}    {yylval.node=new Node(yytext);return NUMBER;}
 (?x:(r|R)?(\"[^\"\\\n]*(\\(.|\n)[^\"\\\n]*)*\")|(\'[^\'\\\n]*(\\(.|\n)[^\'\\\n]*)*\'))   {
 	string s;
@@ -249,10 +243,6 @@ ignore2	\n[ \f\t]*{comments}?
         }
     }
     yylval.node=new Node(s);return STRING;
-    // char temp[yyleng+3];
-	// yytext[yyleng-1] = '\\';
-	// sprintf(temp,"\\\"%s\"",yytext+1);
-	// yylval.node=new Node(temp);return STRING;
 }
 
 (?x:(r|R)?(\'\'\'[^\'\\]*(((\\(.|\n))|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\"\"\"[^\"\\]*(((\\(.|\n))|(\"){1,2}([^\"\\]|\\.))[^\"\\]*)*\"\"\")) {

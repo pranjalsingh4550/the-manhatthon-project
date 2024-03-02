@@ -251,9 +251,28 @@ atom: NAME
     | "True"
     | "False" 
     | "None" 
-	| "(" testlist ")" { $$ = $2; $$->rename("( Container )");}
-	| "[" testlist "]" { $$ =$2, $$->rename("[ Container ]"); }
-	| "{" testlist "}" { $$ = $2, $$->rename("{ Container }"); }
+	| "(" testlist ")" {
+		 $$ = $2;
+		 string temp;
+		 temp +="(  ) Contained\n";
+		 temp += $2->production;
+	 $$->rename(temp);
+	 }
+	
+	| "[" testlist "]" {
+		 $$ = $2;
+		 string temp;
+		 temp +="[  ] Contained\n";
+		 temp += $2->production;
+	 $$->rename(temp);
+	 }
+	| "{" testlist "}" {
+		 $$ = $2;
+		 string temp;
+		 temp +="{  } Contained\n";
+		 temp += $2->production;
+	 $$->rename(temp);
+	 }
 	| "("")" { $$ = new Node ("Empty Tuple"); }
 	| "[" "]" { $$ = new Node ("Empty List"); }
 
@@ -262,7 +281,7 @@ STRING_plus: STRING
 
 trailer: "." NAME {$$=new Node(".");later = $2; }
 	| "[" testlist "]" {$$=new Node("Subscript");later = $2;edge_string = "Indices";}
-	| "(" testlist ")" {$$=new Node("Function/Method call");later = $2; edge_string = "Arguments";}
+	| "(" testlist ")" {$$=new Node("Function/Method call");later = $2; edge_string = "Argument";}
 	| "(" ")" {$$=new Node("Empty Call"); later = NULL;}
 
 if_stmt: "if" test ":" suite { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($4, "Then");}
@@ -285,19 +304,19 @@ argument: test
 	| test "=" test { $$ = new Node ("="); $$->addchild($1,"Name"); $$->addchild($3,"Default");}
 
 typedarglist:  typedargument 
-	| typedarglist "," typedargument { $$ = new Node (","); $$->addchild($1); $$->addchild($3);}
+	| typedarglist "," typedargument { $$ = new Node ("Multiple Arguments"); $$->addchild($1); $$->addchild($3);}
 
 typedarglist_comma: typedarglist | typedarglist ","
 
-typedargument: test ":" test { $$ = new Node ("Argument"); $$->addchild($1,"Name"); $$->addchild($3,"Type");}
-	| test ":" test "=" test { $$ = new Node ("Argument"); $$->addchild($1,"name"); $$->addchild($3,"Type"); $$->addchild($5,"Default");}
+typedargument: test ":" test { $$ = new Node ("Typed Argument"); $$->addchild($1,"Name"); $$->addchild($3,"Type");}
+	| test ":" test "=" test { $$ = new Node ("Typed Argument"); $$->addchild($1,"name"); $$->addchild($3,"Type"); $$->addchild($5,"Default");}
 
 suite: simple_stmt { $$ = $1;}
 	| NEWLINE  INDENT  stmts DEDENT {$$=$3;} 
 
 funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4); $$->addchild($7, "Return type"); $$->addchild($9, "Body");}
 	| "def" NAME "(" ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($8, "Body");}
-	| "def" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4); $$->addchild($7, "Body");}
+	| "def" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Argument"); $$->addchild($7, "Body");}
 	| "def" NAME "(" ")" ":" suite {$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($6, "Body");}
 
 
@@ -317,7 +336,7 @@ for_stmt: "for" exprlist "in" testlist ":" suite "else" ":" suite { $$ = new Nod
         | "for" exprlist "in" testlist ":" suite  { $$ = new Node ("For Block"); $$->addchild($2,"Iterator"); $$->addchild($4,"Object"); $$->addchild($6,"Body");}                                    
 exprlist: expr
         | expr ","
-		| expr "," exprlist { $$ = new Node (","); $$->addchild($1); $$->addchild($3);}
+		| expr "," exprlist { $$ = new Node ("Mutiple terms"); $$->addchild($1); $$->addchild($3);}
 testlist: arglist
         | arglist ","
 ;

@@ -36,6 +36,11 @@ class Node {
 			if (graph)
 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label);
 		}
+		void rename(string label) {
+			production = label;
+			if (graph)
+				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label.c_str());
+		}
 		void addchild (Node* child) {
 			children.push_back(child);
 			if (graph)

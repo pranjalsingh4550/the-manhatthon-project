@@ -173,7 +173,7 @@ augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "
 
 
 return_stmt: "return" test {$1->addchild($2,"Data"); $$=$1;}
-	| "return"
+	| "return" {string temp = "Keyword\n"; temp += "( return )"; $$ = new Node(temp);}
 
 or_test : and_test 
 	| or_test "or" and_test { $$ = new Node ("or"); $$->addchild ($1); $$->addchild ($3);}
@@ -231,9 +231,9 @@ term: term "*" factor	{ $$ = new Node ("*"); $$->addchild ($1); $$->addchild($3)
 	| term DOUBLESLASH factor { $$ = new Node ("//"); $$->addchild ($1); $$->addchild($3); }
 	|factor	
 
-factor: "+" factor	{ $$ = $2; string temp; temp += "+"; temp+= $2->production; $$->rename(temp); }
-	| "-" factor	{ $$ = $2; string temp; temp += "-"; temp+= $2->production; $$->rename(temp); }
-	| "~" factor	{ $$ = $2; string temp; temp += "~"; temp+= $2->production; $$->rename(temp); }
+factor: "+" factor	{ $$ = new Node ("+"); $$->addchild($2);}
+	| "-" factor	{ $$ = new Node ("-"); $$->addchild($2);}
+	| "~" factor	{ $$ = new Node ("~"); $$->addchild($2);}
 	| power
 
 power: primary

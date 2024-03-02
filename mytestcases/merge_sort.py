@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 def Merge(arr:list[int], m:int, r:int)->None:
+=======
+def Merge(arr:list[int], l:int, m:int, r:int)->None:
+>>>>>>> 79bdf92 (Final testcases)
   n1 = m - l + 1
   n2 = r - m
   L = [0] * (n1)
@@ -34,7 +38,11 @@ def MergeSort(arr, l, r) -> None:
     MergeSort(arr, m+1, r)
     Merge(arr, l, m, r)
 
+<<<<<<< HEAD
 def main(i+1):
+=======
+def main():
+>>>>>>> 79bdf92 (Final testcases)
   arr = [12, 11, 13, 5, 6, 7]
   n = len(arr)
   print("Given array is")

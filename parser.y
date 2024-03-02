@@ -117,9 +117,9 @@ start :{new Node("Empty file");} | stmts
 
 stmts : 
 	stmt
-	| stmts stmt { $$ = new Node ("statements"); $$->addchild($1); $$->addchild($2);}
-	| INDENT {yyerror("Unexpected indent"); exit(1);} stmt  
-	| stmts  INDENT {yyerror("Unexpected indent"); exit(1);} stmt 
+	| stmt stmts { $$ = new Node ("Statements"); $$->addchild($1); $$->addchild($2);}
+	/* | INDENT {yyerror("Unexpected indent"); exit(1);} stmt  
+	| stmts  INDENT {yyerror("Unexpected indent"); exit(1);} stmt  */
 
 ;
 
@@ -129,7 +129,7 @@ stmt:  simple_stmt
 
 simple_stmt: small_stmt ";" NEWLINE
 	| small_stmt NEWLINE
-	| small_stmt ";" simple_stmt {$$ = new Node ("inline statement"); $$->addchild($1);$$->addchild($3);}
+	| small_stmt ";" simple_stmt {$$ = new Node ("Inline Statement"); $$->addchild($1);$$->addchild($3);}
 ;
 
 
@@ -145,7 +145,7 @@ expr_stmt: NAME ":" test {
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
 			$$->addchild($2, "Type");	
-			 }
+	}
 	| NAME ":" test "=" test {
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
@@ -162,13 +162,13 @@ expr_stmt: NAME ":" test {
 			$$->addchild($1);
 			$$->addchild($3);
 	}
-	|	test
+	| test
 
 test: or_test "if" or_test "else" test {
 		$$ = new Node ("Inline If Else");
-		$$->addchild($1);
-		$$->addchild($3);
-		$$->addchild($5);
+		$$->addchild($1,"Value");
+		$$->addchild($3,"if");
+		$$->addchild($5,"else");
 	}
 	| or_test
 augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
@@ -233,9 +233,9 @@ term: term "*" factor	{ $$ = new Node ("*"); $$->addchild ($1); $$->addchild($3)
 	| term DOUBLESLASH factor { $$ = new Node ("//"); $$->addchild ($1); $$->addchild($3); }
 	|factor	
 
-factor: "+" factor	{ $$ = new Node ("+"); $$->addchild($2); }
-	| "-" factor	{ $$ = new Node ("-"); $$->addchild($2); }
-	| "~" factor	{ $$ = new Node ("~"); $$->addchild($2); }
+factor: "+" factor	{ $$ = $2; string temp; temp += "+"; temp+= $2->production; $$->rename(temp); }
+	| "-" factor	{ $$ = $2; string temp; temp += "-"; temp+= $2->production; $$->rename(temp); }
+	| "~" factor	{ $$ = $2; string temp; temp += "~"; temp+= $2->production; $$->rename(temp); }
 	| power
 
 power: primary
@@ -314,7 +314,7 @@ typedargument: test ":" test { $$ = new Node ("Typed Argument"); $$->addchild($1
 suite: simple_stmt { $$ = $1;}
 	| NEWLINE  INDENT  stmts DEDENT {$$=$3;} 
 
-funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4); $$->addchild($7, "Return type"); $$->addchild($9, "Body");}
+funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Argument"); $$->addchild($7, "Return type"); $$->addchild($9, "Body");}
 	| "def" NAME "(" ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($8, "Body");}
 	| "def" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Argument"); $$->addchild($7, "Body");}
 	| "def" NAME "(" ")" ":" suite {$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($6, "Body");}

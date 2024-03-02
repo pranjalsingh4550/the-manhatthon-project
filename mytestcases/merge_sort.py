@@ -5,7 +5,7 @@
 # Second subarray is arr[m+1..r]
  
  
-def merge(arr:list[int], l:int , m:int  , r:int)->None:
+def merge(arr, l, m, r)->None:
     n1 = m - l + 1
     n2 = r - m
  
@@ -52,7 +52,7 @@ def merge(arr:list[int], l:int , m:int  , r:int)->None:
 # sub-array of arr to be sorted
  
  
-def mergeSort(arr:list[int], l:int, r:int) -> None:
+def mergeSort(arr, l, r) -> None:
     if l < r:
  
         # Same as (l+r)//2, but avoids overflow for
@@ -76,3 +76,4 @@ mergeSort(arr, 0, n-1)
 print("\n\nSorted array is")
 for i in range(n):
     print("%d" % arr[i],end=" ")
+ 

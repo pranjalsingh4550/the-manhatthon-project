@@ -141,12 +141,12 @@ small_stmt: expr_stmt
 	| "continue" 
 	| "pass" 
 ;
-expr_stmt: NAME ":" test { 
+expr_stmt: test ":" test { 
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
 			$$->addchild($2, "Type");	
 	}
-	| NAME ":" test "=" test {
+	| test ":" test "=" test {
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
@@ -279,10 +279,10 @@ atom: NAME
 STRING_plus: STRING 
 	| STRING_plus STRING { $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
-trailer: "." NAME {$$=new Node(".");later = $2; }
+trailer: "." NAME {$$=new Node(".");later = $2;edge_string = "Refers";}
 	| "[" testlist "]" {$$=new Node("Subscript");later = $2;edge_string = "Indices";}
 	| "(" testlist ")" {$$=new Node("Function/Method call");later = $2; edge_string = "Argument";}
-	| "(" ")" {$$=new Node("Empty Call"); later = NULL;}
+	| "(" ")" {$$=new Node("Empty Call\n()"); later = NULL;}
 
 if_stmt: "if" test ":" suite { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($4, "Then");}
 	|  "if" test ":" suite elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($4, "Then"); $$->addchild($5, "Else"); }
@@ -303,26 +303,28 @@ arglist: argument
 argument: test
 	| test "=" test { $$ = new Node ("="); $$->addchild($1,"Name"); $$->addchild($3,"Default");}
 
-typedarglist:  typedargument 
-	| typedarglist "," typedargument { $$ = new Node ("Multiple Arguments"); $$->addchild($1); $$->addchild($3);}
+typedarglist:  typedargument
+	| argument
+	| typedarglist "," argument  { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
+	| typedarglist "," typedargument { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
 
 typedarglist_comma: typedarglist | typedarglist ","
 
-typedargument: test ":" test { $$ = new Node ("Typed Argument"); $$->addchild($1,"Name"); $$->addchild($3,"Type");}
-	| test ":" test "=" test { $$ = new Node ("Typed Argument"); $$->addchild($1,"name"); $$->addchild($3,"Type"); $$->addchild($5,"Default");}
+typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"Name"); $$->addchild($3,"Type");}
+	| test ":" test "=" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"name"); $$->addchild($3,"Type"); $$->addchild($5,"Default");}
 
 suite: simple_stmt { $$ = $1;}
 	| NEWLINE  INDENT  stmts DEDENT {$$=$3;} 
 
-funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Argument"); $$->addchild($7, "Return type"); $$->addchild($9, "Body");}
+funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($7, "Return type"); $$->addchild($9, "Body");}
 	| "def" NAME "(" ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($8, "Body");}
-	| "def" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Argument"); $$->addchild($7, "Body");}
+	| "def" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($7, "Body");}
 	| "def" NAME "(" ")" ":" suite {$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($6, "Body");}
 
 
-classdef: "class" NAME ":"  suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Attributes");}
-	| "class" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Argument"); $$->addchild($7,"Attributes");}
-	| "class" NAME "(" ")" ":" suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($5, "Attributes");}
+classdef: "class" NAME ":"  suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Contains");}
+	| "class" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Argument"); $$->addchild($7,"Contains");}
+	| "class" NAME "(" ")" ":" suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($5, "Contains");}
 
 
 compound_stmt: 

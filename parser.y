@@ -113,13 +113,11 @@
 input: start 
 	|NEWLINE input
 
-start :{new Node("Empty file");} | stmts | INDENT {yyerror("Unexpected indent"); exit(1);} stmts
+start :{new Node("Empty file");} | stmts | INDENT stmts
 
 stmts : 
 	stmt
 	| stmt stmts { $$ = new Node ("Statements"); $$->addchild($1); $$->addchild($2);}
-	| stmt  INDENT {yyerror("Unexpected indent"); exit(1);} 
-	| stmt  INDENT {yyerror("Unexpected indent"); exit(1);} stmts
 
 ;
 

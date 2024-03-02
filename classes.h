@@ -19,6 +19,12 @@ class Node {
 			nodeid = nodecount++;
 			production = y;
 		}
+		Node(string s){
+			nodeid = nodecount++;
+			production = s;
+			if (graph)
+				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, s.c_str());
+		}
 		Node (const char *label) {
 			nodeid = nodecount++;
 			production = label;

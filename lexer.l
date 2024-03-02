@@ -14,7 +14,6 @@
     int indent=0;
     int bracketline=0;
     char brackettype;
-    int flag=1;
 %}
 comments #[^\r\n]*
 NAME [a-zA-Z_][a-zA-Z0-9_]*
@@ -36,14 +35,10 @@ imagnumber ({floatnumber}|{digitpart})[jJ]
 ignore [ \r\f\t]|{comments}
 ignore2	\n[ \f\t]*{comments}?
 
-%s parOpen squareOpen start
+%s parOpen squareOpen curlyOpen
 
 %%
     { 
-        if(flag){
-            flag=0;
-            yy_push_state(start);
-        }
         if(indent_stack.empty())
 		indent_stack.push("");
         if(newline==1){
@@ -60,17 +55,16 @@ ignore2	\n[ \f\t]*{comments}?
         }
     }
 
-<start>^[ \f\t]+{comments}$
-<start>^[ \f\t]+/. {yy_pop_state();return INDENT;}
-{ignore2}+/\n 
-
-\\\n {/*line continuation must not have any chars after except newline */}
-
-\\.+\n {
-	cerr << "Syntax error: no characters on same line after line continuation character at line no: " << yylineno << endl;
-	exit(1);
-}
-
+^[ \f\t]+{comments}?$
+^[ \f\t]+/. {return INDENT;}
+{ignore2}/\n 
+\\\n[ \t\f]*
+    /*\\ {
+	    cerr << "Syntax error: no characters on same line after line continuation character at line no: " << yylineno << endl;
+	    exit(1);
+    }  
+    Error overkill!!! let . handle it like python does
+     */
 <parOpen,squareOpen>\n[ \t\f]*
 \n[ \t\f]* {
     newline=1;
@@ -204,6 +198,21 @@ ignore2	\n[ \f\t]*{comments}?
     cerr<<"Bracket Mismatch at line no: "<<bracketline<<endl;
     exit(1);
 }
+"{" {
+    bracketline=yylineno;
+    brackettype='{';
+    yy_push_state(curlyOpen);
+    return LBRACE;
+}
+<curlyOpen>"}" {
+    yy_pop_state();
+    return RBRACE;
+}
+"}" {
+    cerr<<"Bracket Mismatch at line no: "<<bracketline<<endl;
+    exit(1);
+}
+
 "." {return DOT;}
 
 [1-9]{number}*|0	{yylval.node=new Node(yytext);return NUMBER;}
@@ -220,62 +229,53 @@ ignore2	\n[ \f\t]*{comments}?
 
 
 {imagnumber}    {yylval.node=new Node(yytext);return NUMBER;}
-
-
-
-(?x: /* normal string */ 
-(r|R)?
-(\"
-[^\"\\\n]*
-(
-	\\(.|\n) /* allow newlines after backslash*/
-	[^\"\\\n]*
-)*
-\")
-|
-(\'
-[^\'\\\n]*
-(
-	\\(.|\n)
-	[^\'\\\n]*
-)*
-\')
-)   {
-	char temp[yyleng+3];
-	yytext[yyleng-1] = '\\';
-	sprintf(temp,"\\\"%s\"",yytext+1);
-	yylval.node=new Node(temp);return STRING;
+(?x:(r|R)?(\"[^\"\\\n]*(\\(.|\n)[^\"\\\n]*)*\")|(\'[^\'\\\n]*(\\(.|\n)[^\'\\\n]*)*\'))   {
+	string s;
+    for(int i=0;i<yyleng;i++)
+    {
+        switch(yytext[i])
+        {
+            case '\n': s.push_back('\\');s.push_back('n');break;
+            case '\a': s.push_back('\\');s.push_back('a');break;
+            case '\b': s.push_back('\\');s.push_back('b');break;
+            case '\f': s.push_back('\\');s.push_back('f');break;
+            case '\r': s.push_back('\\');s.push_back('r');break;
+            case '\t': s.push_back('\\');s.push_back('t');break;
+            case '\v': s.push_back('\\');s.push_back('v');break;
+            case '\\': s.push_back('\\');s.push_back('\\');break;
+            case '\'': s.push_back('\\');s.push_back('\'');break;
+            case '\"': s.push_back('\\');s.push_back('\"');break;
+            default: s.push_back(yytext[i]);
+        }
+    }
+    yylval.node=new Node(s);return STRING;
+    // char temp[yyleng+3];
+	// yytext[yyleng-1] = '\\';
+	// sprintf(temp,"\\\"%s\"",yytext+1);
+	// yylval.node=new Node(temp);return STRING;
 }
 
-(?x: /* triple string */ 
-(r|R)?
-(\'\'\'
-[^\'\\]*
-(
-	(
-		(\\(.|\n))
-		|(\'){1,2}([^\'\\]|\\.)
-	)
-	[^\'\\]*
-)*
-\'\'\')
-|
-(\"\"\"
-[^\"\\]*
-(
-	(
-		(\\(.|\n))
-		|(\"){1,2}([^\"\\]|\\.)
-	)
-	[^\"\\]*
-)*
-\"\"\")
-) {
-	char temp[yyleng+7];
-	char c=yytext[0];
-	yytext[yyleng-3] = '\0';
-	sprintf(temp,"\\%c\\%c\\%c%s\\%c\\%c\\%c",c,c,c,yytext+3,c,c,c);
-	yylval.node=new Node(temp);return STRING;
+(?x:(r|R)?(\'\'\'[^\'\\]*(((\\(.|\n))|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\"\"\"[^\"\\]*(((\\(.|\n))|(\"){1,2}([^\"\\]|\\.))[^\"\\]*)*\"\"\")) {
+	string s;
+    for(int i=0;i<yyleng;i++)
+    {
+        switch(yytext[i])
+        {
+            case '\n': s.push_back('\\');s.push_back('n');break;
+            case '\a': s.push_back('\\');s.push_back('a');break;
+            case '\b': s.push_back('\\');s.push_back('b');break;
+            case '\f': s.push_back('\\');s.push_back('f');break;
+            case '\r': s.push_back('\\');s.push_back('r');break;
+            case '\t': s.push_back('\\');s.push_back('t');break;
+            case '\v': s.push_back('\\');s.push_back('v');break;
+            case '\\': s.push_back('\\');s.push_back('\\');break;
+            case '\'': s.push_back('\\');s.push_back('\'');break;
+            case '\"': s.push_back('\\');s.push_back('\"');break;
+            default: s.push_back(yytext[i]);
+        }
+        s.push_back(yytext[i]);
+    }
+    yylval.node=new Node(s);return STRING;
 }
 
 True	{yylval.node = new Node(yytext);return TRUE;}
@@ -284,5 +284,5 @@ None	{yylval.node = new Node(yytext);return NONE;}
 {NAME}	{yylval.node=new Node(yytext);return NAME;}
 {ignore}
 <parOpen,squareOpen><<EOF>>	{cerr<<"Unopened bracket "<< brackettype <<" at line no: "<<bracketline<<endl;exit(1);} 
-. {cerr<<"Invalid character"<<yytext[0] <<"at line no: "<<yylineno<<endl;exit(1);}
+. {cerr<<"Invalid token "<<yytext[0] <<" at line no: "<<yylineno<<endl;exit(1);}
 %%

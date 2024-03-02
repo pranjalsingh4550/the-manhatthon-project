@@ -1,40 +1,25 @@
-#Deven string test suite
-"""hello \ """
+def bubbleSort(array: list[int]) -> None:
+    i: int = 0
+    for i in range(len(array)):
+      swapped: bool = False
+      for j in range(0, len(array) - i - 1):
+        if array[j] > array[j + 1]:
+          temp: int = array[j]
+          array[j] = array[j + 1]
+          array[j + 1] = temp
+          swapped = True
+      if not swapped:
+        break
 
+def main():
+    data: list[int] = [-2, -9]
+    bubbleSort(data)
 
-#all should pass
-1 #normal
-"lol"
-2 #normal with escaped chars
-"lol\n"
-3 #normal with escaped string
-"lol\""
-4 #normal with line continuation
-"lol\
-lol\
-lol"
-5 #raw
-r"lol"
-5.5
-R"lol"
-6 #raw with backslashes
-r"lol\\"
-6.5
-r"lol\""
-7 #triple
-"""lol"""
-8 #triple with quotes
-"""lol"lol""lol"""
-9 #triple with newline
-"""lol
-lol"""
-10 #triple with backslash and newline
-"""lol  \   
-lol"""
-10.5
-"""lol
-\ lol"""
-11 #triple with backslash quotes
-"""lol\"""lol"""
-11.5
-"""lol"\""lol"""
+    print('Sorted Array in Ascending Order:')
+    i: int = 0
+    for i in range(len(data)):
+      print(data[i])
+    
+
+if __name__ == "__main__":
+    main()

@@ -91,6 +91,8 @@
 
 %token <node> LPAR "("
 %token <node> RPAR ")"
+%token <node> LBRACE "{"
+%token <node> RBRACE "}"
 
 
 
@@ -111,13 +113,13 @@
 input: start 
 	|NEWLINE input
 
-start :{new Node("Empty file");} | stmts | INDENT {yyerror("Unexpected indent"); exit(1);} stmts 
+start :{new Node("Empty file");} | stmts 
 
 stmts : 
 	stmt
-	| stmt stmts { $$ = new Node ("statements"); $$->addchild($1); $$->addchild($2);}
-	| stmt INDENT {yyerror("Unexpected indent"); exit(1);} 
-	| stmt INDENT {yyerror("Unexpected indent"); exit(1);} stmts 
+	| stmts stmt { $$ = new Node ("statements"); $$->addchild($1); $$->addchild($2);}
+	| INDENT {yyerror("Unexpected indent"); exit(1);} stmt  
+	| stmts  INDENT {yyerror("Unexpected indent"); exit(1);} stmt 
 
 ;
 
@@ -249,8 +251,9 @@ atom: NAME
     | "True"
     | "False" 
     | "None" 
-	| "(" testlist ")" { $$ = $2; $$->rename("Tuple");}
-	| "[" testlist "]" { $$ =$2, $$->rename("List"); }
+	| "(" testlist ")" { $$ = $2; $$->rename("( Container )");}
+	| "[" testlist "]" { $$ =$2, $$->rename("[ Container ]"); }
+	| "{" testlist "}" { $$ = $2, $$->rename("{ Container }"); }
 	| "("")" { $$ = new Node ("Empty Tuple"); }
 	| "[" "]" { $$ = new Node ("Empty List"); }
 
@@ -275,7 +278,7 @@ while_stmt: "while" test ":" suite {$$ = new Node ("While"); $$->addchild($2, "C
 
 
 arglist: argument
-	| arglist "," argument { $$ = new Node (","); $$->addchild($1); $$->addchild($3);}
+	| arglist "," argument { $$ = new Node ("Multiple terms"); $$->addchild($1); $$->addchild($3);}
 
 
 argument: test
@@ -292,9 +295,9 @@ typedargument: test ":" test { $$ = new Node ("Argument"); $$->addchild($1,"Name
 suite: simple_stmt { $$ = $1;}
 	| NEWLINE  INDENT  stmts DEDENT {$$=$3;} 
 
-funcdef: "def" NAME "(" testlist")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4); $$->addchild($7, "Return type"); $$->addchild($9, "Body");}
+funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4); $$->addchild($7, "Return type"); $$->addchild($9, "Body");}
 	| "def" NAME "(" ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($8, "Body");}
-	| "def" NAME "(" testlist ")" ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4); $$->addchild($7, "Body");}
+	| "def" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4); $$->addchild($7, "Body");}
 	| "def" NAME "(" ")" ":" suite {$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($6, "Body");}
 
 

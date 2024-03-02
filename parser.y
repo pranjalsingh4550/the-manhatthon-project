@@ -172,7 +172,7 @@ test: or_test "if" or_test "else" test {
 augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
 
 
-return_stmt: "return" test {$1->addchild($2); $$=$1;}
+return_stmt: "return" test {$1->addchild($2,"Data"); $$=$1;}
 	| "return"
 
 or_test : and_test 
@@ -442,7 +442,7 @@ int main(int argc, char** argv){
 			sprintf (outputfile, "%s", argv[i+1]);
 		}
 		else if (strcmp(argv[i], "-verbose") == 0) {
-			fprintf (stderr, "Printing parser logs to stderr\n.debuglog will be overwritten.");
+			fprintf (stderr, "Printing parser logs to stderr\n.debuglog will be overwritten.\n");
 			yydebug = 1;
 			// set the verbosity variable, 3 for now;
 			if (argv[i+1] == NULL) {
@@ -505,7 +505,6 @@ int main(int argc, char** argv){
 		unlink (".debuglog");
 		fclose (logs);
 	}
-
     return 0;
 }
 

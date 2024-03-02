@@ -343,7 +343,7 @@ testlist: arglist
 
 %%
 
-int main(int argc, char** argv){
+/* int main(int argc, char** argv){
 	yydebug = 0;
 	int input_fd = -1;
 	char *outputfile = (char *) malloc (128);
@@ -396,7 +396,121 @@ int main(int argc, char** argv){
 		fclose (graph);
 	}
     return 0;
+} */
+
+
+int main(int argc, char** argv){
+	yydebug = 0;
+	int input_fd = -1;
+	int stderr_dup = -1;
+	int stderr_redirect = -1;
+	int stderr_copy = -1;
+	int stderr_pipe[2];
+	int pread, pwr;
+	int verbosity = 0; // 1 for shift, 2 for reduce, 1|2 for both
+	char *outputfile = (char *) malloc (128);
+	sprintf (outputfile, "ast.dot");
+
+	char verbositym[] = "\t-verbose shift\tList all shift operations\n\t-verbose reduce\tList all reduce operations\n\t-verbose sr\tList shift and reduce operations\n\t-verbose all\tCopy the entire debugger log\n\t-verbose srla\tPrint shift, reduce and lookahead logs\n";
+
+	// command line options
+	// now points to first command line option
+	for(int i=1;i<argc;i++){
+		if (strcmp (argv[i], "-input") == 0) { // input file - replace stdin with it
+			if (argv[i+1] == NULL) {
+				fprintf (stderr, "Missing argument: -input must be followed by input file. stdin if not specified\n");
+				return 1;
+			}
+			input_fd = open (argv[i+1], O_RDONLY);
+			if (input_fd < 0) {
+				fprintf (stderr, "Invalid input file name: %s\n", argv[i+1]);
+				return 1;
+			}
+			close(0);
+			dup (input_fd);
+			cout << "input file: " << argv[i+1] << endl;
+		}
+		else if (strcmp(argv[i], "-output") == 0) { // outpur file name, default ast.dot
+			if (argv[i+1] == NULL) {
+				fprintf (stderr, "Missing argument: -output must be followed by output file name\n");
+				return 1;
+			}
+			if (strlen (*(argv+1)) > 127) {
+				fprintf (stderr, "Output file name too long. Max 128 characters\n");
+				return 1;
+			}
+			sprintf (outputfile, "%s", argv[i+1]);
+		}
+		else if (strcmp(argv[i], "-verbose") == 0) {
+			fprintf (stderr, "Printing parser logs to stderr\n.debuglog will be overwritten.");
+			yydebug = 1;
+			// set the verbosity variable, 3 for now;
+			if (argv[i+1] == NULL) {
+				fprintf (stderr, "Specify the verbosity level\n%s", verbositym);
+				return 1;
+			} else if (strcmp (argv[i+1], "shift") == 0) verbosity = 1;
+			else if (strcmp (argv[i+1], "reduce") == 0) verbosity = 2;
+			else if (strcmp (argv[i+1], "all") == 0) verbosity = 4;
+			else if (strcmp (argv[i+1], "sr") == 0) verbosity = 3;
+			else if (strcmp (argv[i+1], "srla") == 0) verbosity = 11;
+			else {
+				fprintf (stderr, "Specify the verbosity level\n%s", verbositym);
+				return 1;
+			}
+			stderr_copy = dup(2); // use later
+			close(2);
+			stderr_dup = creat (".debuglog", S_IRUSR|S_IWUSR);
+			// printf ("stderr dup is %d\n", stderr_dup);
+			if (stderr_dup - 2)
+				return 1;
+		}
+		else if (strcmp (argv[i], "-help") == 0) {
+			printf ("This is a basic python compiler made by Dev*\nCommand-line options:\n\t-input:\t\tInput file (default - standart input console. Use Ctrl-D for EOF)\n\t-output:\tOutput file (default: ast.dot; overwritten if exists)\n\t-verbose:\tPrint debugging information to stderr\n\t-help:\t\tPrint this summary\nVerbosity flags: (no default value)\n%s", verbositym );
+			return 0;
+		}
+	}
+	
+	graph = fopen (outputfile, "w+");
+	fprintf (graph, "strict digraph ast {\n");
+
+	yyparse();
+	if (graph) {
+		fprintf (graph, "}\n");
+		fclose (graph);
+	}
+	
+	char *line = NULL;
+	size_t n = 0;
+	FILE* logs;
+	if (verbosity) {
+		close (stderr_dup);
+		logs = fopen (".debuglog", "r");
+		int count = 0;
+
+		while (getline (&line, &n, logs) > 0) {
+			if (line[0] == 'S' && line[1] == 'h' && (verbosity & 1))
+				dprintf (stderr_copy, "%s", line);
+			if (strncmp (line, "Reducing", 7) == 0 && (verbosity & 2))
+				dprintf	(stderr_copy, "%s", line);
+			if (strncmp (line, "-> $$ =", 7) == 0 && (verbosity & 2))
+				dprintf	(stderr_copy, "%s", line);
+			if ((verbosity & 4))
+				dprintf (stderr_copy, "%s", line);
+			if ((strncmp (line, "Next token", 10) == 0) && (verbosity & 8))
+				dprintf (stderr_copy, "%s", line);
+
+			line = NULL; n = 0;
+		}
+		dprintf (stderr_copy, "Deleting .debuglog\n");
+		unlink (".debuglog");
+		fclose (logs);
+	}
+
+    return 0;
 }
+
+
+
 
 int yyerror(const char *s){
     cerr<<"Error: "<<s<<" at line number: "<<yylineno<<endl;

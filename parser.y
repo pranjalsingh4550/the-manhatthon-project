@@ -106,10 +106,12 @@
 
 %type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block typedargument argument 
 
-%start input
+%start program
 
 
 %%
+program : input | program INDENT
+
 input: start 
 	| NEWLINE input
 

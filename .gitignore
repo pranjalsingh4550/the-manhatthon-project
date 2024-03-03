@@ -1,4 +1,5 @@
 parser.tab.c
+.vscode/
 parser.tab.h
 parser
 lexer

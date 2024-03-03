@@ -2,7 +2,7 @@ class person ():
   name=str
   advisor=str
   namelen=int
-  degree=str
+  degree=[]
   def __init__ (self,nameparam:str, advname:str, degree:str):
     self.name = nameparam
     self.advisor = advname;
@@ -51,4 +51,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-

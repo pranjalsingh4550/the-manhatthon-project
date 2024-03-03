@@ -224,7 +224,7 @@ ignore2	\n[ \f\t]*{comments}?
 {floatnumber}   {string temp="Floating point Literal\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NUMBER;}
 {imagnumber}    {string temp="Imaginary Literal\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NUMBER;}
 (?x:(r|R)?(\"[^\"\\\n]*(\\(.|\n)[^\"\\\n]*)*\")|(\'[^\'\\\n]*(\\(.|\n)[^\'\\\n]*)*\'))   {
-	string s="String Literal\n(";
+	string s="String Literal\n( ";
     for(int i=0;i<yyleng;i++)
     {
         switch(yytext[i])
@@ -242,12 +242,12 @@ ignore2	\n[ \f\t]*{comments}?
             default: s.push_back(yytext[i]);
         }
     }
-    s.push_back(')');
+    s+=" )";
     yylval.node=new Node(s);return STRING;
 }
 
 (?x:(r|R)?(\'\'\'[^\'\\]*(((\\(.|\n))|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\"\"\"[^\"\\]*(((\\(.|\n))|(\"){1,2}([^\"\\]|\\.))[^\"\\]*)*\"\"\")) {
-	string s="String Literal\n(";
+	string s="String Literal\n( ";
     for(int i=0;i<yyleng;i++)
     {
         switch(yytext[i])
@@ -265,7 +265,7 @@ ignore2	\n[ \f\t]*{comments}?
             default: s.push_back(yytext[i]);
         }
     }
-    s.push_back(')');
+    s+=" )";
     yylval.node=new Node(s);return STRING;
 }
 

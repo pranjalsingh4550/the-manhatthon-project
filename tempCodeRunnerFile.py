@@ -1,16 +1,4 @@
-class person ():
-  name=str
-  advisor=str
-  namelen=int
-  degree=str
-  def __init__ (self,nameparam:str, advname:str, degree:str):
-    self.name = nameparam
-    self.advisor = advname;
-    self.namelen = len(nameparam)
-    self.degree = degree
-    if degree not in ["BTech", "MTech", "PhD", "MSR", "eMasters"]:
-      print ("Invalid degree")
-    print (degree)
+print (degree)
   def print_namelen_with(self):
     print (self.namelen)
 
@@ -51,4 +39,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-

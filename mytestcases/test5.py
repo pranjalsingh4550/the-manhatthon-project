@@ -53,8 +53,10 @@ def euler_phi2 (a:int)->int: # computer euler-phi function using the formula
 def main () ->bool:
   t:int = 1
   for t in range (1,100):
-    if euler_phi(t) - euler_phi2(t):
-      print ("Error in implementation")
+    if eulerphi(t) - euler_phi2(t):
+      print ("Not matching")
       return False
   return True;
-    
+
+if __name__ == "__main__":
+  main()

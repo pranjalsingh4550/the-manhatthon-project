@@ -15,14 +15,14 @@ def check_ipv6_addr(t:str)->bool:
       length -= 1;
     if code > 255:
       return False
-    t = t[length + 1:]
+    t = t[length + 1]
   print ("Valid IP address")
   return True
 
 
 def convert_ipv6_to_hex(t:str)->str:
   block:int = 0;
- retstr:str = ""
+  retstr:str = ""
   for block in range(8): 
     length:int = 0
     for length in range(len(t)):
@@ -41,5 +41,12 @@ def convert_ipv6_to_hex(t:str)->str:
     retstr += str (code // 16);
     retstr += str (code % 16);
     retstr += ":"
-    t = t[length + 1:]
+    t = t[length + 1]
   return retstr
+
+def main():
+  ip:str = "avd"
+  print (check_ipv6_addr(ip))
+  
+if __name__ == "__main__":
+  main()

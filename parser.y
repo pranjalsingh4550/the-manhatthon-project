@@ -104,7 +104,7 @@
 %token <node> FALSE "False"
 %token <node> NONE "None"
 
-%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison compare_op_bitwise_or_pair eq_bitwise_or noteq_bitwise_or lt_bitwise_or lte_bitwise_or gt_bitwise_or gte_bitwise_or is_bitwise_or in_bitwise_or notin_bitwise_or isnot_bitwise_or expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block typedargument argument 
+%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block typedargument argument 
 
 %start input
 
@@ -142,7 +142,7 @@ small_stmt: expr_stmt
 expr_stmt: test ":" test { 
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
-			$$->addchild($2, "Type");	
+			$$->addchild($3, "Type");	
 	}
 	| test ":" test "=" test {
 			$$ = new Node ("Declaration");
@@ -184,29 +184,17 @@ not_test : comparison
 	| "not" not_test	{ $$ = new Node ("not"); $$->addchild ($2);}
 
 comparison: expr  
-	| comparison compare_op_bitwise_or_pair	{$$ = $2; $$->addchild ($1);	 $$->addchild (later); }	
+	| comparison "==" expr	{ $$ = new Node ("=="); $$->addchild ($1); $$->addchild ($3);}
+	| comparison "!=" expr	{ $$ = new Node ("!="); $$->addchild ($1); $$->addchild ($3);}
+	| comparison "<" expr	{ $$ = new Node ("<"); $$->addchild ($1); $$->addchild ($3);}
+	| comparison "<=" expr	{ $$ = new Node ("<="); $$->addchild ($1); $$->addchild ($3);}
+	| comparison ">" expr	{ $$ = new Node (">"); $$->addchild ($1); $$->addchild ($3);}
+	| comparison ">=" expr	{ $$ = new Node (">="); $$->addchild ($1); $$->addchild ($3);}
+	| comparison "is" expr	{ $$ = new Node ("is"); $$->addchild ($1); $$->addchild ($3);}
+	| comparison "in" expr	{ $$ = new Node ("in"); $$->addchild ($1); $$->addchild ($3);}
+	| comparison "not" "in" expr	{ $$ = new Node ("not in"); $$->addchild ($1); $$->addchild ($4);}
+	| comparison "is" "not" expr	{ $$ = new Node ("is not"); $$->addchild ($1); $$->addchild ($4);}
 
-compare_op_bitwise_or_pair: eq_bitwise_or 
-	| noteq_bitwise_or  
-	| lt_bitwise_or 
-	| lte_bitwise_or  
-	| gt_bitwise_or  
-	| gte_bitwise_or  
-	| is_bitwise_or 
-	| in_bitwise_or
-	| notin_bitwise_or 
-	| isnot_bitwise_or 
-
-eq_bitwise_or: "==" expr {$$ = new Node("=="); later = $2;}
-noteq_bitwise_or: "!=" expr {$$ = new Node("!="); later = $2;}
-lt_bitwise_or: "<" expr {$$ = new Node("<");later = $2;}
-lte_bitwise_or: "<=" expr {$$ = new Node("<=");later = $2;}
-gt_bitwise_or: ">" expr {$$ = new Node(">");later = $2;}
-gte_bitwise_or: ">=" expr {$$ = new Node(">=");later = $2;}
-is_bitwise_or: "is" expr {$$ = new Node("is");later = $2;}
-in_bitwise_or: "in" expr {$$= new Node("in");later = $2;}
-notin_bitwise_or: "not" "in" expr {$$ = new Node("not in");later = $2;}
-isnot_bitwise_or: "is" "not" expr {$$ = new Node("is not");later = $2;}
 
 expr: xor_expr 
 	| expr "|" xor_expr { $$ = new Node ("Bitwise OR\n|"); $$->addchild ($1); $$->addchild ($3);}
@@ -271,8 +259,8 @@ atom: NAME
 		 temp += $2->production;
 	 $$->rename(temp);
 	 }
-	| "("")" { $$ = new Node ("Empty Tuple"); }
-	| "[" "]" { $$ = new Node ("Empty List"); }
+	| "("")" { $$ = new Node ("Empty Tuple"); $1=new Node("Delimeter\n(");$2=new Node("Delimeter\n)"); $$->addchild($1); $$->addchild($2);}
+	| "[" "]" { $$ = new Node ("Empty List"); $1=new Node("Delimeter\n[");$2=new Node("Delimeter\n]"); $$->addchild($1); $$->addchild($2);}
 
 STRING_plus: STRING 
 	| STRING_plus STRING { $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
@@ -322,7 +310,7 @@ funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" suite { $$ = new No
 
 classdef: "class" NAME ":"  suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Contains");}
 	| "class" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Inherits"); $$->addchild($7,"Contains");}
-	| "class" NAME "(" ")" ":" suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($5, "Contains");}
+	| "class" NAME "(" ")" ":" suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($6, "Contains");}
 
 
 compound_stmt: 

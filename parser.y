@@ -14,6 +14,7 @@
 	FILE* inputfile = NULL;
     extern int yylex();
     extern int yyparse();
+    extern void debugprintf (const char *) ;
     extern int yylineno;
 	extern char *yytext;
     int yyerror(const char *s);
@@ -104,7 +105,7 @@
 %token <node> FALSE "False"
 %token <node> NONE "None"
 
-%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block typedargument argument 
+%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block typedargument argument seq_assign
 
 %start program
 
@@ -157,12 +158,14 @@ expr_stmt: test ":" test {
 			$$->addchild($1);
 			$$->addchild($3);
 	}
-	| test "=" test {
-			$$ = new Node ("=");
-			$$->addchild($1);
-			$$->addchild($3);
-	}
-	| test
+	| seq_assign 
+
+seq_assign: test | test "=" seq_assign { $$ = new Node ("="); $$->addchild($1); $$->addchild($3);}
+
+/* 
+equaltest: "=" test{ $$ = new Node ("="); later=$2; edge_string="Value";}
+		| "=" test equaltest { $$ = new Node ("="); $$->addchild($2); $$->addchild($3);}  */
+
 
 test: or_test "if" or_test "else" test {
 		$$ = new Node ("Inline If Else");
@@ -406,6 +409,7 @@ int main(int argc, char** argv){
 		}
 	}
 	if (verbosity == 0) {
+		// inint stderr_dup;
 		stderr_dup = dup (2);
 	}
 	
@@ -451,7 +455,6 @@ int main(int argc, char** argv){
 
 
 int yyerror(const char *s){
-    // cerr<<"Error: "<<s<<" at line number: "<<yylineno<<endl;
     dprintf (stderr_dup, "Error %s at line number %d.\n", s, yylineno);
     return 0;
 }

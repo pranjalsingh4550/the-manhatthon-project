@@ -13,6 +13,7 @@
     int newline=0;
     int indent=0;
     int bracketline=0;
+    extern int stderr_dup;
     char brackettype;
 %}
 comments #[^\r\n]*
@@ -77,7 +78,7 @@ ignore2	\n[ \f\t]*{comments}?
         {
             if(indent_stack.top()[i]!=s[i])
             {
-                cerr<<"Inconsistent use of tabs and spaces in indentation"<<yylineno<<endl;
+                dprintf (stderr_dup, "Inconsistent use of tabs and spaces in indentation at line %d\n", yylineno);
                 exit(1);
             }
         }
@@ -90,7 +91,7 @@ ignore2	\n[ \f\t]*{comments}?
         {
             if(indent_stack.top()[i]!=s[i])
             {
-                cerr<<"Inconsistent use of tabs and spaces in indentation"<<yylineno<<endl;
+                dprintf (stderr_dup, "Inconsistent use of tabs and spaces in indentation at line %d\n", yylineno);
                 exit(1);
             }
         }
@@ -102,7 +103,7 @@ ignore2	\n[ \f\t]*{comments}?
         }
         if(indent_stack.top()!=s)
         {
-           cerr<<"Unindent amount does not match previous indent"<<yylineno<<endl; ;
+           dprintf (stderr_dup, "Unindent amount does not match previous indent at line %d\n", yylineno) ;
             exit(1);
         }
     }
@@ -181,7 +182,7 @@ ignore2	\n[ \f\t]*{comments}?
     return RPAR;
 }
 ")"	{
-    cerr<<"Bracket Mismatch at line no: "<<bracketline<<endl;
+    dprintf (stderr_dup, "Bracket Mismatch at line no: %d\n", bracketline);
     exit(1);
 }
 "[" {
@@ -195,7 +196,7 @@ ignore2	\n[ \f\t]*{comments}?
     return RSQB;
 }
 "]" {
-    cerr<<"Bracket Mismatch at line no: "<<bracketline<<endl;
+    dprintf (stderr_dup, "Bracket Mismatch at line no: %d\n", bracketline);
     exit(1);
 }
 "{" {
@@ -209,14 +210,14 @@ ignore2	\n[ \f\t]*{comments}?
     return RBRACE;
 }
 "}" {
-    cerr<<"Bracket Mismatch at line no: "<<bracketline<<endl;
+    dprintf (stderr_dup, "Bracket Mismatch at line no: %d\n", bracketline);
     exit(1);
 }
 
 "." {return DOT;}
 
 [1-9]{number}*|0	{string temp="Integer Literal\n( ";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NUMBER;}
-{number}	{cerr<<"leading zeros in decimal integer literals are not permitted"<<endl;exit(1);}
+{number}	{dprintf (stderr_dup, "leading zeros in decimal integer literals are not permitted\nError at line %d\n", yylineno);exit(1);}
 0[oO](_?[0-7]+)+	{string temp="Integer Literal\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NUMBER;}
 0[xX](_?[0-9a-fA-F]+)+	{string temp="Integer Literal\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NUMBER;}
 0[bB](_?[01]+)+	{string temp="Integer Literal\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NUMBER;}
@@ -274,6 +275,6 @@ False	{string temp="Keyword\n( ";temp+=yytext;temp+=" )";yylval.node=new Node(te
 None	{string temp="Keyword\n( ";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NONE;}
 {NAME}	{string temp="Identifier\n( ";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NAME;}
 {ignore}
-<parOpen,squareOpen><<EOF>>	{cerr<<"Unopened bracket "<< brackettype <<" at line no: "<<bracketline<<endl;exit(1);} 
-. {cerr<<"Invalid token "<<yytext[0] <<" at line no: "<<yylineno<<endl;exit(1);}
+<parOpen,squareOpen><<EOF>>	{ dprintf (stderr_dup, "Unopened bracket %c at line no: %d\n", brackettype, bracketline);exit(1);} 
+. { dprintf (stderr_dup, "Invalid token %c at line no: %d\n", yytext[0], yylineno); exit(1);}
 %%

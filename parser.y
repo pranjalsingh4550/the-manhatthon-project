@@ -14,13 +14,13 @@
 	FILE* inputfile = NULL;
     extern int yylex();
     extern int yyparse();
-    extern void debugprintf (const char *) ;
     extern int yylineno;
 	extern char *yytext;
     int yyerror(const char *s);
 	#define YYDEBUG 1
 	static Node* later;
 	const char* edge_string;
+	int stderr_dup;
 %}
 
 %union {
@@ -338,7 +338,7 @@ testlist: arglist
 int main(int argc, char** argv){
 	yydebug = 0;
 	int input_fd = -1;
-	int stderr_dup = -1;
+	stderr_dup = -1;
 	int stderr_redirect = -1;
 	int stderr_copy = -1;
 	int stderr_pipe[2];
@@ -405,6 +405,9 @@ int main(int argc, char** argv){
 			return 0;
 		}
 	}
+	if (verbosity == 0) {
+		stderr_dup = dup (2);
+	}
 	
 	graph = fopen (outputfile, "w+");
 	fprintf (graph, "strict digraph ast {\n");
@@ -448,6 +451,7 @@ int main(int argc, char** argv){
 
 
 int yyerror(const char *s){
-    cerr<<"Error: "<<s<<" at line number: "<<yylineno<<endl;
+    // cerr<<"Error: "<<s<<" at line number: "<<yylineno<<endl;
+    dprintf (stderr_dup, "Error %s at line number %d.\n", s, yylineno);
     return 0;
 }

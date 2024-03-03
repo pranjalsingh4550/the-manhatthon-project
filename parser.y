@@ -162,11 +162,6 @@ expr_stmt: test ":" test {
 
 seq_assign: test | test "=" seq_assign { $$ = new Node ("="); $$->addchild($1); $$->addchild($3);}
 
-/* 
-equaltest: "=" test{ $$ = new Node ("="); later=$2; edge_string="Value";}
-		| "=" test equaltest { $$ = new Node ("="); $$->addchild($2); $$->addchild($3);}  */
-
-
 test: or_test "if" or_test "else" test {
 		$$ = new Node ("Inline If Else");
 		$$->addchild($1,"Value");

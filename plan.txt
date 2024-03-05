@@ -1,0 +1,33 @@
+all integers are signed long
+all floats are double
+
+list instructions in an enum
+
+
+ujump (unconditional)
+cjump
+lw (64b)
+sw (64b)
+
+ret/retq (?)
+
+
+alu ops
+
+andbl, orbl, notbl (boolean)
+andbw, orbw, notbw, xorbw shrbw, shlbw (bitwise) (sh: shift)
+cmpeq, cmpne, cmplt, cmple, cmpgt, cmpge
+
+addi, subi, muli, divi, floori, modi, expi (integer ops)
+addf, subf, mulf, divf, floorf, modf, expf (float ops)
+
+i2float
+fl2int
+
+
+
+operations act on subtrees: semantic actions of the form do_op (subtree $1, subtree $2, destination $$) { ir.push_back(**);}
+
+will we be optimising things?
+x86 has instructions to compare, for example, lower 8 bits of so-and-so register. This is a minimal set of instructions.
+

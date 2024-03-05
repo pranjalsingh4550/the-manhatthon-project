@@ -60,8 +60,6 @@ enum datatypes {
 	// we use result.type = max (a.type, b.type)
 };
 
-class Node;
-
 class Node {
 		public:
 		int nodeid;
@@ -119,9 +117,7 @@ class Node {
 			children.push_back(child);
 			if (graph)
 				fprintf (graph, "\tnode%d -> node%d [label=\"%s\"];\n", this->nodeid, child->nodeid, label);
-
 		}
-
 		// overloaded ops below: add actions of the form leftchild OP child
 		void addchild (Node* child, Node* leftchild) {
 			children.push_back(child);

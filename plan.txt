@@ -31,3 +31,14 @@ operations act on subtrees: semantic actions of the form do_op (subtree $1, subt
 will we be optimising things?
 x86 has instructions to compare, for example, lower 8 bits of so-and-so register. This is a minimal set of instructions.
 
+The devil's list of bad constructs
+*trying to list the parameters of interest of an AST node - will make flags later
+
+- is the next instruction's address known immediately? (refer to the backpatching lecture, or function calls. we may need to store a dummy in the goto label and make another pass to fill it.) >> while, for, if[-elif][-else]
+- is the node a direct assignment? ie do we need to define a temporary?
+- x86 syntax says "cmpl(ong) %rax, %rbx; jne(qual) 0x7abd;" whereas our syntax will need separate named boolean temporaries, marked and flagged as internal to x86
+- are return values direct primitive types or pointers to primitive types? (a = 10; b = a; b = 20; print (a) in python prints 10, not 20 icudk)
+- this also means, for statements like result = fncall(..), &result must be passed to fncall! or do we malloc (sizeof (typeof (&fncall)) and overwrite result (which is, for instance, long* not long)
+- are we numbering function parameters and limiting the number to 6? (PS if sir doesn't tell us its <= 6, we'll end up making things difficult anyways, so let's ask.)
+- maybe there's only one parameter of interest after all, rather than a dozen. i was hoping to have a linux-style bitvector :\
+- I've discussed with dev - maybe we don't need the overloading at all. addchild() can be modified to check the opcode and Node.children.size(), and then run the action when the number of children matches the expected number.

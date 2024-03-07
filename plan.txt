@@ -42,3 +42,35 @@ The devil's list of bad constructs
 - are we numbering function parameters and limiting the number to 6? (PS if sir doesn't tell us its <= 6, we'll end up making things difficult anyways, so let's ask.)
 - maybe there's only one parameter of interest after all, rather than a dozen. i was hoping to have a linux-style bitvector :\
 - I've discussed with dev - maybe we don't need the overloading at all. addchild() can be modified to check the opcode and Node.children.size(), and then run the action when the number of children matches the expected number.
+
+
+## solid considerations:
+- for backpatching, the symbol table needs entries to both targets for control flow constructs. but we may go for full-fledged backpatching also. ## NO - we only need to insert loops. GNU as does the rest
+- handling args and returns - returns are always in rax, first 6 args in rdi, rsi, rdx, r10, r8, r9 (x86 order). rest in stack.
+- let's make the c++ in-memory ir ignore this, ie treat as a vector. print_tac and print_x86_as can deal with this independently.
+- FUNCTION TEMPLATE: store = fn (arg1, arg2)
+			-> *store = * (c_fn (xx)) [[ translates to ]]
+			->	store = alloc_in_caller_stack (sizeof (store); // to avoid mmaps
+				void c_fn (store, &arg1, &arg2) { // like in python
+					compute return value;
+					if (store != NULL)
+						*store = return value;
+					return ;
+				}
+- reminder - method calls need a this pointer in the TAC.
+
+- lists and arglists:
+	arglists are known at compile-time
+	structure of lists, strings at run time is turing-undecidable (inderminate maybe?)
+	struct linear_object {
+		int size;
+		int current_allocated_size; // size of pointer array for lists, length for strings.
+		// design choice - null-terminated strings? not needed if we use read/write syscalls, which are easier in assembly. my cs614 group has the code.
+		union {
+			void* objpointer; // for a list
+			char* str_address; // for strings
+		}
+	}
+- constructs like for-break-else have 3 targets (condition, body, else, break_target). the body is reached via fall-through. The in-memory ir (naming it DevenIR) needs these many attributes. I think 3 is the max.
+- all other productions seem to be innocuous assignments.
+

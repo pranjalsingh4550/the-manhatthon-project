@@ -160,8 +160,8 @@ expr_stmt: test ":" test {
 			$$->addchild($5, "Value");
 
 			if(top->contains($1->production)){
-				// fprintf(stderr, "Error: Variable %s already declared\n", $1->production.c_str());
-				// exit(1);
+				fprintf(stderr, "Error: Variable %s already declared\n", $1->production.c_str());
+				exit(1);
 			}
 			top->add_symbol($1,INT);
 	}		

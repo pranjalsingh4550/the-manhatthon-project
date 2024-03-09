@@ -154,6 +154,7 @@ class Symbol {
 	public:
 		string name;
 		enum datatypes type;
+		
 		int size; //What is the use?
 		int offset; //What is the use?
 		SymbolTable *nested_table; //should it be there?

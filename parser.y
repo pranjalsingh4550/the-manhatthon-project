@@ -22,7 +22,30 @@
 	static Node* later;
 	const char* edge_string;
 	int stderr_dup;
-	static class SymbolTable* top;
+	static class SymbolTable* top=NULL;
+	Symbol* lookup(string name){
+		SymbolTable* temp = top;
+		while(temp){
+			if(temp->contains(name)){
+				return temp->lookup(name);
+			}
+			temp = temp->parent;
+		}
+		return NULL;
+	}
+	void add_symbol(Node* name, int type){
+		if(top->contains(name->production)){
+			fprintf(stderr, "Error: Variable %s already declared\n", name->production.c_str());
+			exit(1);
+		}
+		top->add_symbol(name, type);
+	}
+	void update(Node* name, string type){
+		if(!top->contains(name->production)){
+			add_symbol(name, type);
+		}
+		top->update(name, type);
+	}
 %}
 
 %union {
@@ -41,6 +64,7 @@
 %token <node> CONTINUE "continue"
 %token <node> RETURN "return"
 %token <node> PASS "pass"	
+%token <node> GLOBAL "global"
 
 %token <node> IF "if"
 %token <node> ELSE "else"
@@ -106,7 +130,7 @@
 %token <node> FALSE "False"
 %token <node> NONE "None"
 
-%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block typedargument argument seq_assign
+%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block typedargument argument seq_assign global_stmt
 
 %start program
 
@@ -117,7 +141,7 @@ program : input | program INDENT
 input: start 
 	| NEWLINE input
 
-start :{$$=new Node("Empty file");} | {top=new SymbolTable(NULL);} stmts[first] {$$= new Node("Start"); $$->addchild($first);}
+start :{$$=new Node("Empty file");} | {top=new SymbolTable(top);} stmts[first] {$$= new Node("Start"); $$->addchild($first);}
 
 stmts : 
 	stmt
@@ -141,38 +165,40 @@ small_stmt: expr_stmt
 	| return_stmt
 	| "break" 
 	| "continue" 
-	| "pass" 
+	| "pass"
+	| global_stmt 
 ;
+
+global_stmt: "global" NAME
+	| global_stmt NAME ","  { $$ = new Node ("Multiple Global"); $$->addchild($2); $$->addchild($4);}
+
 expr_stmt: test ":" test { 
+			update($1,$3->production);
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
-			if(top->contains($1->production)){
-				fprintf(stderr, "Error: Variable %s already declared\n", $1->production.c_str());
-				exit(1);
-			}
-			top->add_symbol($1,INT);
 	}
 	| test ":" test "=" test {
+			update($1,$3->production);
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
 			$$->addchild($5, "Value");
 
-			if(top->contains($1->production)){
-				fprintf(stderr, "Error: Variable %s already declared\n", $1->production.c_str());
-				exit(1);
-			}
-			top->add_symbol($1,INT);
 	}		
 	| test augassign test { 
-			$$ = new Node ($2->production.c_str());
-			$$->addchild($1);
-			$$->addchild($3);
 			if(!top->lookup($1->production)){
 				fprintf(stderr, "Error: Variable %s not declared\n", $1->production.c_str());
 				exit(1);
 			}
+			if(!top->lookup($3->production)){
+				fprintf(stderr, "Error: Variable %s not declared\n", $1->production.c_str());
+				exit(1);
+			}
+			$$ = new Node ($2->production.c_str());
+			$$->addchild($1);
+
+			$$->addchild($3);
 	}
 	| seq_assign 
 

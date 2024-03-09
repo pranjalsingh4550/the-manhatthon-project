@@ -115,6 +115,7 @@ ignore2	\n[ \f\t]*{comments}?
 "continue"	{string temp="Keyword\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return CONTINUE;}
 "return"	{yylval.node=new Node(yytext);return RETURN;}
 "pass"	{string temp="Keyword\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return PASS;}
+"global"	{string temp="Keyword\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return GLOBAL;}
 
 "if"	{return IF;}
 "else"	{return ELSE;}

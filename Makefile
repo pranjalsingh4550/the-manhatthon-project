@@ -7,12 +7,12 @@ clean:
 parser: clean
 	bison -d parser.y
 	flex lexer.l
-	g++ -o parser lex.yy.c parser.tab.c
+	g++ -o parser lex.yy.c parser.tab.c -Wno-return-local-addr
 
 test: parser
 	./parser -verbose shift -output ast.dot < input.py 2>output.txt
 	sed -i 's/Shifting/=======================================+\nShifting/; s/^->/\t\t->/' output.txt
-	dot -Tpdf -Gordering=out ast.dot > temp.pdf
+	dot -Tpdf -Gordering=out ast.dot > temp.pdf 
 	rm -f a.out lex.yy.c converter.exe lexer parser.t* parser output.txt
 
 temp:

@@ -4,7 +4,7 @@
     #include<bits/stdc++.h>
     #include<unistd.h>
     #include<fcntl.h>
-	#include"classes.h"
+	#include"classes.hpp"
 	#include<fcntl.h>
 	#include<sys/stat.h>
 	#include<sys/types.h>
@@ -22,6 +22,7 @@
 	static Node* later;
 	const char* edge_string;
 	int stderr_dup;
+	static class SymbolTable* top;
 %}
 
 %union {
@@ -116,7 +117,7 @@ program : input | program INDENT
 input: start 
 	| NEWLINE input
 
-start :{$$=new Node("Empty file");} | stmts {$$= new Node("Start"); $$->addchild($1);}
+start :{$$=new Node("Empty file");} | {top=new SymbolTable(NULL);} stmts[first] {$$= new Node("Start"); $$->addchild($first);}
 
 stmts : 
 	stmt
@@ -145,22 +146,38 @@ small_stmt: expr_stmt
 expr_stmt: test ":" test { 
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
-			$$->addchild($3, "Type");	
+			$$->addchild($3, "Type");
+			if(top->contains($1->production)){
+				fprintf(stderr, "Error: Variable %s already declared\n", $1->production.c_str());
+				exit(1);
+			}
+			top->add_symbol($1,INT);
 	}
 	| test ":" test "=" test {
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
 			$$->addchild($5, "Value");
+
+			if(top->contains($1->production)){
+				// fprintf(stderr, "Error: Variable %s already declared\n", $1->production.c_str());
+				// exit(1);
+			}
+			top->add_symbol($1,INT);
 	}		
 	| test augassign test { 
 			$$ = new Node ($2->production.c_str());
 			$$->addchild($1);
 			$$->addchild($3);
+			if(!top->lookup($1->production)){
+				fprintf(stderr, "Error: Variable %s not declared\n", $1->production.c_str());
+				exit(1);
+			}
 	}
 	| seq_assign 
 
-seq_assign: test | test "=" seq_assign { $$ = new Node ("="); $$->addchild($1); $$->addchild($3);}
+seq_assign: test 
+| test "=" seq_assign { $$ = new Node ("="); $$->addchild($1); $$->addchild($3);}
 
 test: or_test "if" or_test "else" test {
 		$$ = new Node ("Inline If Else");
@@ -299,8 +316,8 @@ typedarglist_comma: typedarglist | typedarglist ","
 typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"Name"); $$->addchild($3,"Type");}
 	| test ":" test "=" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"name"); $$->addchild($3,"Type"); $$->addchild($5,"Default");}
 
-suite: simple_stmt { $$ = $1;}
-	| NEWLINE  INDENT  stmts DEDENT {$$=$3;} 
+suite: {top=new SymbolTable(top);}simple_stmt[first] { $$ = $first;top=top->parent;}
+	|{top=new SymbolTable(top);} NEWLINE  INDENT  stmts[third] DEDENT {$$=$third;top=top->parent;}
 
 funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($7, "Return type"); $$->addchild($9, "Body");}
 	| "def" NAME "(" ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($8, "Body");}

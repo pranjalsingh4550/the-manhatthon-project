@@ -4,7 +4,7 @@
 %{
     #include<bits/stdc++.h> 
     #include "parser.tab.h"
-    #include "classes.h"
+    #include "classes.hpp"
     extern int nodecount;
     extern FILE* graph;
     using namespace std;

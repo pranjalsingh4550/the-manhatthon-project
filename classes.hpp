@@ -58,6 +58,8 @@ enum datatypes {
 	COMPLEX,
 	// reorder this later, so that instead of an if-block for a*b,
 	// we use result.type = max (a.type, b.type)
+	VOID,
+	ERROR,
 };
 
 class Node {
@@ -130,7 +132,6 @@ class Node {
 			if (graph)
 				fprintf (graph, "\tnode%d -> node%d [label=\"%s\"];\n", this->nodeid, child->nodeid, label);
 			add_op(leftchild, child, this->op);
-
 		}
 		void printnode () {
 			cout << "Node id: " << nodeid << " Production: " << production << endl;
@@ -147,4 +148,54 @@ class Node {
 		}
 	};
 
+class SymbolTable;
+
+class Symbol {
+	public:
+		string name;
+		enum datatypes type;
+		int size; //What is the use?
+		int offset; //What is the use?
+		SymbolTable *nested_table; //should it be there?
+};
+
+class SymbolTable {
+	public:
+		SymbolTable *parent;
+		vector<Symbol> symbols;
+		SymbolTable (SymbolTable *p) {
+			parent = p;
+		}
+		void add_symbol (Symbol s) {
+			symbols.push_back(s);
+		}
+		void add_symbol (Node* node, enum datatypes type) {
+			Symbol s;
+			s.name = node->production;
+			s.type = type;
+			symbols.push_back(s);
+		}
+		Symbol* lookup (string name) {
+			for (auto s: symbols) {
+				if (s.name == name) {
+					return &s;
+				}
+			}
+			if (parent != NULL) {
+				return parent->lookup(name);
+			}
+			return NULL;
+		}
+		bool contains (string name) {
+			for (auto s: symbols) {
+				if (s.name == name) {
+					return true;
+				}
+			}
+			if (parent != NULL) {
+				return parent->contains(name);
+			}
+			return false;
+		}
+	};
 

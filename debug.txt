@@ -1,2 +1,0 @@
-Printing parser logs to stderr
-.debuglog will be overwritten.

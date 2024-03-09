@@ -247,33 +247,25 @@ xor_expr: ans_expr
 
 ans_expr: shift_expr 
 	| ans_expr "&" shift_expr	{ $$ = new Node ("Bitwise AND\n&"); $$->addchild ($1); $$->addchild ($3);}
-
 shift_expr: sum 
 	| shift_expr "<<" sum	{ $$ = new Node ("Left Shift\n<<"); $$->addchild ($1); $$->addchild ($3);}
 	| shift_expr ">>" sum	{ $$ = new Node ("Right Shift\n>>"); $$->addchild ($1); $$->addchild ($3);}
-
 sum : sum "+" term  { $$ = new Node ("+"); $$->addchild ($1); $$->addchild($3); }
 	| sum "-" term	{ $$ = new Node ("-"); $$->addchild ($1); $$->addchild($3); }
 	| term
-
 term: term "*" factor	{ $$ = new Node ("*"); $$->addchild ($1); $$->addchild($3); }
 	| term "/" factor	{ $$ = new Node ("/"); $$->addchild ($1); $$->addchild($3); }
 	| term "%" factor	{ $$ = new Node ("%"); $$->addchild ($1); $$->addchild($3); }
 	| term DOUBLESLASH factor { $$ = new Node ("//"); $$->addchild ($1); $$->addchild($3); }
 	|factor	
-
 factor: "+" factor	{ $$ = new Node ("+"); $$->addchild($2);}
 	| "-" factor	{ $$ = new Node ("-"); $$->addchild($2);}
 	| "~" factor	{ $$ = new Node ("~"); $$->addchild($2);}
 	| power
-
 power: primary
 	| primary "**" factor	{ $$ = new Node ("**"); $$->addchild($1); $$->addchild($3); }
-
 primary: atom 
 	| primary trailer {$$=$2;  $$->addchild($1,"Primary");  if (later) $$->addchild(later,edge_string);}
-
-
 atom: NAME 
     | NUMBER 	
     | STRING_plus 

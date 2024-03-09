@@ -2,7 +2,7 @@ base: parser
 
 .PHONY: clean test run temp
 clean:
-	rm -f a.out lex.yy.c converter.exe lexer parser.t* parser temp.pdf output.txt ast.dot
+	rm -f a.out lex.yy.c converter.exe lexer parser.t* parser temp.pdf output.txt ast.dot debug.txt
 
 parser: clean
 	bison -d parser.y

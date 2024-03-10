@@ -52,15 +52,24 @@ enum ir_operation {
 };
 
 enum datatypes {
-	INT,	// bool will be stored as 0/1
-	FLOAT,
-	STR,
-	COMPLEX,
+	INT = 1,	// bool will be stored as 0/1
+	FLOAT = 2,
+	COMPLEX = 3,
 	// reorder this later, so that instead of an if-block for a*b,
 	// we use result.type = max (a.type, b.type)
-	VOID,
-	ERROR,
+	STR = 0x10,
+	VOID = 0x20,
+	ERROR = 0x40,
+	IDENTIFIER = 0x80
 };
+
+#define ISNUM(dtype) (dtype & 3)
+#define ISID(dtype) (dtype & 0x80)
+#define ISLITERAL(dtype) (dtype & 0x1f)
+#define ARITHMETIC_OP_RESULT(op1, op2)	\
+	((op1 > op2 ? op1 : op2) && ISNUM (op1 | op2))
+// returns 0 on error
+
 
 class Node {
 		public:

@@ -38,14 +38,14 @@
 			fprintf(stderr, "Error: Variable %s already declared\n", name->production.c_str());
 			exit(1);
 		}
-		top->add_symbol(name, type);
+		top->add_symbol(name, (datatypes)type);
 	}
-	void update(Node* name, string type){
-		if(!top->contains(name->production)){
-			add_symbol(name, type);
-		}
-		top->update(name, type);
-	}
+	// void update(Node* name, int type){
+	// 	if(!top->contains(name->production)){
+	// 		add_symbol(name, (datatypes)type);
+	// 	}
+	// 	// top->update(name, type);
+	// }
 %}
 
 %union {
@@ -130,7 +130,7 @@
 %token <node> FALSE "False"
 %token <node> NONE "None"
 
-%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block typedargument argument seq_assign global_stmt
+%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block typedargument global_stmt
 
 %start program
 
@@ -170,16 +170,16 @@ small_stmt: expr_stmt
 ;
 
 global_stmt: "global" NAME
-	| global_stmt NAME ","  { $$ = new Node ("Multiple Global"); $$->addchild($2); $$->addchild($4);}
+	| global_stmt "," NAME  { $$ = new Node ("Multiple Global"); $$->addchild($1); $$->addchild($3);}
 
 expr_stmt: test ":" test { 
-			update($1,$3->production);
+			// update($1,$3->production);
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
 	}
 	| test ":" test "=" test {
-			update($1,$3->production);
+			// update($1,$3->production);
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
@@ -200,10 +200,7 @@ expr_stmt: test ":" test {
 
 			$$->addchild($3);
 	}
-	| seq_assign 
-
-seq_assign: test 
-| test "=" seq_assign { $$ = new Node ("="); $$->addchild($1); $$->addchild($3);}
+	| test
 
 test: or_test "if" or_test "else" test {
 		$$ = new Node ("Inline If Else");
@@ -227,16 +224,16 @@ not_test : comparison
 	| "not" not_test	{ $$ = new Node ("not"); $$->addchild ($2);}
 
 comparison: expr  
-	| comparison "==" expr	{ $$ = new Node ("=="); $$->addchild ($1); $$->addchild ($3);}
-	| comparison "!=" expr	{ $$ = new Node ("!="); $$->addchild ($1); $$->addchild ($3);}
-	| comparison "<" expr	{ $$ = new Node ("<"); $$->addchild ($1); $$->addchild ($3);}
-	| comparison "<=" expr	{ $$ = new Node ("<="); $$->addchild ($1); $$->addchild ($3);}
-	| comparison ">" expr	{ $$ = new Node (">"); $$->addchild ($1); $$->addchild ($3);}
-	| comparison ">=" expr	{ $$ = new Node (">="); $$->addchild ($1); $$->addchild ($3);}
-	| comparison "is" expr	{ $$ = new Node ("is"); $$->addchild ($1); $$->addchild ($3);}
-	| comparison "in" expr	{ $$ = new Node ("in"); $$->addchild ($1); $$->addchild ($3);}
-	| comparison "not" "in" expr	{ $$ = new Node ("not in"); $$->addchild ($1); $$->addchild ($4);}
-	| comparison "is" "not" expr	{ $$ = new Node ("is not"); $$->addchild ($1); $$->addchild ($4);}
+	| expr "==" comparison	{ $$ = new Node ("=="); $$->addchild ($1); $$->addchild ($3);}
+	| expr "!=" comparison	{ $$ = new Node ("!="); $$->addchild ($1); $$->addchild ($3);}
+	| expr "<" comparison	{ $$ = new Node ("<"); $$->addchild ($1); $$->addchild ($3);}
+	| expr "<=" comparison	{ $$ = new Node ("<="); $$->addchild ($1); $$->addchild ($3);}
+	| expr ">" comparison	{ $$ = new Node (">"); $$->addchild ($1); $$->addchild ($3);}
+	| expr ">=" comparison	{ $$ = new Node (">="); $$->addchild ($1); $$->addchild ($3);}
+	| expr "is" comparison	{ $$ = new Node ("is"); $$->addchild ($1); $$->addchild ($3);}
+	| expr "in" comparison	{ $$ = new Node ("in"); $$->addchild ($1); $$->addchild ($3);}
+	| expr "not" "in" comparison	{ $$ = new Node ("not in"); $$->addchild ($1); $$->addchild ($4);}
+	| expr "is" "not" comparison	{ $$ = new Node ("is not"); $$->addchild ($1); $$->addchild ($4);}
 
 
 expr: xor_expr 
@@ -301,7 +298,7 @@ STRING_plus: STRING
 	| STRING_plus STRING { $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
 trailer: "." NAME {$$=new Node(".");later = $2;edge_string = "Refers";}
-	| "[" testlist "]" {$$=new Node("Subscript");later = $2;edge_string = "Indices";}
+	| "[" test "]" {$$=new Node("Subscript");later = $2;edge_string = "Indices";}
 	| "(" testlist ")" {$$=new Node("Function/Method call");later = $2; edge_string = "Arguments";}
 	| "(" ")" {$$=new Node("Function/Method call"); later = NULL;}
 
@@ -317,16 +314,14 @@ while_stmt: "while" test ":" suite {$$ = new Node ("While"); $$->addchild($2, "C
 
 
 
-arglist: argument
-	| arglist "," argument { $$ = new Node ("Multiple terms"); $$->addchild($1); $$->addchild($3);}
+arglist: test
+	| arglist "," test { $$ = new Node ("Multiple terms"); $$->addchild($1); $$->addchild($3);}
 
 
-argument: test
-	| test "=" test { $$ = new Node ("="); $$->addchild($1,"Name"); $$->addchild($3,"Default");}
 
 typedarglist:  typedargument
-	| argument
-	| typedarglist "," argument  { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
+	| test
+	| typedarglist "," test  { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
 	| typedarglist "," typedargument { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
 
 typedarglist_comma: typedarglist | typedarglist ","

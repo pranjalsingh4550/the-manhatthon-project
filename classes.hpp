@@ -7,6 +7,7 @@ using namespace std;
 
 extern int nodecount;
 extern FILE *graph;
+extern int yylineno;
 
 enum ir_operation {
 	UJUMP,
@@ -78,24 +79,28 @@ class Node {
 		public:
 		int nodeid;
 		string production;
+		string typestring;
 		ull lineno;
-		vector<struct Node*> children;
+		vector<Node*> children;
 		enum datatypes type;
 		enum ir_operation op;
 
 		Node(int x,const char *y){
 			nodeid = nodecount++;
 			production = y;
+			lineno= yylineno;
 		}
 		Node(string s){
 			nodeid = nodecount++;
 			production = s;
+			lineno= yylineno;
 			if (graph)
 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, s.c_str());
 		}
 		Node (const char *label) {
 			nodeid = nodecount++;
 			production = label;
+			lineno= yylineno;
 			if (graph)
 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label);
 		}
@@ -162,11 +167,13 @@ class Node {
 	};
 
 class SymbolTable;
+class FunctionTable;
+class ClassTable;
 
 class Symbol {
 	public:
 		string name;
-		string type;
+		string typestring;
 		ull lineno;
 		int isFunction;
 		int isClass;
@@ -176,22 +183,12 @@ class Symbol {
 		SymbolTable *nested_table;
 };
 
-class FunctionSymbol: public Symbol {
-	public:
-		string return_type;
-		vector<string> arg_types;
-		int inClass; // 1 if in class, 0 I
-		FunctionSymbol(){};
-		FunctionSymbol(string name, string ret_type, vector<string> arg_types, int inClass) {
-			return_type = ret_type;
-			this->arg_types = arg_types;
-		}
-};
+
 
 class SymbolTable {
 	public:
 		SymbolTable *parent;
-		map<string, Symbol> symbols;
+		map<string, Symbol*> symbols;
 		SymbolTable (SymbolTable *p) {
 			parent = p;
 		}
@@ -204,55 +201,75 @@ class SymbolTable {
 			}
 			return false;
 		}
+		bool has(Node* node){
+			return has(node->production);
+		}
 		int put (Node* node, Node* type) {
-			Symbol s;
-			s.type = type->production;
-			s.lineno = node->lineno;
-			s.isFunction = 0;
-			s.isClass = 0;
+			auto s= new Symbol();
+			s->typestring = type->production;
+			s->lineno = node->lineno;
+			s->isFunction = 0;
+			s->isClass = 0;
 			symbols[node->production] = s;
 			return 1;
 		}
 		Symbol* get (string name) {
 			if(symbols.find(name) != symbols.end()) {
-				return &symbols[name];
+				return symbols[name];
 			}
 			if (parent != NULL) {
 				return parent->get(name);
 			}
 			return NULL;
 		}
+		Symbol* get (Node* node) {
+			return get(node->production);
+		}
+		string gettype (string name) {
+			Symbol *s = get(name);
+			if (s != NULL) {
+				return s->typestring;
+			}
+			return "";
+		}
 	};
 
-class FunctionSymbolTable: public SymbolTable {
+class FunctionTable: public SymbolTable {
 	public:
 		string name;
 		string return_type;
 		vector<string> arg_types;
 		int inClass; // 1 if in class, 0 I
-		FunctionSymbolTable (SymbolTable *p): SymbolTable(p) {
+		FunctionTable (SymbolTable *p): SymbolTable(p) {
 		}
-		FunctionSymbolTable (SymbolTable *p,string name, string ret_type, vector<string> arg_types): SymbolTable(p) {
+		FunctionTable (SymbolTable *p,string name, string ret_type, vector<string> arg_types): SymbolTable(p) {
 			return_type = ret_type;
 			this->arg_types = arg_types;
 		}
 	};
 
-class ClassSymbolTable: public SymbolTable {
+class ClassTable: public SymbolTable {
 	public:
-		ClassSymbolTable (SymbolTable *p): SymbolTable(p) {
+		ClassTable (SymbolTable *p): SymbolTable(p) {
 		}
-		putFunc(Node* node, Node* type) {
-
+		map<string, FunctionTable*> functions;
+		int putFunc(Node* node, Node* type, vector<Node*> args) {
+			FunctionTable *f = new FunctionTable(this);
+			f->name = node->production;
+			f->return_type = type->production;
+			for (auto arg: args) {
+				f->arg_types.push_back(arg->production);
+			}
+			members[node->production] = f;
+			return 1;
 		}
-		map<string, FunctionSymbol> members;
 	};
 
 
-class GlobalSymbolTable: public SymbolTable {
+class GlobalTable: public SymbolTable {
 	public:
-		GlobalSymbolTable (): SymbolTable(NULL) {
+		GlobalTable (): SymbolTable(NULL) {
 		}
-		vector<ClassSymbolTable*> classes;
-		vector<FunctionSymbolTable*> functions;
+		map<string, ClassTable*> classes;
+		
 	};

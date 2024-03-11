@@ -22,12 +22,27 @@
 	static Node* later;
 	const char* edge_string;
 	int stderr_dup;
-	static class SymbolTable* top=NULL;
+	static class GlobalTable* top = new GlobalTable();
 	void new_scope(){
 		top = new SymbolTable(top);
 	}
 	void end_scope(){
 		top = top->parent;
+	}
+	void put(Node* n1, Node* n2){
+		top->put(n1, n2);
+	}
+	void check(Node* n){
+		if(!top->has(n)){
+			fprintf(stderr, "NameError: name %s is not defined\n", n->production.c_str());
+			exit(1);
+		}
+	}
+	bool check(Node* n1, Node* n2){
+		if(n1->typestring != n2->typestring){
+			return false;
+		}
+		return true;
 	}
 	// Symbol* lookup(string name){
 	// 	SymbolTable* temp = top;
@@ -135,7 +150,7 @@
 %token <node> FALSE "False"
 %token <node> NONE "None"
 
-%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt or_test and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block typedargument global_stmt
+%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block typedargument global_stmt
 
 %start program
 
@@ -174,17 +189,20 @@ small_stmt: expr_stmt
 	| global_stmt 
 ;
 
-global_stmt: "global" NAME
+/* TO DO  dealing with global */
+
+global_stmt: "global" NAME 
 	| global_stmt "," NAME  { $$ = new Node ("Multiple Global"); $$->addchild($1); $$->addchild($3);}
 
 expr_stmt: test ":" test { 
-			// update($1,$3->production);
+			put($1,$3);
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
 	}
 	| test ":" test "=" test {
-			// update($1,$3->production);
+			put($1,$3); //Actually $1 should take the type of $5 or there may be a type mismatch but python doesn't disallow it 
+			//but sir probably won't mismatch $3 and $5 otherwise it will be pointless to give static declarations
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
@@ -192,37 +210,32 @@ expr_stmt: test ":" test {
 
 	}		
 	| test augassign test { 
-			if(!top->lookup($1->production)){
-				fprintf(stderr, "Error: Variable %s not declared\n", $1->production.c_str());
-				exit(1);
-			}
-			if(!top->lookup($3->production)){
-				fprintf(stderr, "Error: Variable %s not declared\n", $1->production.c_str());
+			check($1);
+			check($3);
+			if(!check($1,$3)){
+				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $1->production.c_str(), $3->production.c_str());
 				exit(1);
 			}
 			$$ = new Node ($2->production.c_str());
 			$$->addchild($1);
-
 			$$->addchild($3);
+			$$->typestring = $1->typestring;
+			$$->lineno = $1->lineno;
 	}
-	| test "=" test
-	| test
+	| test "=" test{
+		//do we redifine a??
+		check($3);
+		top->get($1)->typestring= $3->typestring;
+	}
+	| test {check($1);$$=$1;}
 
-test: or_test "if" or_test "else" test {
-		$$ = new Node ("Inline If Else");
-		$$->addchild($1,"Value");
-		$$->addchild($3,"if");
-		$$->addchild($5,"else");
-	}
-	| or_test
 augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
 
-
-return_stmt: "return" test {$1->addchild($2,"Data"); $$=$1;}
+return_stmt: "return" test {check($2);$1->addchild($2,"Data"); $$=$1;}
 	| "return" {string temp = "Keyword\n"; temp += "( return )"; $$ = new Node(temp);}
 
-or_test : and_test 
-	| or_test "or" and_test { $$ = new Node ("or"); $$->addchild ($1); $$->addchild ($3);}
+test : and_test 
+	| test "or" and_test { $$ = new Node ("or"); $$->addchild ($1); $$->addchild ($3);}
 
 and_test : not_test
 	| and_test "and" not_test { $$ = new Node ("and"); $$->addchild ($1); $$->addchild ($3);}

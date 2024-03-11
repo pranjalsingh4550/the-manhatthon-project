@@ -1,7 +1,5 @@
-class fun():
-    b:int
-    def uo():
-        print(b)
+a:int=4
+b:float=4.5
+a+=b
 
-
-x= fun()
+print(type(a))

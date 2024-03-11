@@ -189,6 +189,9 @@ class SymbolTable {
 	public:
 		SymbolTable *parent;
 		map<string, Symbol*> symbols;
+		int isFunction;
+		int isClass;
+		int isGlobal;
 		SymbolTable (SymbolTable *p) {
 			parent = p;
 		}
@@ -260,7 +263,7 @@ class ClassTable: public SymbolTable {
 			for (auto arg: args) {
 				f->arg_types.push_back(arg->production);
 			}
-			members[node->production] = f;
+			functions[node->production] = f;
 			return 1;
 		}
 	};
@@ -271,5 +274,5 @@ class GlobalTable: public SymbolTable {
 		GlobalTable (): SymbolTable(NULL) {
 		}
 		map<string, ClassTable*> classes;
-		
+
 	};

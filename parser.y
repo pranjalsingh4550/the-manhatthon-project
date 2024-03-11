@@ -22,7 +22,7 @@
 	static Node* later;
 	const char* edge_string;
 	int stderr_dup;
-	static class GlobalTable* top = new GlobalTable();
+	static class SymbolTable* top = new GlobalTable();
 	void new_scope(){
 		top = new SymbolTable(top);
 	}

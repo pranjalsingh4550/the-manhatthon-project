@@ -1,0 +1,35 @@
+We'll have the following heirarchy:
+
+GlobalSymbolTable
+  |
+  +---> ClassSymbolTable
+          |
+          +---> FunctionSymbolTable
+                  |
+                  +---> FunctionSymbols
+          |
+          +---> ClassSymbols
+  |
+  +---> FunctionSymbolTable
+          |
+          +---> FunctionSymbols
+  |
+  +---> GlobalSymbols
+
+
+We'll treat int,float,bool,str as classes and add them to the global symbol table before we start parsing the program.
+
+There is a seperate symbol table for names and class/functions. This means that its possible that a variable and a class can
+have the same name. 
+
+Python never gives a redeclaration error it just overwrites the previous declaration and redefines the varaible in respective
+symbol table.
+
+We'll use separate suite names for control staments, functions, and classes.
+
+
+For any normal variable declaration, we'll add the variable to the current symbol table. new Symbol table gets pushed when we
+ge a normal suite.
+
+
+Whenever a global function gets called we'll check the (class/func) symbol table for the name checking 

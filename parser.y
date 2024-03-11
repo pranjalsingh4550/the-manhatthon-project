@@ -23,34 +23,39 @@
 	const char* edge_string;
 	int stderr_dup;
 	static class SymbolTable* top=NULL;
-	Symbol* lookup(string name){
-		SymbolTable* temp = top;
-		while(temp){
-			if(temp->contains(name)){
-				return temp->lookup(name);
-			}
-			temp = temp->parent;
-		}
-		return NULL;
+	void new_scope(){
+		top = new SymbolTable(top);
 	}
-	void add_symbol(Node* name, int type){
-		if(top->contains(name->production)){
-			fprintf(stderr, "Error: Variable %s already declared\n", name->production.c_str());
-			exit(1);
-		}
-		top->add_symbol(name, (datatypes)type);
+	void end_scope(){
+		top = top->parent;
 	}
-	// void update(Node* name, int type){
-	// 	if(!top->contains(name->production)){
-	// 		add_symbol(name, (datatypes)type);
+	// Symbol* lookup(string name){
+	// 	SymbolTable* temp = top;
+	// 	while(temp){
+	// 		if(temp->contains(name)){
+	// 			return temp->lookup(name);
+	// 		}
+	// 		temp = temp->parent;
 	// 	}
-	// 	// top->update(name, type);
+	// 	return NULL;
 	// }
+	// void add_symbol(Node* name, int type){
+	// 	if(top->contains(name->production)){
+	// 		fprintf(stderr, "Error: Variable %s already declared\n", name->production.c_str());
+	// 		exit(1);
+	// 	}
+	// 	top->add_symbol(name, (datatypes)type);
+	// }
+	// // void update(Node* name, int type){
+	// // 	if(!top->contains(name->production)){
+	// // 		add_symbol(name, (datatypes)type);
+	// // 	}
+	// // 	// top->update(name, type);
+	// // }
 %}
 
 %union {
 	class Node* node;
-
 }
 
 %token <node> NEWLINE NAME INDENT DEDENT
@@ -141,7 +146,7 @@ program : input | program INDENT
 input: start 
 	| NEWLINE input
 
-start :{$$=new Node("Empty file");} | {top=new SymbolTable(top);} stmts[first] {$$= new Node("Start"); $$->addchild($first);}
+start :{$$=new Node("Empty file");} | stmts[first] {$$= new Node("Start"); $$->addchild($first);}
 
 stmts : 
 	stmt
@@ -200,6 +205,7 @@ expr_stmt: test ":" test {
 
 			$$->addchild($3);
 	}
+	| test "=" test
 	| test
 
 test: or_test "if" or_test "else" test {

@@ -1,6 +1,8 @@
 #include<bits/stdc++.h>
 #include <vector>
 
+#define ull unsigned long long
+
 using namespace std;
 
 extern int nodecount;
@@ -63,6 +65,7 @@ enum datatypes {
 	IDENTIFIER = 0x80
 };
 
+
 #define ISNUM(dtype) (dtype & 3)
 #define ISID(dtype) (dtype & 0x80)
 #define ISLITERAL(dtype) (dtype & 0x1f)
@@ -75,6 +78,7 @@ class Node {
 		public:
 		int nodeid;
 		string production;
+		ull lineno;
 		vector<struct Node*> children;
 		enum datatypes type;
 		enum ir_operation op;
@@ -162,50 +166,93 @@ class SymbolTable;
 class Symbol {
 	public:
 		string name;
-		enum datatypes type;
-		
-		int size; //What is the use?
-		int offset; //What is the use?
-		SymbolTable *nested_table; //should it be there?
+		string type;
+		ull lineno;
+		int isFunction;
+		int isClass;
+		ull size;
+		ull offset=0;
+		int dimension=0;
+		SymbolTable *nested_table;
+};
+
+class FunctionSymbol: public Symbol {
+	public:
+		string return_type;
+		vector<string> arg_types;
+		int inClass; // 1 if in class, 0 I
+		FunctionSymbol(){};
+		FunctionSymbol(string name, string ret_type, vector<string> arg_types, int inClass) {
+			return_type = ret_type;
+			this->arg_types = arg_types;
+		}
 };
 
 class SymbolTable {
 	public:
 		SymbolTable *parent;
-		vector<Symbol> symbols;
+		map<string, Symbol> symbols;
 		SymbolTable (SymbolTable *p) {
 			parent = p;
 		}
-		void add_symbol (Symbol s) {
-			symbols.push_back(s);
-		}
-		void add_symbol (Node* node, enum datatypes type) {
-			Symbol s;
-			s.name = node->production;
-			s.type = type;
-			symbols.push_back(s);
-		}
-		Symbol* lookup (string name) {
-			for (auto s: symbols) {
-				if (s.name == name) {
-					return &s;
-				}
+		bool has (string name) {
+			if (symbols.find(name) != symbols.end()) {
+				return true;
 			}
 			if (parent != NULL) {
-				return parent->lookup(name);
-			}
-			return NULL;
-		}
-		bool contains (string name) {
-			for (auto s: symbols) {
-				if (s.name == name) {
-					return true;
-				}
-			}
-			if (parent != NULL) {
-				return parent->contains(name);
+				return parent->has(name);
 			}
 			return false;
 		}
+		int put (Node* node, Node* type) {
+			Symbol s;
+			s.type = type->production;
+			s.lineno = node->lineno;
+			s.isFunction = 0;
+			s.isClass = 0;
+			symbols[node->production] = s;
+			return 1;
+		}
+		Symbol* get (string name) {
+			if(symbols.find(name) != symbols.end()) {
+				return &symbols[name];
+			}
+			if (parent != NULL) {
+				return parent->get(name);
+			}
+			return NULL;
+		}
 	};
 
+class FunctionSymbolTable: public SymbolTable {
+	public:
+		string name;
+		string return_type;
+		vector<string> arg_types;
+		int inClass; // 1 if in class, 0 I
+		FunctionSymbolTable (SymbolTable *p): SymbolTable(p) {
+		}
+		FunctionSymbolTable (SymbolTable *p,string name, string ret_type, vector<string> arg_types): SymbolTable(p) {
+			return_type = ret_type;
+			this->arg_types = arg_types;
+		}
+	};
+
+class ClassSymbolTable: public SymbolTable {
+	public:
+		ClassSymbolTable (SymbolTable *p): SymbolTable(p) {
+		}
+		putFunc(Node* node, Node* type) {
+
+		}
+		map<string, FunctionSymbol> members;
+	};
+
+
+class GlobalSymbolTable: public SymbolTable {
+	public:
+		GlobalSymbolTable (): SymbolTable(NULL) {
+		}
+		vector<ClassSymbolTable*> classes;
+		vector<FunctionSymbolTable*> functions;
+	};

@@ -22,10 +22,7 @@
 	static Node* later;
 	const char* edge_string;
 	int stderr_dup;
-	static class GlobalTable*top_global = new GlobalTable();
-	static class SymbolTable* top = (SymbolTable*)top_global;
-	static class ClassTable* top_class = (ClassTable*)top;
-	static class FunctionTable* top_function = (FunctionTable*)top;
+	SymbolTable* top;
 	void put(Node* n1, Node* n2){
 		top->put(n1, n2);
 	}
@@ -46,20 +43,24 @@
 	static Node* name;
 	string return_type="None";
 	static Node* params;
-	void merge(){
-		top_function = (FunctionTable*)top;
-		top_class = (ClassTable*)top;
-		top_global = (GlobalTable*)top;
-	}
-	void newscope(){
+	// void merge(){
+	// 	top_function = (FunctionTable*)top;
+	// 	top_class = (ClassTable*)top;
+	// 	top_global = (GlobalTable*)top;
+	// }
+	void newscope(string name){
 		if(Funcsuite){
-			top_function= new FunctionTable(top);
-			top_function->inClass=Classsuite;
+	// 		top_function= new FunctionTable(top);
+	// 		top_function->inClass=Classsuite;
 			if(Classsuite){
-				ClassTable* temp=(ClassTable*)top_function->parent;
-				temp->functions[name->production]=top_function;
+				top = new SymbolTable (top, MEMBER_FN_ST, name);
+	// 			ClassTable* temp=(ClassTable*)top_function->parent;
+	// 			temp->functions[name->production]=top_function;
 
 			}
+			else
+				top = new SymbolTable (top, FUNCTION_ST, name);
+			/*
 			top_function->name=name->production;
 			top_function->return_type=return_type;
 			for(auto child:params->children){
@@ -67,21 +68,25 @@
 				top_function->arg_types.push_back(child->typestring);
 			}
 			top=top_function;
+			*/
 		}
 		else if (Classsuite){
+			top = new SymbolTable (top, CLASS_ST, name);
+			/*
 			top_class = new ClassTable(top);
 			top_class->name=name->production;
 			top=top_class;
 			merge();
+			*/
 		}
 		else{
 			top = new SymbolTable(top);
-			merge();
+	// 		merge();
 		}
 	}
 	void endscope(){
 		top = top->parent;
-		merge();	
+		// merge();	
 	}
 	// Symbol* lookup(string name){
 	// 	SymbolTable* temp = top;
@@ -387,8 +392,8 @@ typedarglist_comma: typedarglist | typedarglist ","
 typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"Name"); $$->addchild($3,"Type");}
 	| test ":" test "=" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"name"); $$->addchild($3,"Type"); $$->addchild($5,"Default");}
 
-suite: {newscope();} simple_stmt[first] { $$ = $first; endscope();}
-	| {newscope();} NEWLINE  INDENT  stmts[third] DEDENT  { $$ = $third; endscope();}
+suite: {newscope("dummyname");} simple_stmt[first] { $$ = $first; endscope();}
+	| {newscope("dummyname");} NEWLINE  INDENT  stmts[third] DEDENT  { $$ = $third; endscope();}
 
 funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($7, "Return type"); $$->addchild($last, "Body");}
 	| "def" NAME "(" ")" "->" test ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($last, "Body");}
@@ -437,6 +442,8 @@ int main(int argc, char** argv){
 
 	// command line options
 	// now points to first command line option
+
+	top = new SymbolTable (NULL);
 	for(int i=1;i<argc;i++){
 		if (strcmp (argv[i], "-input") == 0) { // input file - replace stdin with it
 			if (argv[i+1] == NULL) {

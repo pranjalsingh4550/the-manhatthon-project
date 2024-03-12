@@ -57,7 +57,7 @@ enum ir_operation {
 enum datatypes {
 	INT = 1,	// bool will be stored as 0/1
 	FLOAT = 2,
-	COMPLEX = 3,
+	COMPLEX = 4,
 	// reorder this later, so that instead of an if-block for a*b,
 	// we use result.type = max (a.type, b.type)
 	STR = 0x10,
@@ -67,7 +67,10 @@ enum datatypes {
 };
 
 
-#define ISNUM(dtype) (dtype & 3)
+#define ISINT(dtype) (dtype == 1)
+#define ISFLOAT(dtype) (dtype == 2)
+#define ISCOMPLEX(dtype) (dtype == 4)
+#define ISNUM(dtype) (dtype & 7)
 #define ISID(dtype) (dtype & 0x80)
 #define ISLITERAL(dtype) (dtype & 0x1f)
 #define ARITHMETIC_OP_RESULT(op1, op2)	\
@@ -182,17 +185,62 @@ class Symbol {
 		SymbolTable *nested_table;
 };
 
-
+#define FUNCTION_ST 1
+#define CLASS_ST 2
+#define MEMBER_FN_ST 3
 
 class SymbolTable {
 	public:
 		SymbolTable *parent;
 		map<string, Symbol*> symbols;
-		int isFunction;
-		int isClass;
+		bool isFunction; // we don't need get/set helpers
+		bool isClass;
 		int isGlobal;
+		ull lineno;
+		string name;
+		string return_type;
+		vector<string> arg_types; // for function, but class also ig
+		bool fn_inside_class;
+		map <string, SymbolTable*> classes; // if global
+		map <string, SymbolTable*> member_functions; // for a class
+		map <string, SymbolTable*> functions;
+
+		int putFunc(Node* node, Node* type, vector<Node*> args) {
+			if (this->isClass == false) {
+				cerr << "Adding member function to non-class symbol table!\n";
+				return 5;
+			}
+			SymbolTable *f = new SymbolTable(this, MEMBER_FN_ST, node->production); // node->production?
+			f->name = node->production;
+			f->return_type = type->production;
+			for (auto arg: args) {
+				f->arg_types.push_back(arg->production);
+			}
+			member_functions[node->production] = f;
+			return 1;
+		}
+
 		SymbolTable (SymbolTable *p) {
 			parent = p;
+			isFunction = false;
+			isClass = false;
+			isGlobal = true;
+			lineno = 0;
+			fn_inside_class = false;
+		}
+		SymbolTable (SymbolTable *p, int flags, string name) {
+			if (flags > 3 || flags < 1) {
+				cerr << "Bad flags\n"; exit(6);
+			}
+			parent = p;
+			if (isFunction = (flags == FUNCTION_ST))
+				parent->functions[name] = this;
+			if (isClass = (flags == CLASS_ST))
+				parent->classes[name] = this;
+			isGlobal = false;
+			lineno = 0;
+			if (fn_inside_class = (flags == MEMBER_FN_ST))
+				parent->member_functions[name] = this;
 		}
 		bool has (string name) {
 			if (symbols.find(name) != symbols.end()) {
@@ -236,45 +284,3 @@ class SymbolTable {
 		}
 	};
 
-class FunctionTable: public SymbolTable {
-	public:
-		string name;
-		ull lineno;
-		string return_type;
-		vector<string> arg_types;
-		int inClass; // 1 if in class, 0 I
-		FunctionTable (SymbolTable *p): SymbolTable(p) {
-		}
-	};
-
-class ClassTable: public SymbolTable {
-	public:
-		string name;
-		ClassTable (SymbolTable *p): SymbolTable(p) {
-		}
-		map<string, FunctionTable*> functions;
-		int putFunc(Node* node, Node* type, vector<Node*> args) {
-			FunctionTable *f = new FunctionTable(this);
-			f->name = node->production;
-			f->return_type = type->production;
-			for (auto arg: args) {
-				f->arg_types.push_back(arg->production);
-			}
-			functions[node->production] = f;
-			return 1;
-		}
-	};
-
-
-class GlobalTable: public SymbolTable {
-	public:
-		GlobalTable (): SymbolTable(NULL) {
-		}
-		map<string, ClassTable*> classes;
-
-	};
-
-class MergedTable: public FunctionTable, public ClassTable, public GlobalTable{
-	public:
-		
-	};

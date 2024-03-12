@@ -32,4 +32,7 @@ For any normal variable declaration, we'll add the variable to the current symbo
 ge a normal suite.
 
 
-Whenever a global function gets called we'll check the (class/func) symbol table for the name checking 
+Whenever a global function gets called we'll check the (class/func) symbol table for the name checking.
+
+Function has a attribute for inClass to know whether its defined in a class or not, this is for the purpose that member functios by default have the first paramater as the class(most commonly denoted by self but could be anything really) which is not pass as an argument when called, so this creates a distinction in the two functions.
+

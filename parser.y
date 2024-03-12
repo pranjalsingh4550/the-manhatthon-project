@@ -43,6 +43,9 @@
 	}
 	int Funcsuite=0;
 	int Classsuite=0;
+	static Node* name;
+	string return_type="None";
+	static Node* params;
 	void merge(){
 		top_function = (FunctionTable*)top;
 		top_class = (ClassTable*)top;
@@ -51,16 +54,30 @@
 	void newscope(){
 		if(Funcsuite){
 			top_function= new FunctionTable(top);
+			top_function->inClass=Classsuite;
+			if(Classsuite){
+				ClassTable* temp=(ClassTable*)top_function->parent;
+				temp->functions[name->production]=top_function;
+
+			}
+			top_function->name=name->production;
+			top_function->return_type=return_type;
+			for(auto child:params->children){
+				// top_function->symbols[child->production];
+				top_function->arg_types.push_back(child->typestring);
+			}
 			top=top_function;
 		}
 		else if (Classsuite){
 			top_class = new ClassTable(top);
+			top_class->name=name->production;
 			top=top_class;
+			merge();
 		}
 		else{
 			top = new SymbolTable(top);
+			merge();
 		}
-		merge();
 	}
 	void endscope(){
 		top = top->parent;
@@ -372,15 +389,16 @@ typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($
 
 suite: {newscope();} simple_stmt[first] { $$ = $first; endscope();}
 	| {newscope();} NEWLINE  INDENT  stmts[third] DEDENT  { $$ = $third; endscope();}
-funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" {Funcsuite=1;}suite[last] { Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($7, "Return type"); $$->addchild($last, "Body");}
-	| "def" NAME "(" ")" "->" test ":" {Funcsuite=1;}suite[last] { Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($last, "Body");}
-	| "def" NAME "(" typedarglist_comma ")" ":" {Funcsuite=1;}suite[last] { Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($last, "Body");}
-	| "def" NAME "(" ")" ":" {Funcsuite=1;}suite[last] { Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($last, "Body");}
+
+funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($7, "Return type"); $$->addchild($last, "Body");}
+	| "def" NAME "(" ")" "->" test ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($last, "Body");}
+	| "def" NAME "(" typedarglist_comma ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($last, "Body");}
+	| "def" NAME "(" ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($last, "Body");}
 
 
-classdef: "class" NAME ":"  {Classsuite=1;}suite[last] { Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($last, "Contains");}
-	| "class" NAME "(" typedarglist_comma ")" ":" {Classsuite=1;}suite[last] { Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Inherits"); $$->addchild($last,"Contains");}
-	| "class" NAME "(" ")" ":" {Classsuite=1;}suite[last] { Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($last, "Contains");}
+classdef: "class" NAME ":"  {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($last, "Contains");}
+	| "class" NAME "(" typedarglist_comma ")" ":" {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Inherits"); $$->addchild($last,"Contains");}
+	| "class" NAME "(" ")" ":" {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($last, "Contains");}
 
 
 compound_stmt: 

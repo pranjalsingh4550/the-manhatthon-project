@@ -169,7 +169,6 @@ class Node {
 class SymbolTable;
 class FunctionTable;
 class ClassTable;
-
 class Symbol {
 	public:
 		string name;
@@ -240,19 +239,17 @@ class SymbolTable {
 class FunctionTable: public SymbolTable {
 	public:
 		string name;
+		ull lineno;
 		string return_type;
 		vector<string> arg_types;
 		int inClass; // 1 if in class, 0 I
 		FunctionTable (SymbolTable *p): SymbolTable(p) {
 		}
-		FunctionTable (SymbolTable *p,string name, string ret_type, vector<string> arg_types): SymbolTable(p) {
-			return_type = ret_type;
-			this->arg_types = arg_types;
-		}
 	};
 
 class ClassTable: public SymbolTable {
 	public:
+		string name;
 		ClassTable (SymbolTable *p): SymbolTable(p) {
 		}
 		map<string, FunctionTable*> functions;

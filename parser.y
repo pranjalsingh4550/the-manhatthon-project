@@ -22,13 +22,10 @@
 	static Node* later;
 	const char* edge_string;
 	int stderr_dup;
-	static class SymbolTable* top = new GlobalTable();
-	void new_scope(){
-		top = new SymbolTable(top);
-	}
-	void end_scope(){
-		top = top->parent;
-	}
+	static class GlobalTable*top_global = new GlobalTable();
+	static class SymbolTable* top = (SymbolTable*)top_global;
+	static class ClassTable* top_class = (ClassTable*)top;
+	static class FunctionTable* top_function = (FunctionTable*)top;
 	void put(Node* n1, Node* n2){
 		top->put(n1, n2);
 	}
@@ -43,6 +40,31 @@
 			return false;
 		}
 		return true;
+	}
+	int Funcsuite=0;
+	int Classsuite=0;
+	void merge(){
+		top_function = (FunctionTable*)top;
+		top_class = (ClassTable*)top;
+		top_global = (GlobalTable*)top;
+	}
+	void newscope(){
+		if(Funcsuite){
+			top_function= new FunctionTable(top);
+			top=top_function;
+		}
+		else if (Classsuite){
+			top_class = new ClassTable(top);
+			top=top_class;
+		}
+		else{
+			top = new SymbolTable(top);
+		}
+		merge();
+	}
+	void endscope(){
+		top = top->parent;
+		merge();	
 	}
 	// Symbol* lookup(string name){
 	// 	SymbolTable* temp = top;
@@ -348,18 +370,17 @@ typedarglist_comma: typedarglist | typedarglist ","
 typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"Name"); $$->addchild($3,"Type");}
 	| test ":" test "=" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"name"); $$->addchild($3,"Type"); $$->addchild($5,"Default");}
 
-suite: {top=new SymbolTable(top);}simple_stmt[first] { $$ = $first;top=top->parent;}
-	|{top=new SymbolTable(top);} NEWLINE  INDENT  stmts[third] DEDENT {$$=$third;top=top->parent;}
+suite: {newscope();} simple_stmt[first] { $$ = $first; endscope();}
+	| {newscope();} NEWLINE  INDENT  stmts[third] DEDENT  { $$ = $third; endscope();}
+funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" {Funcsuite=1;}suite[last] { Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($7, "Return type"); $$->addchild($last, "Body");}
+	| "def" NAME "(" ")" "->" test ":" {Funcsuite=1;}suite[last] { Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($last, "Body");}
+	| "def" NAME "(" typedarglist_comma ")" ":" {Funcsuite=1;}suite[last] { Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($last, "Body");}
+	| "def" NAME "(" ")" ":" {Funcsuite=1;}suite[last] { Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($last, "Body");}
 
-funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($7, "Return type"); $$->addchild($9, "Body");}
-	| "def" NAME "(" ")" "->" test ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($8, "Body");}
-	| "def" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($7, "Body");}
-	| "def" NAME "(" ")" ":" suite {$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($6, "Body");}
 
-
-classdef: "class" NAME ":"  suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Contains");}
-	| "class" NAME "(" typedarglist_comma ")" ":" suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Inherits"); $$->addchild($7,"Contains");}
-	| "class" NAME "(" ")" ":" suite { $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($6, "Contains");}
+classdef: "class" NAME ":"  {Classsuite=1;}suite[last] { Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($last, "Contains");}
+	| "class" NAME "(" typedarglist_comma ")" ":" {Classsuite=1;}suite[last] { Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Inherits"); $$->addchild($last,"Contains");}
+	| "class" NAME "(" ")" ":" {Classsuite=1;}suite[last] { Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($last, "Contains");}
 
 
 compound_stmt: 

@@ -276,3 +276,8 @@ class GlobalTable: public SymbolTable {
 		map<string, ClassTable*> classes;
 
 	};
+
+class MergedTable: public FunctionTable, public ClassTable, public GlobalTable{
+	public:
+		
+	};

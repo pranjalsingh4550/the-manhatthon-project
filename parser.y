@@ -194,7 +194,7 @@
 %token <node> FALSE "False"
 %token <node> NONE "None"
 
-%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt exprlist testlist STRING_plus trailer typedarglist_comma typedarglist elif_block typedargument global_stmt
+%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt testlist STRING_plus  typedarglist_comma typedarglist elif_block typedargument global_stmt
 
 %start program
 
@@ -244,7 +244,7 @@ expr_stmt: test ":" test {
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
 	}
-	| test ":" {dectype=1}test "=" test {
+	| test ":" /*{dectype=1}*/ test "=" test {
 			put($1,$3); //Actually $1 should take the type of $5 or there may be a type mismatch but python doesn't disallow it 
 			//but sir probably won't mismatch $3 and $5 otherwise it will be pointless to give static declarations
 			$$ = new Node ("Declaration");
@@ -324,22 +324,34 @@ factor: "+" factor	{ $$ = new Node ("+"); $$->addchild($2);}
 	| power
 power: primary
 	| primary "**" factor	{ $$ = new Node ("**"); $$->addchild($1); $$->addchild($3); }
+
+/* TO DO 
+	Complete typechecking and attribute scope checking for each primary symbol expansion
+
+*/
+
 primary: atom 
-	| primary "." NAME {$$=$2;  $$->addchild($1,"Primary");  if (later) $$->addchild(later,edge_string);}
-	| primary [testlist]
+	| primary "." NAME 
+	| primary "[" test "]"
+	| primary "(" testlist ")" 
+	| primary "(" ")"
+
+/* TO DO 
+	Pass the lineno, datatype from the lexer through node
+*/
 atom: NAME 
     | NUMBER 	
     | STRING_plus 
     | "True"
     | "False" 
     | "None" 
-	/* | "(" testlist ")" {
+	| "(" test ")" {
 		 $$ = $2;
 		 string temp;
 		 temp +="(  ) Contained\n";
 		 temp += $2->production;
-	 $$->rename(temp); */
-	 /* } */
+	 $$->rename(temp);
+	}
 	
 	| "[" testlist "]" {
 		 $$ = $2;
@@ -348,23 +360,11 @@ atom: NAME
 		 temp += $2->production;
 	 $$->rename(temp);
 	 }
-	| "{" testlist "}" {
-		 $$ = $2;
-		 string temp;
-		 temp +="{  } Contained\n";
-		 temp += $2->production;
-	 $$->rename(temp);
-	 }
 	| "("")" { $$ = new Node ("Empty Tuple"); $1=new Node("Delimeter\n(");$2=new Node("Delimeter\n)"); $$->addchild($1); $$->addchild($2);}
 	| "[" "]" { $$ = new Node ("Empty List"); $1=new Node("Delimeter\n[");$2=new Node("Delimeter\n]"); $$->addchild($1); $$->addchild($2);}
 
 STRING_plus: STRING 
 	| STRING_plus STRING { $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
-
-trailer: "." NAME {$$=new Node(".");later = $2;edge_string = "Refers";}
-	| "[" test "]" {$$=new Node("Subscript");later = $2;edge_string = "Indices";}
-	| "(" testlist ")" {$$=new Node("Function/Method call");later = $2; edge_string = "Arguments";}
-	| "(" ")" {$$=new Node("Function/Method call"); later = NULL;}
 
 if_stmt: "if" test ":" suite { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($4, "Then");}
 	|  "if" test ":" suite elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($4, "Then"); $$->addchild($5, "Else"); }
@@ -383,8 +383,8 @@ arglist: test
 
 
 
-typedarglist:  typedargument {top->argumtsn}
-	| test {/*this pointer */}
+typedarglist:  typedargument {/*top->arguments push*/}
+	| test {/*this pointer in case inClass==1 */}
 	| typedarglist "," test  { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
 	| typedarglist "," typedargument { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
 
@@ -396,11 +396,16 @@ typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($
 suite:  simple_stmt[first] 
 	| NEWLINE  INDENT  stmts[third] DEDENT 
 
-funcdef: "def" NAME[name] "("{Funcsuite=1;newscope();} typedarglist_comma ")" "->" test ":" {name=$2;}suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($7, "Return type"); $$->addchild($last, "Body");}
+/* when using multiple mid-rule actions avoid using $1, $2, $3 as its more rigid to code changes*/
+/* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */
+
+
+funcdef: "def" NAME[name] "(" functionstart typedarglist_comma[param] ")" "->" test[ret] ":" suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($name, "Name"); $$->addchild($param,"Parameters"); $$->addchild($ret, "Return type"); $$->addchild($last, "Body");}
 	| "def" NAME "(" ")" "->" test ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($last, "Body");}
-	| "def" NAME "(" typedarglist_comma ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($last, "Body");}
+	| "def" NAME[name] "(" functionstart typedarglist_comma[param] ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($name, "Name"); $$->addchild($param,"Parameters"); $$->addchild($last, "Body");}
 	| "def" NAME "(" ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($last, "Body");}
 
+functionstart: {printf("start function scope\n");}
 
 classdef: "class" NAME ":"  {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($last, "Contains");}
 	| "class" NAME "(" NAME ")" ":" {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Inherits"); $$->addchild($last,"Contains");}
@@ -414,11 +419,9 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" test "in" test ":" suite "else" ":" suite { $$ = new Node ("For block"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
-        | "for" test "in" test ":" suite  { $$ = new Node ("For Block"); $$->addchild($2,"Iterator"); $$->addchild($4,"Object"); $$->addchild($6,"Body");}                                    
-exprlist: expr
-        | expr ","
-		| expr "," exprlist { $$ = new Node ("Mutiple terms"); $$->addchild($1); $$->addchild($3);}
+for_stmt: "for" expr "in" test ":" suite "else" ":" suite { $$ = new Node ("For block"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
+        | "for" expr "in" test ":" suite  { $$ = new Node ("For Block"); $$->addchild($2,"Iterator"); $$->addchild($4,"Object"); $$->addchild($6,"Body");}                                    
+
 testlist: arglist
         | arglist ","
 ;

@@ -244,7 +244,7 @@ expr_stmt: test ":" test {
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
 	}
-	| test ":" test "=" test {
+	| test ":" {dectype=1}test "=" test {
 			put($1,$3); //Actually $1 should take the type of $5 or there may be a type mismatch but python doesn't disallow it 
 			//but sir probably won't mismatch $3 and $5 otherwise it will be pointless to give static declarations
 			$$ = new Node ("Declaration");
@@ -325,20 +325,21 @@ factor: "+" factor	{ $$ = new Node ("+"); $$->addchild($2);}
 power: primary
 	| primary "**" factor	{ $$ = new Node ("**"); $$->addchild($1); $$->addchild($3); }
 primary: atom 
-	| primary trailer {$$=$2;  $$->addchild($1,"Primary");  if (later) $$->addchild(later,edge_string);}
+	| primary "." NAME {$$=$2;  $$->addchild($1,"Primary");  if (later) $$->addchild(later,edge_string);}
+	| primary [testlist]
 atom: NAME 
     | NUMBER 	
     | STRING_plus 
     | "True"
     | "False" 
     | "None" 
-	| "(" testlist ")" {
+	/* | "(" testlist ")" {
 		 $$ = $2;
 		 string temp;
 		 temp +="(  ) Contained\n";
 		 temp += $2->production;
-	 $$->rename(temp);
-	 }
+	 $$->rename(temp); */
+	 /* } */
 	
 	| "[" testlist "]" {
 		 $$ = $2;
@@ -382,8 +383,8 @@ arglist: test
 
 
 
-typedarglist:  typedargument
-	| test
+typedarglist:  typedargument {top->argumtsn}
+	| test {/*this pointer */}
 	| typedarglist "," test  { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
 	| typedarglist "," typedargument { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
 
@@ -392,17 +393,17 @@ typedarglist_comma: typedarglist | typedarglist ","
 typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"Name"); $$->addchild($3,"Type");}
 	| test ":" test "=" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"name"); $$->addchild($3,"Type"); $$->addchild($5,"Default");}
 
-suite: {newscope("dummyname");} simple_stmt[first] { $$ = $first; endscope();}
-	| {newscope("dummyname");} NEWLINE  INDENT  stmts[third] DEDENT  { $$ = $third; endscope();}
+suite:  simple_stmt[first] 
+	| NEWLINE  INDENT  stmts[third] DEDENT 
 
-funcdef: "def" NAME "(" typedarglist_comma ")" "->" test ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($7, "Return type"); $$->addchild($last, "Body");}
+funcdef: "def" NAME[name] "("{Funcsuite=1;newscope();} typedarglist_comma ")" "->" test ":" {name=$2;}suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($7, "Return type"); $$->addchild($last, "Body");}
 	| "def" NAME "(" ")" "->" test ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($last, "Body");}
 	| "def" NAME "(" typedarglist_comma ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($4,"Parameters"); $$->addchild($last, "Body");}
 	| "def" NAME "(" ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($last, "Body");}
 
 
 classdef: "class" NAME ":"  {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($last, "Contains");}
-	| "class" NAME "(" typedarglist_comma ")" ":" {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Inherits"); $$->addchild($last,"Contains");}
+	| "class" NAME "(" NAME ")" ":" {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Inherits"); $$->addchild($last,"Contains");}
 	| "class" NAME "(" ")" ":" {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($last, "Contains");}
 
 
@@ -413,8 +414,8 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" exprlist "in" testlist ":" suite "else" ":" suite { $$ = new Node ("For block"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
-        | "for" exprlist "in" testlist ":" suite  { $$ = new Node ("For Block"); $$->addchild($2,"Iterator"); $$->addchild($4,"Object"); $$->addchild($6,"Body");}                                    
+for_stmt: "for" test "in" test ":" suite "else" ":" suite { $$ = new Node ("For block"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
+        | "for" test "in" test ":" suite  { $$ = new Node ("For Block"); $$->addchild($2,"Iterator"); $$->addchild($4,"Object"); $$->addchild($6,"Body");}                                    
 exprlist: expr
         | expr ","
 		| expr "," exprlist { $$ = new Node ("Mutiple terms"); $$->addchild($1); $$->addchild($3);}

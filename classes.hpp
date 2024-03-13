@@ -70,11 +70,11 @@ enum datatypes {
 #define ISINT(dtype) (dtype == 1)
 #define ISFLOAT(dtype) (dtype == 2)
 #define ISCOMPLEX(dtype) (dtype == 4)
-#define ISNUM(dtype) (dtype & 7)
+#define ISNUM(dtype) (!(dtype >> 3))
 #define ISID(dtype) (dtype & 0x80)
 #define ISLITERAL(dtype) (dtype & 0x1f)
 #define ARITHMETIC_OP_RESULT(op1, op2)	\
-	((op1 > op2 ? op1 : op2) && ISNUM (op1 | op2))
+	( ISNUM (op1 | op2)? (op1 > op2 ? op1 : op2): 0)
 // returns 0 on error
 
 

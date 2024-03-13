@@ -1,7 +1,8 @@
 class ShiftReduceParser:
+      
+  def __init__(abc, name_: str):
+    abc.srname: str = name_
 
-  def __init__(self, name_: str):
-    self.srname: str = name_
 
 
 class LR0Parser(ShiftReduceParser):

@@ -384,7 +384,7 @@ arglist: test
 
 
 typedarglist:  typedargument {/*top->arguments push*/}
-	| test {/*this pointer in case inClass==1 */}
+	| test {/*this pointer in case inClass==1 otherwise error*/}
 	| typedarglist "," typedargument { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
 
 typedarglist_comma: typedarglist | typedarglist ","

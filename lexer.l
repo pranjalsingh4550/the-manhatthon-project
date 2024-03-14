@@ -111,11 +111,11 @@ ignore2	\n[ \f\t]*{comments}?
 }
 
 
-"break"	{string temp="Keyword\n( ";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return BREAK;}
-"continue"	{string temp="Keyword\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return CONTINUE;}
+"break"	{yylval.node=new Node(yytext);return BREAK;}
+"continue"	{yylval.node=new Node(yytext);return CONTINUE;}
 "return"	{yylval.node=new Node(yytext);return RETURN;}
-"pass"	{string temp="Keyword\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return PASS;}
-"global"	{string temp="Keyword\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return GLOBAL;}
+"pass"	{yylval.node=new Node(yytext);return PASS;}
+"global"	{yylval.node=new Node(yytext);return GLOBAL;}
 
 "if"	{return IF;}
 "else"	{return ELSE;}
@@ -217,16 +217,16 @@ ignore2	\n[ \f\t]*{comments}?
 
 "." {return DOT;}
 
-[1-9]{number}*|0	{string temp="Integer Literal\n( ";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NUMBER;}
+[1-9]{number}*|0	{yylval.node=new Node(yytext);return NUMBER;}
 {number}	{dprintf (stderr_dup, "leading zeros in decimal integer literals are not permitted\nError at line %d\n", yylineno);exit(1);}
-0[oO](_?[0-7]+)+	{string temp="Integer Literal\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NUMBER;}
-0[xX](_?[0-9a-fA-F]+)+	{string temp="Integer Literal\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NUMBER;}
-0[bB](_?[01]+)+	{string temp="Integer Literal\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NUMBER;}
+0[oO](_?[0-7]+)+	{yylval.node=new Node(yytext);return NUMBER;}
+0[xX](_?[0-9a-fA-F]+)+	{yylval.node=new Node(yytext);return NUMBER;}
+0[bB](_?[01]+)+	{yylval.node=new Node(yytext);return NUMBER;}
 
-{floatnumber}   {string temp="Floating point Literal\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NUMBER;}
-{imagnumber}    {string temp="Imaginary Literal\n(";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NUMBER;}
+{floatnumber}   {yylval.node=new Node(yytext);return NUMBER;}
+{imagnumber}    {yylval.node=new Node(yytext);return NUMBER;}
 (?x:(r|R)?(\"[^\"\\\n]*(\\(.|\n)[^\"\\\n]*)*\")|(\'[^\'\\\n]*(\\(.|\n)[^\'\\\n]*)*\'))   {
-	string s="String Literal\n( ";
+    string s;
     for(int i=0;i<yyleng;i++)
     {
         switch(yytext[i])
@@ -244,12 +244,11 @@ ignore2	\n[ \f\t]*{comments}?
             default: s.push_back(yytext[i]);
         }
     }
-    s+=" )";
     yylval.node=new Node(s);return STRING;
 }
 
 (?x:(r|R)?(\'\'\'[^\'\\]*(((\\(.|\n))|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\"\"\"[^\"\\]*(((\\(.|\n))|(\"){1,2}([^\"\\]|\\.))[^\"\\]*)*\"\"\")) {
-	string s="String Literal\n( ";
+	string s;
     for(int i=0;i<yyleng;i++)
     {
         switch(yytext[i])
@@ -267,14 +266,13 @@ ignore2	\n[ \f\t]*{comments}?
             default: s.push_back(yytext[i]);
         }
     }
-    s+=" )";
     yylval.node=new Node(s);return STRING;
 }
 
-True	{string temp="Keyword\n( ";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return TRUE;}
-False	{string temp="Keyword\n( ";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return FALSE;}
-None	{string temp="Keyword\n( ";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NONE;}
-{NAME}	{string temp="Identifier\n( ";temp+=yytext;temp+=" )";yylval.node=new Node(temp);return NAME;}
+True	{yylval.node=new Node(yytext);return TRUE;}
+False	{yylval.node=new Node(yytext);return FALSE;}
+None	{yylval.node=new Node(yytext);return NONE;}
+{NAME}	{yylval.node=new Node(yytext);return NAME;}
 {ignore}
 <parOpen,squareOpen><<EOF>>	{ dprintf (stderr_dup, "Unopened bracket %c at line no: %d\n", brackettype, bracketline);exit(1);} 
 . { dprintf (stderr_dup, "Invalid token %c at line no: %d\n", yytext[0], yylineno); exit(1);}

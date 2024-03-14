@@ -183,8 +183,6 @@
 
 %token <node> LPAR "("
 %token <node> RPAR ")"
-%token <node> LBRACE "{"
-%token <node> RBRACE "}"
 
 
 
@@ -399,13 +397,17 @@ suite:  simple_stmt[first]
 /* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */
 
 
-funcdef: "def" NAME[name] "(" functionstart typedarglist_comma[param] ")" "->" test[ret] ":" suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($name, "Name"); $$->addchild($param,"Parameters"); $$->addchild($ret, "Return type"); $$->addchild($last, "Body");}
+funcdef: "def" NAME[name]  functionstart "(" typedarglist_comma[param] ")" "->" test[ret] ":" suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($name, "Name"); $$->addchild($param,"Parameters"); $$->addchild($ret, "Return type"); $$->addchild($last, "Body");}
 	| "def" NAME "(" ")" "->" test ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($last, "Body");}
-	| "def" NAME[name] "(" functionstart typedarglist_comma[param] ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($name, "Name"); $$->addchild($param,"Parameters"); $$->addchild($last, "Body");}
+	| "def" NAME[name] functionstart "(" typedarglist_comma[param] ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($name, "Name"); $$->addchild($param,"Parameters"); $$->addchild($last, "Body");}
 	| "def" NAME "(" ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($last, "Body");}
 
-functionstart: {printf("start function scope\n");}
-
+functionstart: {
+	fprintf(stdin,"start function scope\n");
+	fprintf(stdin,"scope name= %s\n", $<node>0->production.c_str());
+	newscope($<node>0->production);
+	}
+;
 classdef: "class" NAME ":"  {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($last, "Contains");}
 	| "class" NAME "(" NAME ")" ":" {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Inherits"); $$->addchild($last,"Contains");}
 	| "class" NAME "(" ")" ":" {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($last, "Contains");}
@@ -430,7 +432,7 @@ testlist: arglist
 
 
 int main(int argc, char** argv){
-	yydebug = 0;
+	yydebug = 1;
 	int input_fd = -1;
 	stderr_dup = -1;
 	int stderr_redirect = -1;

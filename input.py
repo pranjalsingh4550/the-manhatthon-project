@@ -1,5 +1,4 @@
-a:int=4
-b:float=4.5
-a+=b
+def nice()->None:
+    a:int
 
-print(type(a))
+nice()

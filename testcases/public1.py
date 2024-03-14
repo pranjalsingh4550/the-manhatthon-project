@@ -1,4 +1,4 @@
-def bubbleSort(array: list[int],) -> None:
+def bubbleSort(array: list[int]) -> None:
     i: int = 0
     for i in range(len(array)):
       swapped: bool = False

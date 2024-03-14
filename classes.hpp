@@ -77,16 +77,23 @@ enum datatypes {
 	( ISNUM (op1 | op2)? (op1 > op2 ? op1 : op2): 0)
 // returns 0 on error
 
+struct complex_literal {
+	double real;
+	double imag;
+};
+
 
 class Node {
 		public:
 		int nodeid;
 		string production;
-		string typestring;
+		string typestring = "";
 		ull lineno;
 		vector<Node*> children;
 		enum datatypes type;
 		enum ir_operation op;
+		bool isConstant = false;
+		bool isLeaf = false;
 
 		Node(int x,const char *y){
 			nodeid = nodecount++;
@@ -284,3 +291,11 @@ class SymbolTable {
 		}
 	};
 
+class instruction {
+	public:
+		enum ir_operation instr;
+		Symbol* source1, source2, destination;
+		long literal1, literal2;
+
+
+};

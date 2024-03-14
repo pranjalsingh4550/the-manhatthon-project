@@ -111,6 +111,7 @@
 	// // 	}
 	// // 	// top->update(name, type);
 	// // }
+#define TEMPDEBUG 1
 %}
 
 %union {
@@ -397,21 +398,74 @@ suite:  simple_stmt[first]
 /* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */
 
 
-funcdef: "def" NAME[name]  functionstart "(" typedarglist_comma[param] ")" "->" test[ret] ":" suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($name, "Name"); $$->addchild($param,"Parameters"); $$->addchild($ret, "Return type"); $$->addchild($last, "Body");}
-	| "def" NAME "(" ")" "->" test ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($last, "Body");}
-	| "def" NAME[name] functionstart "(" typedarglist_comma[param] ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($name, "Name"); $$->addchild($param,"Parameters"); $$->addchild($last, "Body");}
-	| "def" NAME "(" ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($last, "Body");}
+funcdef: "def" NAME[name]  functionstart "(" typedarglist_comma[param] ")" "->" test[ret] ":" suite[last] {
+		Funcsuite=0;
+		$$ = new Node ("Function Defn");
+		$$->addchild($name, "Name");
+		$$->addchild($param,"Parameters");
+		$$->addchild($ret, "Return type");
+		$$->addchild($last, "Body");
+	}
+	| "def" NAME[name] functionstart "(" ")" "->" test[returntype] ":" suite[last] {
+	       	Funcsuite=0;
+	       	$$ = new Node ("Function Defn"); $$->addchild($name, "Name");
+	       	$$->addchild($returntype, "Return type");
+	       	$$->addchild($last, "Body");
+	}
+	| "def" NAME[name] functionstart "(" typedarglist_comma[param] ")" ":" suite[last] {
+	       	Funcsuite=0;
+	       	$$ = new Node ("Function Defn");
+	       	$$->addchild($name, "Name");
+	       	$$->addchild($param,"Parameters");
+	       	$$->addchild($last, "Body");
+	}
+	| "def" NAME[name] functionstart "(" ")" ":" suite[last] {
+	       	Funcsuite=0;
+		$$ = new Node ("Function Defn");
+		$$->addchild($name, "Name");
+		$$->addchild($last, "Body");
+	}
 
 functionstart:  {
+#if TEMPDEBUG
 	printf("start function scope\n");
 	printf("scope name= %s\n", $<node>0->production.c_str());
-	newscope($<node>0->production);
+#endif
+	Funcsuite = 1;
+	if (Classsuite)
+		newscope($<node>0->production);
+	else 
+		newscope($<node>0->production);
 	}
 ;
-classdef: "class" NAME ":"  {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($last, "Contains");}
-	| "class" NAME "(" NAME ")" ":" {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($4, "Inherits"); $$->addchild($last,"Contains");}
-	| "class" NAME "(" ")" ":" {Classsuite=1;name=$2;}suite[last] {name=NULL; Classsuite=0; $$ = new Node ("Class"); $$->addchild($2, "Name"); $$->addchild($last, "Contains");}
+classdef: "class" NAME classstart ":"  suite[last] {
+		  Classsuite=0;
+		  $$ = new Node ("Class");
+		  $$->addchild($2, "Name");
+		  $$->addchild($last, "Contains");
+	  }
+	| "class" NAME classstart "(" NAME[parent] ")" ":" suite[last] {
+	       	Classsuite=0;
+	       	$$ = new Node ("Class");
+	       	$$->addchild($2, "Name");
+	       	$$->addchild($parent, "Inherits");
+	       	$$->addchild($last,"Contains");
+	}
+	| "class" NAME classstart "(" ")" ":" suite[last] {
+	       	Classsuite=0;
+	       	$$ = new Node ("Class");
+	       	$$->addchild($2, "Name");
+	       	$$->addchild($last, "Contains");
+	}
 
+classstart:	{
+#if TEMPDEBUG
+	printf ("start class scope");
+	printf ("scope name %s\n", $<node>0->production.c_str());
+#endif
+	newscope ($<node>0->production);
+	Classsuite = 1;
+}
 
 compound_stmt: 
 	if_stmt

@@ -200,20 +200,6 @@ ignore2	\n[ \f\t]*{comments}?
     dprintf (stderr_dup, "Bracket Mismatch at line no: %d\n", bracketline);
     exit(1);
 }
-"{" {
-    bracketline=yylineno;
-    brackettype='{';
-    yy_push_state(curlyOpen);
-    return LBRACE;
-}
-<curlyOpen>"}" {
-    yy_pop_state();
-    return RBRACE;
-}
-"}" {
-    dprintf (stderr_dup, "Bracket Mismatch at line no: %d\n", bracketline);
-    exit(1);
-}
 
 "." {return DOT;}
 

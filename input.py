@@ -1,4 +1,4 @@
-def nice()->None:
+def nice(az:int)->None:
     a:int
 
 nice()

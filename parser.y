@@ -402,9 +402,9 @@ funcdef: "def" NAME[name]  functionstart "(" typedarglist_comma[param] ")" "->" 
 	| "def" NAME[name] functionstart "(" typedarglist_comma[param] ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($name, "Name"); $$->addchild($param,"Parameters"); $$->addchild($last, "Body");}
 	| "def" NAME "(" ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($last, "Body");}
 
-functionstart: {
-	fprintf(stdin,"start function scope\n");
-	fprintf(stdin,"scope name= %s\n", $<node>0->production.c_str());
+functionstart:  {
+	printf("start function scope\n");
+	printf("scope name= %s\n", $<node>0->production.c_str());
 	newscope($<node>0->production);
 	}
 ;

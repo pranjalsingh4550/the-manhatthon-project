@@ -23,6 +23,33 @@
 	const char* edge_string;
 	int stderr_dup;
 	SymbolTable* top;
+	Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
+		//
+		name = name;
+		typestring = typestring;
+		lineno = (ull) lineno;
+		if (flag == FUNCTION_ST || flag == MEMBER_FN_ST)
+			isFunction = true;
+		if (flag == CLASS_ST)
+			isClass = true;
+		// fill dimension in parser
+		if (typestring == "" || cur_symboltable->classes.find(typestring)==cur_symboltable->classes.end()) {
+			cerr << "Undeclared type in line " << lineno << endl; // mroe details
+			exit(1); // or call error
+		}
+		if (typestring != "class")
+			size = cur_symboltable->classes[typestring]->size;
+		else {
+			if (typestring == "bool" || typestring == "float" || typestring == "int") {
+				size = 8;
+			} else if (typestring == "complex" || typestring == "str") {
+				size = 16;
+			}
+		}
+		offset = cur_symboltable->table_size;
+		cur_symboltable->table_size += size;
+
+	}
 	void put(Node* n1, Node* n2){
 		top->put(n1, n2);
 	}
@@ -256,7 +283,7 @@ expr_stmt: test ":" test {
 			check($1);
 			check($3);
 			if(!check($1,$3)){
-				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $1->production.c_str(), $3->production);
+				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $1->production.c_str(), $3->production.c_str());
 				exit(1);
 			}
 			$$ = new Node ($2->production);

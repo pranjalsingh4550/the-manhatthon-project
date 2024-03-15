@@ -311,6 +311,8 @@ ignore2	\n[ \f\t]*{comments}?
 	
 	if (errno) {
 		dprintf(stderr_dup, "Error at line %d:\nError in getting value of complex number %s\n", yylineno, yytext);
+		exit(1);
+	}
 	yylval.node = new Node(NUMBER, val);
 	return NUMBER;
 }

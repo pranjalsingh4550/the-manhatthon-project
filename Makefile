@@ -7,7 +7,7 @@ clean:
 parser: clean
 	bison -d parser.y
 	flex lexer.l
-	g++ -o parser lex.yy.c parser.tab.c -fmax-errors=1
+	g++ -o parser lex.yy.c parser.tab.c
 
 test: parser
 	./parser -verbose shift -output ast.dot < input.py 2>output.txt

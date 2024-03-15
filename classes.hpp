@@ -269,6 +269,8 @@ class Node {
 #define CLASS_ST 2
 #define MEMBER_FN_ST 3
 
+class Symbol;
+
 class SymbolTable {
 	public:
 		SymbolTable *parent;
@@ -286,51 +288,6 @@ class SymbolTable {
 		map <string, SymbolTable*> functions;
 		unsigned long table_size;
 
-		int putFunc(Node* node, Node* type, vector<Node*> args) {
-			if (this->isClass == false) {
-				cerr << "Adding member function to non-class symbol table!\n";
-				return 5;
-			}
-			SymbolTable *f = new SymbolTable(this, MEMBER_FN_ST, node->production); // node->production?
-			f->name = node->production;
-			f->return_type = type->production;
-			for (auto arg: args) {
-				f->arg_types.push_back(arg->production);
-			}
-			member_functions[node->production] = f;
-			return 1;
-		}
-
-		SymbolTable (SymbolTable *p) {
-			parent = p;
-			isFunction = false;
-			isClass = false;
-			isGlobal = true;
-			lineno = 0;
-			this->fn_inside_class = false;
-			this->name = "global";
-			// int, float complex bool str 
-			symbols["class"] = new Symbol ();
-			symbols["int"] = new Symbol("int", "class", -1, 0, p);
-			symbols["float"] = new Symbol("float", "class", -1, 0, p);
-			symbols["complex"] = new Symbol("complex", "class", -1, 0, p);
-			symbols["bool"] = new Symbol("bool", "class", -1, 0, p);
-			symbols["str"] = new Symbol("str", "class", -1, 0, p);
-		}
-		SymbolTable (SymbolTable *p, int flags, string name) {
-			if (flags > 3 || flags < 1) {
-				cerr << "Bad flags\n"; exit(6);
-			}
-			parent = p;
-			if (isFunction = (flags == FUNCTION_ST))
-				parent->functions[name] = this;
-			if (isClass = (flags == CLASS_ST))
-				parent->classes[name] = this;
-			isGlobal = false;
-			lineno = 0;
-			if (fn_inside_class = (flags == MEMBER_FN_ST))
-				parent->member_functions[name] = this;
-		}
 		bool has (string name) {
 			if (symbols.find(name) != symbols.end()) {
 				return true;
@@ -340,6 +297,7 @@ class SymbolTable {
 			}
 			return false;
 		}
+		
 		bool has(Node* node){
 			return has(node->production);
 		}
@@ -352,6 +310,7 @@ class SymbolTable {
 			symbols[node->production] = s;
 			return 1;
 		}
+		
 		Symbol* get (string name) {
 			if(symbols.find(name) != symbols.end()) {
 				return symbols[name];
@@ -420,7 +379,52 @@ class Symbol {
 	}
 };
 
+SymbolTable::SymbolTable(SymbolTable *p) {
+	parent = p;
+	isFunction = false;
+	isClass = false;
+	isGlobal = true;
+	lineno = 0;
+	this->fn_inside_class = false;
+	this->name = "global";
+	// int, float complex bool str 
+	symbols["class"] = new Symbol ();
+	symbols["int"] = new Symbol("int", "class", -1, 0, p);
+	symbols["float"] = new Symbol("float", "class", -1, 0, p);
+	symbols["complex"] = new Symbol("complex", "class", -1, 0, p);
+	symbols["bool"] = new Symbol("bool", "class", -1, 0, p);
+	symbols["str"] = new Symbol("str", "class", -1, 0, p);
+}
 
+SymbolTable::SymbolTable (SymbolTable *p, int flags, string name) {
+	if (flags > 3 || flags < 1) {
+		cerr << "Bad flags\n"; exit(6);
+	}
+	parent = p;
+	if (isFunction = (flags == FUNCTION_ST))
+		parent->functions[name] = this;
+	if (isClass = (flags == CLASS_ST))
+		parent->classes[name] = this;
+	isGlobal = false;
+	lineno = 0;
+	if (fn_inside_class = (flags == MEMBER_FN_ST))
+		parent->member_functions[name] = this;
+}
+
+int SymbolTable::putFunc(Node* node, Node* type, vector<Node*> args) {
+			if (this->isClass == false) {
+				cerr << "Adding member function to non-class symbol table!\n";
+				return 5;
+			}
+			SymbolTable *f = new SymbolTable(this, MEMBER_FN_ST, node->production); // node->production?
+			f->name = node->production;
+			f->return_type = type->production;
+			for (auto arg: args) {
+				f->arg_types.push_back(arg->production);
+			}
+			member_functions[node->production] = f;
+			return 1;
+		}
 
 
 class instruction {

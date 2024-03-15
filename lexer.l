@@ -248,12 +248,12 @@ ignore2	\n[ \f\t]*{comments}?
 			text += yytext[i];
 	}
 	//use strtol - will set errno to ERANGE if overflow - if so, then throw error (for now)
-	long int val = strtol(text.c_str(), NULL, 16);
+	const long int val = strtol(text.c_str(), NULL, 16);
 	if (errno) {
 		dprintf(stderr_dup, "Error at line %d:\nMagnitude of integer %s is too big\n", yylineno, yytext);
 		exit(1);
 	}
-	yylval.node = new Node(NUMBER, "integer", val);
+	yylval.node = new Node(0, val);
 	return NUMBER;
 }
 0[bB](_?[01]+)+	{
@@ -269,7 +269,7 @@ ignore2	\n[ \f\t]*{comments}?
 		dprintf(stderr_dup, "Error at line %d:\nError in getting value of integer %s\n", yylineno, yytext);
 		exit(1);
 	}
-	yylval.node = new Node(NUMBER, val);
+	yylval.node = new Node(0, val);
 	return NUMBER;
 }
 
@@ -281,9 +281,10 @@ ignore2	\n[ \f\t]*{comments}?
 	//digit  [0-9]
 	//again, get rid of all underscores
 	string text = "";
+    string temp=yytext;
 	for (int i = 0; i < yyleng; i++) {
-		if (yytext[i] != "_")
-			text += yytext[i];
+		if (temp[i] != '_')
+			text += temp[i];
 	}
 	//just use strtof
 	double val = strtof(text.c_str(), NULL);
@@ -292,7 +293,7 @@ ignore2	\n[ \f\t]*{comments}?
 		exit(1);
 
 	}
-	yylval.node = new Node(NUMBER, val);
+	yylval.node = new Node(0, val);
 	return NUMBER;
 }
 {imagnumber}    {
@@ -300,20 +301,20 @@ ignore2	\n[ \f\t]*{comments}?
 	//again, remove underscore from premises (along with the j at the end)
 	string text = "";
 	for (int i = 0; i < yyleng - 1; i++) {
-		if (yytext[i] != "_")
+		if (yytext[i] != '_')
 			text += yytext[i];
 	}
 	//just get float value
 	complexLiteral val = {
-		.real = 0.0;
-		.imag = strtof(text.c_str(), NULL);
-	}
+		.real = 0.0,
+		.imag = strtof(text.c_str(), NULL)
+	};
 	
 	if (errno) {
 		dprintf(stderr_dup, "Error at line %d:\nError in getting value of complex number %s\n", yylineno, yytext);
 		exit(1);
 	}
-	yylval.node = new Node(NUMBER, val);
+	yylval.node = new Node(0, val);
 	return NUMBER;
 }
 (?x:(r|R)?(\"[^\"\\\n]*(\\(.|\n)[^\"\\\n]*)*\")|(\'[^\'\\\n]*(\\(.|\n)[^\'\\\n]*)*\'))   {
@@ -335,7 +336,7 @@ ignore2	\n[ \f\t]*{comments}?
             default: s.push_back(yytext[i]);
         }
     }
-    yylval.node=new Node(STRING, s);
+    yylval.node=new Node(0, s);
     return STRING;
 }
 
@@ -364,7 +365,7 @@ ignore2	\n[ \f\t]*{comments}?
 
 True	{yylval.node=new Node(TRUE, true); return TRUE;}
 False	{yylval.node=new Node(FALSE, false); return FALSE;}
-None	{yylval.node=new Node(NONE);return NONE;}
+None	{yylval.node=new Node(0);return NONE;}
 {NAME}	{yylval.node=new Node(NAME, "identifier", yytext);return NAME;}
 {ignore}
 <parOpen,squareOpen><<EOF>>	{

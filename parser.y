@@ -70,74 +70,25 @@
 	static Node* name;
 	string return_type="None";
 	static Node* params;
-	// void merge(){
-	// 	top_function = (FunctionTable*)top;
-	// 	top_class = (ClassTable*)top;
-	// 	top_global = (GlobalTable*)top;
-	// }
 	void newscope(string name){
 		if(Funcsuite){
-	// 		top_function= new FunctionTable(top);
-	// 		top_function->inClass=Classsuite;
 			if(Classsuite){
 				top = new SymbolTable (top, MEMBER_FN_ST, name);
-	// 			ClassTable* temp=(ClassTable*)top_function->parent;
-	// 			temp->functions[name->production]=top_function;
 
 			}
 			else
 				top = new SymbolTable (top, FUNCTION_ST, name);
-			/*
-			top_function->name=name->production;
-			top_function->return_type=return_type;
-			for(auto child:params->children){
-				// top_function->symbols[child->production];
-				top_function->arg_types.push_back(child->typestring);
-			}
-			top=top_function;
-			*/
 		}
 		else if (Classsuite){
 			top = new SymbolTable (top, CLASS_ST, name);
-			/*
-			top_class = new ClassTable(top);
-			top_class->name=name->production;
-			top=top_class;
-			merge();
-			*/
 		}
 		else{
 			top = new SymbolTable(top);
-	// 		merge();
 		}
 	}
 	void endscope(){
 		top = top->parent;
-		// merge();	
 	}
-	// Symbol* lookup(string name){
-	// 	SymbolTable* temp = top;
-	// 	while(temp){
-	// 		if(temp->contains(name)){
-	// 			return temp->lookup(name);
-	// 		}
-	// 		temp = temp->parent;
-	// 	}
-	// 	return NULL;
-	// }
-	// void add_symbol(Node* name, int type){
-	// 	if(top->contains(name->production)){
-	// 		fprintf(stderr, "Error: Variable %s already declared\n", name->production.c_str());
-	// 		exit(1);
-	// 	}
-	// 	top->add_symbol(name, (datatypes)type);
-	// }
-	// // void update(Node* name, int type){
-	// // 	if(!top->contains(name->production)){
-	// // 		add_symbol(name, (datatypes)type);
-	// // 	}
-	// // 	// top->update(name, type);
-	// // }
 #define TEMPDEBUG 1
 %}
 
@@ -362,9 +313,6 @@ primary: atom
 	| primary "(" testlist ")" 
 	| primary "(" ")"
 
-/* TO DO 
-	Pass the lineno, datatype from the lexer through node
-*/
 atom: NAME 
     | NUMBER 	
     | STRING_plus 

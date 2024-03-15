@@ -1,7 +1,7 @@
 #include<bits/stdc++.h>
 #include <vector>
 
-#define ull unsigned long long
+#define ull unsigned long
 
 using namespace std;
 
@@ -77,16 +77,23 @@ enum datatypes {
 	( ISNUM (op1 | op2)? (op1 > op2 ? op1 : op2): 0)
 // returns 0 on error
 
+struct complex_literal {
+	double real;
+	double imag;
+};
+
 
 class Node {
 		public:
 		int nodeid;
 		string production;
-		string typestring;
+		string typestring = "";
 		ull lineno;
 		vector<Node*> children;
 		enum datatypes type;
 		enum ir_operation op;
+		bool isConstant = false;
+		bool isLeaf = false;
 
 		Node(int x,const char *y){
 			nodeid = nodecount++;
@@ -169,24 +176,58 @@ class Node {
 		}
 	};
 
+#define FUNCTION_ST 1
+#define CLASS_ST 2
+#define MEMBER_FN_ST 3
+
 class SymbolTable;
-class FunctionTable;
-class ClassTable;
 class Symbol {
 	public:
 		string name;
 		string typestring;
 		ull lineno;
-		int isFunction;
-		int isClass;
+		bool isFunction = false;
+		bool isClass = false;
 		ull size;
 		ull offset=0;
 		SymbolTable *nested_table;
+	Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
+		//
+		name = name;
+		typestring = typestring;
+		lineno = (ull) lineno;
+		if (flag == FUNCTION_ST || flag == MEMBER_FN_ST)
+			isFunction = true;
+		if (flag == CLASS_ST)
+			isClass = true;
+		// fill dimension in parser
+		if (typestring == "" || top->classes.find(typestring)==top->classes.end()) {
+			cerr << "Undeclared type in line " << lineno << endl; // mroe details
+			exit(1); // or call error
+		}
+		if (typestring != "class")
+			size = cur_symboltable->classes[typestring]->size;
+		else 
+			switch (typestring) {
+				case "bool":
+				case "float":
+				case "int": {size = 8; break;}
+				case "complex":
+				case "str": {size = 16; break;}
+			}
+
+		offset = cur_symboltable->table_size;
+		cur_symboltable->table_size += size;
+
+	}
+	Symbol () {
+		// emphy instance, to declare primitive types as "class"
+		size = 0;
+		name = "class";
+		typestring = "";
+	}
 };
 
-#define FUNCTION_ST 1
-#define CLASS_ST 2
-#define MEMBER_FN_ST 3
 
 class SymbolTable {
 	public:
@@ -203,6 +244,7 @@ class SymbolTable {
 		map <string, SymbolTable*> classes; // if global
 		map <string, SymbolTable*> member_functions; // for a class
 		map <string, SymbolTable*> functions;
+		unsigned long table_size;
 
 		int putFunc(Node* node, Node* type, vector<Node*> args) {
 			if (this->isClass == false) {
@@ -225,7 +267,15 @@ class SymbolTable {
 			isClass = false;
 			isGlobal = true;
 			lineno = 0;
-			fn_inside_class = false;
+			this->fn_inside_class = false;
+			this->name = "global";
+			// int, float complex bool str 
+			symbols["class"] = new Symbol ();
+			symbols["int"] = new Symbol("int", "class", -1, 0, p);
+			symbols["float"] = new Symbol("float", "class", -1, 0, p);
+			symbols["complex"] = new Symbol("complex", "class", -1, 0, p);
+			symbols["bool"] = new Symbol("bool", "class", -1, 0, p);
+			symbols["str"] = new Symbol("str", "class", -1, 0, p);
 		}
 		SymbolTable (SymbolTable *p, int flags, string name) {
 			if (flags > 3 || flags < 1) {
@@ -283,3 +333,21 @@ class SymbolTable {
 		}
 	};
 
+class instruction {
+	public:
+		enum ir_operation instr;
+		Symbol* source1, source2, destination;
+		bool operand_is_int;
+		union {
+			literal2;
+			dliteral2;
+		};
+		union {
+			literal1;
+			dliteral1;
+		};
+#define IR_OPERAND1 (instr->operand_is_int ? instr->literal1: instr->dliteral1 )
+#define IR_OPERAND2 (instr->operand_is_int ? instr->literal2: instr->dliteral2 )
+		// not convinced about this setup yet
+
+};

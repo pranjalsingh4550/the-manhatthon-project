@@ -280,7 +280,6 @@ class Symbol {
 		bool isClass = false;
 		ull size = 0;
 		ull offset=0;
-		int dimension=0;
 		SymbolTable *nested_table;
 		Symbol(){}
 		// Symbol(){

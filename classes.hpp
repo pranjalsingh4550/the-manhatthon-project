@@ -170,13 +170,13 @@ class Node {
 		}
 		
 		Node (int tokenIn, bool value) {
-			token = tokenIN;
+			token = tokenIn;
 			nodeid = nodecount++;
 			typestring = "bool";
 			lineno = yylineno;
 			type = TYPE_INT;
 			isConstant = true;
-			intVal = vlaue;
+			intVal = value;
 			isLeaf = true;
 			
 		}
@@ -270,6 +270,9 @@ class Node {
 #define MEMBER_FN_ST 3
 
 class SymbolTable;
+
+extern SymbolTab
+
 class Symbol {
 	public:
 		string name;
@@ -277,7 +280,7 @@ class Symbol {
 		ull lineno;
 		bool isFunction = false;
 		bool isClass = false;
-		ull size;
+		ull size = 0;
 		ull offset=0;
 		int dimension=0;
 		SymbolTable *nested_table;
@@ -291,21 +294,19 @@ class Symbol {
 		if (flag == CLASS_ST)
 			isClass = true;
 		// fill dimension in parser
-		if (typestring == "" || top->classes.find(typestring)==top->classes.end()) {
+		if (typestring == "" || cur_symboltable->classes.find(typestring)==cur_symboltable->classes.end()) {
 			cerr << "Undeclared type in line " << lineno << endl; // mroe details
 			exit(1); // or call error
 		}
 		if (typestring != "class")
 			size = cur_symboltable->classes[typestring]->size;
-		else 
-			switch (typestring) {
-				case "bool":
-				case "float":
-				case "int": {size = 8; break;}
-				case "complex":
-				case "str": {size = 16; break;}
+		else {
+			if (typestring == "bool" || typestring == "float" || typestring == "int" ||) {
+				size = 8;
+			} else if (typestring == "complex" || typestring == "str") {
+				size = 16;
 			}
-
+		}
 		offset = cur_symboltable->table_size;
 		cur_symboltable->table_size += size;
 

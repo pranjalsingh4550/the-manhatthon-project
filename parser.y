@@ -220,7 +220,7 @@
 %token <node> FALSE "False"
 %token <node> NONE "None"
 
-%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt testlist STRING_plus  typedarglist_comma typedarglist elif_block typedargument global_stmt
+%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite basesuite funcdef classdef compound_stmt for_stmt testlist STRING_plus  typedarglist_comma typedarglist elif_block typedargument global_stmt
 
 %start program
 
@@ -392,15 +392,15 @@ atom: NAME
 STRING_plus: STRING 
 	| STRING_plus STRING { $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
-if_stmt: "if" test ":" suite { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($4, "Then");}
-	|  "if" test ":" suite elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($4, "Then"); $$->addchild($5, "Else"); }
+if_stmt: "if" test ":" basesuite { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($4, "Then");}
+	|  "if" test ":" basesuite elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($4, "Then"); $$->addchild($5, "Else"); }
 
 elif_block:
-	"else" ":" suite	{ $$ = $3;}
-	| "elif" test ":" suite	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($4, "Then"); } /* ok????? fine */ 
-	| "elif" test ":" suite elif_block	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($4, "Then"); $$->addchild ($5, "Else"); }
+	"else" ":" basesuite	{ $$ = $3;}
+	| "elif" test ":" basesuite	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($4, "Then"); } /* ok????? fine */ 
+	| "elif" test ":" basesuite elif_block	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($4, "Then"); $$->addchild ($5, "Else"); }
 
-while_stmt: "while" test ":" suite {$$ = new Node ("While"); $$->addchild($2, "Condition"); $$->addchild($4, "Do");}
+while_stmt: "while" test ":" basesuite {$$ = new Node ("While"); $$->addchild($2, "Condition"); $$->addchild($4, "Do");}
 
 
 
@@ -421,6 +421,8 @@ typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($
 suite:  simple_stmt[first] 
 	| NEWLINE  INDENT  stmts[third] DEDENT 
 
+basesuite: {newscope("dummy")} simple_stmt[first] {endscope();}
+	| {newscope("dummy");}NEWLINE  INDENT  stmts[third] DEDENT {endscope();}
 /* when using multiple mid-rule actions avoid using $1, $2, $3 as its more rigid to code changes*/
 /* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */
 
@@ -501,8 +503,8 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" expr "in" test ":" suite "else" ":" suite { $$ = new Node ("For block"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
-        | "for" expr "in" test ":" suite  { $$ = new Node ("For Block"); $$->addchild($2,"Iterator"); $$->addchild($4,"Object"); $$->addchild($6,"Body");}                                    
+for_stmt: "for" expr "in" test ":" basesuite "else" ":" basesuite { $$ = new Node ("For block"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
+        | "for" expr "in" test ":" basesuite  { $$ = new Node ("For Block"); $$->addchild($2,"Iterator"); $$->addchild($4,"Object"); $$->addchild($6,"Body");}                                    
 
 testlist: arglist
         | arglist ","

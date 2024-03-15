@@ -2,6 +2,7 @@ parser.tab.c
 .vscode/
 parser.tab.h
 parser
+input.py
 lexer
 parser.gv
 lex.yy.c

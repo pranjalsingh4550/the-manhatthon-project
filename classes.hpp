@@ -269,7 +269,24 @@ class Node {
 #define CLASS_ST 2
 #define MEMBER_FN_ST 3
 
-class Symbol;
+class Symbol {
+	public:
+		string name;
+		string typestring;
+		ull lineno;
+		bool isFunction = false;
+		bool isClass = false;
+		ull size = 0;
+		ull offset=0;
+		int dimension=0;
+		SymbolTable *nested_table;
+	Symbol () {
+		// emphy instance, to declare primitive types as "class"
+		size = 0;
+		name = "class";
+		typestring = "";
+	}
+};
 
 class SymbolTable {
 	public:
@@ -286,6 +303,7 @@ class SymbolTable {
 		map <string, SymbolTable*> classes; // if global
 		map <string, SymbolTable*> member_functions; // for a class
 		map <string, SymbolTable*> functions;
+		int size;
 		unsigned long table_size;
 
 		bool has (string name) {
@@ -331,53 +349,6 @@ class SymbolTable {
 // 			return "";
 // 		}
 	};
-
-
-class Symbol {
-	public:
-		string name;
-		string typestring;
-		ull lineno;
-		bool isFunction = false;
-		bool isClass = false;
-		ull size = 0;
-		ull offset=0;
-		int dimension=0;
-		SymbolTable *nested_table;
-	Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
-		//
-		name = name;
-		typestring = typestring;
-		lineno = (ull) lineno;
-		if (flag == FUNCTION_ST || flag == MEMBER_FN_ST)
-			isFunction = true;
-		if (flag == CLASS_ST)
-			isClass = true;
-		// fill dimension in parser
-		if (typestring == "" || cur_symboltable->classes.find(typestring)==cur_symboltable->classes.end()) {
-			cerr << "Undeclared type in line " << lineno << endl; // mroe details
-			exit(1); // or call error
-		}
-		if (typestring != "class")
-			size = cur_symboltable->classes[typestring]->size;
-		else {
-			if (typestring == "bool" || typestring == "float" || typestring == "int" ||) {
-				size = 8;
-			} else if (typestring == "complex" || typestring == "str") {
-				size = 16;
-			}
-		}
-		offset = cur_symboltable->table_size;
-		cur_symboltable->table_size += size;
-
-	}
-	Symbol () {
-		// emphy instance, to declare primitive types as "class"
-		size = 0;
-		name = "class";
-		typestring = "";
-	}
-};
 
 SymbolTable::SymbolTable(SymbolTable *p) {
 	parent = p;
@@ -426,6 +397,33 @@ int SymbolTable::putFunc(Node* node, Node* type, vector<Node*> args) {
 			return 1;
 		}
 
+Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
+		//
+		name = name;
+		typestring = typestring;
+		lineno = (ull) lineno;
+		if (flag == FUNCTION_ST || flag == MEMBER_FN_ST)
+			isFunction = true;
+		if (flag == CLASS_ST)
+			isClass = true;
+		// fill dimension in parser
+		if (typestring == "" || cur_symboltable->classes.find(typestring)==cur_symboltable->classes.end()) {
+			cerr << "Undeclared type in line " << lineno << endl; // mroe details
+			exit(1); // or call error
+		}
+		if (typestring != "class")
+			size = cur_symboltable->classes[typestring]->size;
+		else {
+			if (typestring == "bool" || typestring == "float" || typestring == "int") {
+				size = 8;
+			} else if (typestring == "complex" || typestring == "str") {
+				size = 16;
+			}
+		}
+		offset = cur_symboltable->table_size;
+		cur_symboltable->table_size += size;
+
+	}
 
 class instruction {
 	public:

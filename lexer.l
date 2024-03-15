@@ -3,6 +3,7 @@
 %option stack
 %{
     #include<bits/stdc++.h> 
+    #include<stdlib.h>
     #include "parser.tab.h"
     #include "classes.hpp"
     extern int nodecount;
@@ -111,11 +112,11 @@ ignore2	\n[ \f\t]*{comments}?
 }
 
 
-"break"	{yylval.node=new Node(yytext);return BREAK;}
-"continue"	{yylval.node=new Node(yytext);return CONTINUE;}
-"return"	{yylval.node=new Node(yytext);return RETURN;}
-"pass"	{yylval.node=new Node(yytext);return PASS;}
-"global"	{yylval.node=new Node(yytext);return GLOBAL;}
+"break"	{return BREAK;}
+"continue"	{return CONTINUE;}
+"return"	{return RETURN;}
+"pass"	{return PASS;}
+"global"	{return GLOBAL;}
 
 "if"	{return IF;}
 "else"	{return ELSE;}
@@ -158,18 +159,18 @@ ignore2	\n[ \f\t]*{comments}?
 "//"	{return DOUBLESLASH;}
 "**"	{return DOUBLESTAR;}
 
-"+="	{yylval.node=new Node(0,yytext);return PLUSEQUAL;}
-"-="	{yylval.node=new Node(0,yytext);return MINEQUAL;}
-"*="	{yylval.node=new Node(0,yytext);return STAREQUAL;}
-"/="	{yylval.node=new Node(0,yytext);return SLASHEQUAL;}
-"//="	{yylval.node=new Node(0,yytext);return DOUBLESLASHEQUAL;}
-"%="	{yylval.node=new Node(0,yytext);return PERCENTEQUAL;}
-"**="	{yylval.node=new Node(0,yytext);return DOUBLESTAREQUAL;}
-"&="	{yylval.node=new Node(0,yytext);return AMPEREQUAL;}
-"|="	{yylval.node=new Node(0,yytext);return VBAREQUAL;}
-"^="	{yylval.node=new Node(0,yytext);return CIRCUMFLEXEQUAL;}
-">>="	{yylval.node=new Node(0,yytext);return RIGHTSHIFTEQUAL;}
-"<<="	{yylval.node=new Node(0,yytext);return LEFTSHIFTEQUAL;}
+"+="	{return PLUSEQUAL;}
+"-="	{return MINEQUAL;}
+"*="	{return STAREQUAL;}
+"/="	{return SLASHEQUAL;}
+"//="	{return DOUBLESLASHEQUAL;}
+"%="	{return PERCENTEQUAL;}
+"**="	{return DOUBLESTAREQUAL;}
+"&="	{return AMPEREQUAL;}
+"|="	{return VBAREQUAL;}
+"^="	{return CIRCUMFLEXEQUAL;}
+">>="	{return RIGHTSHIFTEQUAL;}
+"<<="	{return LEFTSHIFTEQUAL;}
 "->"	{return RARROW;}
 "("	{
     bracketline=yylineno;
@@ -203,14 +204,116 @@ ignore2	\n[ \f\t]*{comments}?
 
 "." {return DOT;}
 
-[1-9]{number}*|0	{yylval.node=new Node(yytext);return NUMBER;}
+[1-9](_?[0-9])*|0	{
+	//first create a string without the underscores
+	string text = "";
+	for (int i = 0; i < yyleng; i++) {
+		if (yytext[i] != '_')
+			text += yytext[i];
+	}
+	//use strtol - will set errno to ERANGE if overflow - if so, then throw error (for now)
+	long int val = strtol(text.c_str(), NULL, 10);
+	if (errno) {
+		dprintf(stderr_dup, "Error at line %d:\nMagnitude of integer %s is too big\n", yylineno, yytext);
+		exit(1);
+	}
+	yylval.node = new Node(NUMBER, val);
+	return NUMBER;
+}
 {number}	{dprintf (stderr_dup, "leading zeros in decimal integer literals are not permitted\nError at line %d\n", yylineno);exit(1);}
-0[oO](_?[0-7]+)+	{yylval.node=new Node(yytext);return NUMBER;}
-0[xX](_?[0-9a-fA-F]+)+	{yylval.node=new Node(yytext);return NUMBER;}
-0[bB](_?[01]+)+	{yylval.node=new Node(yytext);return NUMBER;}
+0[oO](_?[0-7]+)+	{
+	//same deal as normal ints, above, but need to get rid of underscores
+	//first create a string without the underscores
+	string text = "";
+	for (int i = 2; i < yyleng; i++) {
+		//skip first 2 chars - 0o
+		if (yytext[i] != '_')
+			text += yytext[i];
+	}
+	//use strtol - will set errno to ERANGE if overflow - if so, then throw error (for now)
+	long int val = strtol(text.c_str(), NULL, 8);
+	if (errno) {
+		dprintf(stderr_dup, "Error at line %d:\nMagnitude of integer %s is too big\n", yylineno, yytext);
+		exit(1);
+	}
+	yylval.node = new Node(NUMBER, val);
+	return NUMBER;
+}
+0[xX](_?[0-9a-fA-F]+)+	{
+	//same deal
+	//first create a string without the underscores
+	string text = "";
+	for (int i = 2; i < yyleng; i++) {
+		if (yytext[i] != '_')
+			text += yytext[i];
+	}
+	//use strtol - will set errno to ERANGE if overflow - if so, then throw error (for now)
+	long int val = strtol(text.c_str(), NULL, 16);
+	if (errno) {
+		dprintf(stderr_dup, "Error at line %d:\nMagnitude of integer %s is too big\n", yylineno, yytext);
+		exit(1);
+	}
+	yylval.node = new Node(NUMBER, "integer", val);
+	return NUMBER;
+}
+0[bB](_?[01]+)+	{
+	//first create a string without the underscores
+	string text = "";
+	for (int i = 2; i < yyleng; i++) {
+		if (yytext[i] != '_')
+			text += yytext[i];
+	}
+	//use strtol - will set errno to ERANGE if overflow - if so, then throw error (for now)
+	long int val = strtol(text.c_str(), NULL, 2);
+	if (errno) {
+		dprintf(stderr_dup, "Error at line %d:\nError in getting value of integer %s\n", yylineno, yytext);
+		exit(1);
+	}
+	yylval.node = new Node(NUMBER, val);
+	return NUMBER;
+}
 
-{floatnumber}   {yylval.node=new Node(yytext);return NUMBER;}
-{imagnumber}    {yylval.node=new Node(yytext);return NUMBER;}
+{floatnumber}   {
+	//exponentfloat ({digitpart}|{pointfloat}){exponent}
+	//exponent [eE][+-]?{digit}+
+	//pointfloat ({digitpart}?{fraction})|{digitpart}"."
+	//digitpart {digit}(_?{digit})*
+	//digit  [0-9]
+	//again, get rid of all underscores
+	string text = "";
+	for (int i = 0; i < yyleng; i++) {
+		if (yytext[i] != "_")
+			text += yytext[i];
+	}
+	//just use strtof
+	double val = strtof(text.c_str(), NULL);
+	if (errno) {
+		dprintf(stderr_dup, "Error at line %d:\nError in getting value of float %s\n", yylineno, yytext);
+		exit(1);
+
+	}
+	yylval.node = new Node(NUMBER, val);
+	return NUMBER;
+}
+{imagnumber}    {
+	//imagnumber ({floatnumber}|{digitpart})[jJ]
+	//again, remove underscore from premises (along with the j at the end)
+	string text = "";
+	for (int i = 0; i < yyleng - 1; i++) {
+		if (yytext[i] != "_")
+			text += yytext[i];
+	}
+	//just get float value
+	complexLiteral val = {
+		.real = 0.0;
+		.imag = strtof(text.c_str(), NULL);
+	}
+	
+	if (errno) {
+		dprintf(stderr_dup, "Error at line %d:\nError in getting value of complex number %s\n", yylineno, yytext);
+	yylval.node = new Node(NUMBER, val);
+	return NUMBER;
+}
 (?x:(r|R)?(\"[^\"\\\n]*(\\(.|\n)[^\"\\\n]*)*\")|(\'[^\'\\\n]*(\\(.|\n)[^\'\\\n]*)*\'))   {
     string s;
     for(int i=0;i<yyleng;i++)
@@ -230,7 +333,8 @@ ignore2	\n[ \f\t]*{comments}?
             default: s.push_back(yytext[i]);
         }
     }
-    yylval.node=new Node(s);return STRING;
+    yylval.node=new Node(STRING, s);
+    return STRING;
 }
 
 (?x:(r|R)?(\'\'\'[^\'\\]*(((\\(.|\n))|(\'){1,2}([^\'\\]|\\.))[^\'\\]*)*\'\'\')|(\"\"\"[^\"\\]*(((\\(.|\n))|(\"){1,2}([^\"\\]|\\.))[^\"\\]*)*\"\"\")) {
@@ -252,14 +356,21 @@ ignore2	\n[ \f\t]*{comments}?
             default: s.push_back(yytext[i]);
         }
     }
-    yylval.node=new Node(s);return STRING;
+    yylval.node=new Node(STRING, s);
+    return STRING;
 }
 
-True	{yylval.node=new Node(yytext);return TRUE;}
-False	{yylval.node=new Node(yytext);return FALSE;}
-None	{yylval.node=new Node(yytext);return NONE;}
-{NAME}	{yylval.node=new Node(yytext);return NAME;}
+True	{yylval.node=new Node(TRUE, true); return TRUE;}
+False	{yylval.node=new Node(FALSE, false); return FALSE;}
+None	{yylval.node=new Node(NONE);return NONE;}
+{NAME}	{yylval.node=new Node(NAME, "identifier", yytext);return NAME;}
 {ignore}
-<parOpen,squareOpen><<EOF>>	{ dprintf (stderr_dup, "Unopened bracket %c at line no: %d\n", brackettype, bracketline);exit(1);} 
-. { dprintf (stderr_dup, "Invalid token %c at line no: %d\n", yytext[0], yylineno); exit(1);}
+<parOpen,squareOpen><<EOF>>	{
+	dprintf (stderr_dup, "Unopened bracket %c at line no: %d\n", brackettype, bracketline);
+	exit(1);
+} 
+. {
+	dprintf (stderr_dup, "Invalid token %c at line no: %d\n", yytext[0], yylineno);
+	exit(1);
+}
 %%

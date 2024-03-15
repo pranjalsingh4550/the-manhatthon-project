@@ -269,6 +269,8 @@ class Node {
 #define CLASS_ST 2
 #define MEMBER_FN_ST 3
 
+class SymbolTable;
+
 class Symbol {
 	public:
 		string name;
@@ -280,12 +282,15 @@ class Symbol {
 		ull offset=0;
 		int dimension=0;
 		SymbolTable *nested_table;
-	Symbol () {
-		// emphy instance, to declare primitive types as "class"
-		size = 0;
-		name = "class";
-		typestring = "";
-	}
+		Symbol(){}
+		// Symbol(){
+		// // emphy instance, to declare primitive types as "class"
+		// 	size = 0;
+		// 	name = "class";
+		// 	typestring = "";
+		// }
+		Symbol (string , string , int , int , SymbolTable* );
+
 };
 
 class SymbolTable {
@@ -341,48 +346,7 @@ class SymbolTable {
 		Symbol* get (Node* node) {
 			return get(node->production);
 		}
-// 		string gettype (string name) {
-// 			Symbol *s = get(name);
-// 			if (s != NULL) {
-// 				return s->typestring;
-// 			}
-// 			return "";
-// 		}
-	};
-
-SymbolTable::SymbolTable(SymbolTable *p) {
-	parent = p;
-	isFunction = false;
-	isClass = false;
-	isGlobal = true;
-	lineno = 0;
-	this->fn_inside_class = false;
-	this->name = "global";
-	// int, float complex bool str 
-	symbols["class"] = new Symbol ();
-	symbols["int"] = new Symbol("int", "class", -1, 0, p);
-	symbols["float"] = new Symbol("float", "class", -1, 0, p);
-	symbols["complex"] = new Symbol("complex", "class", -1, 0, p);
-	symbols["bool"] = new Symbol("bool", "class", -1, 0, p);
-	symbols["str"] = new Symbol("str", "class", -1, 0, p);
-}
-
-SymbolTable::SymbolTable (SymbolTable *p, int flags, string name) {
-	if (flags > 3 || flags < 1) {
-		cerr << "Bad flags\n"; exit(6);
-	}
-	parent = p;
-	if (isFunction = (flags == FUNCTION_ST))
-		parent->functions[name] = this;
-	if (isClass = (flags == CLASS_ST))
-		parent->classes[name] = this;
-	isGlobal = false;
-	lineno = 0;
-	if (fn_inside_class = (flags == MEMBER_FN_ST))
-		parent->member_functions[name] = this;
-}
-
-int SymbolTable::putFunc(Node* node, Node* type, vector<Node*> args) {
+		int putFunc(Node* node, Node* type, vector<Node*> args) {
 			if (this->isClass == false) {
 				cerr << "Adding member function to non-class symbol table!\n";
 				return 5;
@@ -393,9 +357,48 @@ int SymbolTable::putFunc(Node* node, Node* type, vector<Node*> args) {
 			for (auto arg: args) {
 				f->arg_types.push_back(arg->production);
 			}
-			member_functions[node->production] = f;
+			this->member_functions[node->production] = f;
 			return 1;
 		}
+		SymbolTable(SymbolTable *p) {
+			parent = p;
+			isFunction = false;
+			isClass = false;
+			isGlobal = true;
+			lineno = 0;
+			this->fn_inside_class = false;
+			this->name = "global";
+			// int, float complex bool str 
+			symbols["class"] = new Symbol ();
+			symbols["int"] = new Symbol("int", "class", -1, 0, p);
+			symbols["float"] = new Symbol("float", "class", -1, 0, p);
+			symbols["complex"] = new Symbol("complex", "class", -1, 0, p);
+			symbols["bool"] = new Symbol("bool", "class", -1, 0, p);
+			symbols["str"] = new Symbol("str", "class", -1, 0, p);
+			size = 0;
+		}
+		SymbolTable (SymbolTable *p, int flags, string name) {
+			if (flags > 3 || flags < 1) {
+				cerr << "Bad flags\n"; exit(6);
+			}
+			parent = p;
+			if (isFunction = (flags == FUNCTION_ST))
+				parent->functions[name] = this;
+			if (isClass = (flags == CLASS_ST))
+				parent->classes[name] = this;
+			isGlobal = false;
+			lineno = 0;
+			if (fn_inside_class = (flags == MEMBER_FN_ST))
+				parent->member_functions[name] = this;
+		}
+// 		string gettype (string name) {
+// 			Symbol *s = get(name);
+// 			if (s != NULL) {
+// 				return s->typestring;
+// 			}
+// 			return "";
+// 		}
+};
 
 Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
 		//
@@ -431,12 +434,12 @@ class instruction {
 		Symbol* source1, source2, destination;
 		bool operand_is_int;
 		union {
-			literal2;
-			dliteral2;
+			long literal2;
+			double dliteral2;
 		};
 		union {
-			literal1;
-			dliteral1;
+			long literal1;
+			double dliteral1;
 		};
 #define IR_OPERAND1 (instr->operand_is_int ? instr->literal1: instr->dliteral1 )
 #define IR_OPERAND2 (instr->operand_is_int ? instr->literal2: instr->dliteral2 )

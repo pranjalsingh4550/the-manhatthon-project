@@ -1,4 +1,7 @@
-def nice(az:int)->None:
-    a:int
+a=20
+class Class:
+    a=10
+    def fun():
+        print(a)
 
-nice()
+

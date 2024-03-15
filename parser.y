@@ -256,10 +256,10 @@ expr_stmt: test ":" test {
 			check($1);
 			check($3);
 			if(!check($1,$3)){
-				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $1->production.c_str(), $3->production.c_str());
+				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $1->production.c_str(), $3->production);
 				exit(1);
 			}
-			$$ = new Node ($2->production.c_str());
+			$$ = new Node ($2->production);
 			$$->addchild($1);
 			$$->addchild($3);
 			$$->typestring = $1->typestring;

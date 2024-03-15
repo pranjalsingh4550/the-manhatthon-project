@@ -9,6 +9,7 @@ extern int nodecount;
 extern FILE *graph;
 extern int yylineno;
 
+
 enum ir_operation {
 	UJUMP,
 	CJUMP,	// CONDITIONAL JUMP
@@ -55,15 +56,15 @@ enum ir_operation {
 };
 
 enum datatypes {
-	INT = 1,	// bool will be stored as 0/1
-	FLOAT = 2,
-	COMPLEX = 4,
+	TYPE_INT = 1,	// bool will be stored as 0/1
+	TYPE_FLOAT = 2,
+	TYPE_COMPLEX = 4,
 	// reorder this later, so that instead of an if-block for a*b,
 	// we use result.type = max (a.type, b.type)
-	STR = 0x10,
-	VOID = 0x20,
-	ERROR = 0x40,
-	IDENTIFIER = 0x80
+	TYPE_STR = 0x10,
+	TYPE_VOID = 0x20,
+	TYPE_ERROR = 0x40,
+	TYPE_IDENTIFIER = 0x80
 };
 
 
@@ -77,88 +78,176 @@ enum datatypes {
 	( ISNUM (op1 | op2)? (op1 > op2 ? op1 : op2): 0)
 // returns 0 on error
 
-struct complex_literal {
+typedef struct {
 	double real;
 	double imag;
-};
+} complexLiteral;
 
 
 class Node {
 		public:
 		int nodeid;
+		int token;
 		string production;
 		string typestring = "";
 		ull lineno;
 		vector<Node*> children;
+		//children used for lists etc.
+		
 		enum datatypes type;
 		enum ir_operation op;
 		bool isConstant = false;
+		long int intVal;
+		double floatVal;
+		string strVal;
+		complexLiteral complexVal;
+		
 		bool isLeaf = false;
+		
+		Node (int tokenIn) {
+			//none, but let the lexer pass the token value so that I don't have to include parser.tab.h here
+			token = tokenIn;
+			nodeid = nodecount++;
+			typestring = "none";
+			lineno = yylineno;
+			isConstant = true;
+			isLeaf = true;
+		}
+		
+		Node (int tokenIn, const string typestr, const string label) {
+			//for identifiers
+			token = tokenIn;
+			nodeid = nodecount++;
+			typestring = typestr;
+			production = label;
+			lineno = yylineno;
+			isLeaf = true;
+		}
+		
+		Node (int tokenIn, long int value) {
+			token = tokenIn;
+			nodeid = nodecount++;
+			typestring = "int";
+			lineno = yylineno;
+			type = TYPE_INT;
+			isConstant = true;
+			intVal = value;
+			isLeaf = true;
+		}
+		
+		Node (int tokenIn, double value) {
+			token = tokenIn;
+			nodeid = nodecount++;
+			typestring = "float";
+			lineno = yylineno;
+			type = TYPE_FLOAT;
+			isConstant = true;
+			floatVal = value;
+			isLeaf = true;
+		}
+		
+		Node (int tokenIn, complexLiteral value) {
+			token = tokenIn;
+			nodeid = nodecount++;
+			typestring = "complex";
+			lineno = yylineno;
+			type = TYPE_COMPLEX;
+			isConstant = true;
+			complexVal = value;
+			isLeaf = true;
+		}
+		
+		Node (int tokenIn, string value) {
+			//for string literals
+			token = tokenIn;
+			nodeid = nodecount++;
+			typestring = "string";
+			lineno = yylineno;
+			type = TYPE_STR;
+			isConstant = true;
+			strVal = value;
+			isLeaf = true;
+		}
+		
+		Node (int tokenIn, bool value) {
+			token = tokenIN;
+			nodeid = nodecount++;
+			typestring = "bool";
+			lineno = yylineno;
+			type = TYPE_INT;
+			isConstant = true;
+			intVal = vlaue;
+			isLeaf = true;
+			
+		}
+		
+		Node (const string name) {
+			//keywords
+			nodeid = nodecount++;
+			production = name;
+			lineno = yylineno;
+		}
+		
+// 		Node(int x,const char *y){
+// 			nodeid = nodecount++;
+// 			production = y;
+// 			lineno= yylineno;
+// 		}
+// 		Node(string s){
+// 			nodeid = nodecount++;
+// 			production = s;
+// 			lineno= yylineno;
+// 			if (graph)
+// 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, s.c_str());
+// 		}
+// 		Node (const char *label) {
+// 			nodeid = nodecount++;
+// 			production = label;
+// 			lineno= yylineno;
+// 			if (graph)
+// 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label);
+// 		}
+// 		Node(string s, enum ir_operation node_op){
+// 			nodeid = nodecount++;
+// 			production = s;
+// 			op = node_op;
+// 			if (graph)
+// 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, s.c_str());
+// 		}
+// 		Node (const char *label, enum ir_operation node_op) {
+// 			nodeid = nodecount++;
+// 			production = label;
+// 			op = node_op;
+// 			if (graph)
+// 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label);
+// 		}
 
-		Node(int x,const char *y){
-			nodeid = nodecount++;
-			production = y;
-			lineno= yylineno;
-		}
-		Node(string s){
-			nodeid = nodecount++;
-			production = s;
-			lineno= yylineno;
-			if (graph)
-				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, s.c_str());
-		}
-		Node (const char *label) {
-			nodeid = nodecount++;
+		void rename(const string label) {
 			production = label;
-			lineno= yylineno;
-			if (graph)
-				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label);
-		}
-		Node(string s, enum ir_operation node_op){
-			nodeid = nodecount++;
-			production = s;
-			op = node_op;
-			if (graph)
-				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, s.c_str());
-		}
-		Node (const char *label, enum ir_operation node_op) {
-			nodeid = nodecount++;
-			production = label;
-			op = node_op;
-			if (graph)
-				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label);
-		}
-		void rename(const char *label) {
-			production = label;
-			if (graph)
-				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label);
-		}
-		void rename(string label) {
-			production = label;
-			if (graph)
-				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label.c_str());
+			// if (graph)
+// 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label.c_str());
 		}
 		void addchild (Node* child) {
 			children.push_back(child);
-			if (graph)
-				fprintf (graph, "\tnode%d -> node%d;\n", this->nodeid, child->nodeid);
+			// if (graph)
+// 				fprintf (graph, "\tnode%d -> node%d;\n", this->nodeid, child->nodeid);
 		}
-		void addchild (Node *child, const char* label) {
+		void addchild (Node *child, const string label) {
 			children.push_back(child);
-			if (graph)
-				fprintf (graph, "\tnode%d -> node%d [label=\"%s\"];\n", this->nodeid, child->nodeid, label);
+			// if (graph)
+// 				fprintf (graph, "\tnode%d -> node%d [label=\"%s\"];\n", this->nodeid, child->nodeid, label);
 		}
 		// overloaded ops below: add actions of the form leftchild OP child
 		void addchild (Node* child, Node* leftchild) {
 			children.push_back(child);
-			if (graph)
-				fprintf (graph, "\tnode%d -> node%d;\n", this->nodeid, child->nodeid);
+			// if (graph)
+// 				fprintf (graph, "\tnode%d -> node%d;\n", this->nodeid, child->nodeid);
 			add_op(leftchild, child, this->op);
 		}
 		void addchild (Node *child, const char* label, Node *leftchild) {
 			children.push_back(child);
-			if (graph)
-				fprintf (graph, "\tnode%d -> node%d [label=\"%s\"];\n", this->nodeid, child->nodeid, label);
+			// if (graph)
+// 				fprintf (graph, "\tnode%d -> node%d [label=\"%s\"];\n", this->nodeid, child->nodeid, label);
 			add_op(leftchild, child, this->op);
 		}
 		void printnode () {

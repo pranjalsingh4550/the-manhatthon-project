@@ -37,7 +37,7 @@ imagnumber ({floatnumber}|{digitpart})[jJ]
 ignore [ \r\f\t]|{comments}
 ignore2	\n[ \f\t]*{comments}?
 
-%s parOpen squareOpen curlyOpen
+%s parOpen squareOpen
 
 %%
     { 

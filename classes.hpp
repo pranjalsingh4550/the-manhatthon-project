@@ -187,67 +187,23 @@ class Node {
 			production = name;
 			lineno = yylineno;
 		}
-		
-// 		Node(int x,const char *y){
-// 			nodeid = nodecount++;
-// 			production = y;
-// 			lineno= yylineno;
-// 		}
-// 		Node(string s){
-// 			nodeid = nodecount++;
-// 			production = s;
-// 			lineno= yylineno;
-// 			if (graph)
-// 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, s.c_str());
-// 		}
-// 		Node (const char *label) {
-// 			nodeid = nodecount++;
-// 			production = label;
-// 			lineno= yylineno;
-// 			if (graph)
-// 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label);
-// 		}
-// 		Node(string s, enum ir_operation node_op){
-// 			nodeid = nodecount++;
-// 			production = s;
-// 			op = node_op;
-// 			if (graph)
-// 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, s.c_str());
-// 		}
-// 		Node (const char *label, enum ir_operation node_op) {
-// 			nodeid = nodecount++;
-// 			production = label;
-// 			op = node_op;
-// 			if (graph)
-// 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label);
-// 		}
 
 		void rename(const string label) {
 			production = label;
-			// if (graph)
-// 				fprintf (graph, "\tnode%d [label=\"%s\"];\n", nodeid, label.c_str());
 		}
 		void addchild (Node* child) {
 			children.push_back(child);
-			// if (graph)
-// 				fprintf (graph, "\tnode%d -> node%d;\n", this->nodeid, child->nodeid);
 		}
 		void addchild (Node *child, const string label) {
 			children.push_back(child);
-			// if (graph)
-// 				fprintf (graph, "\tnode%d -> node%d [label=\"%s\"];\n", this->nodeid, child->nodeid, label);
 		}
 		// overloaded ops below: add actions of the form leftchild OP child
 		void addchild (Node* child, Node* leftchild) {
 			children.push_back(child);
-			// if (graph)
-// 				fprintf (graph, "\tnode%d -> node%d;\n", this->nodeid, child->nodeid);
 			add_op(leftchild, child, this->op);
 		}
 		void addchild (Node *child, const char* label, Node *leftchild) {
 			children.push_back(child);
-			// if (graph)
-// 				fprintf (graph, "\tnode%d -> node%d [label=\"%s\"];\n", this->nodeid, child->nodeid, label);
 			add_op(leftchild, child, this->op);
 		}
 		void printnode () {
@@ -257,7 +213,7 @@ class Node {
 			}
 		}
 		void add_op (Node *leftoperand, Node *rightoperand, enum ir_operation op) {
-			// should ir_operations be a map <str, int>?
+			// should ir_operations be a map <str, int>? ??????
 			fprintf (stdout, "adding operation %d between nodes %d and %d\n", op, 
 					leftoperand->nodeid, rightoperand->nodeid);
 
@@ -282,13 +238,11 @@ class Symbol {
 		ull offset=0;
 		int dimension=0;
 		SymbolTable *nested_table;
-		Symbol(){}
-		// Symbol(){
-		// // emphy instance, to declare primitive types as "class"
-		// 	size = 0;
-		// 	name = "class";
-		// 	typestring = "";
-		// }
+		Symbol(){
+			size = 0;
+			name = "class";
+			typestring = "";
+		}
 		Symbol (string , string , int , int , SymbolTable* );
 
 };
@@ -310,7 +264,6 @@ class SymbolTable {
 		map <string, SymbolTable*> functions;
 		int size;
 		unsigned long table_size;
-
 		bool has (string name) {
 			if (symbols.find(name) != symbols.end()) {
 				return true;
@@ -391,13 +344,13 @@ class SymbolTable {
 			if (fn_inside_class = (flags == MEMBER_FN_ST))
 				parent->member_functions[name] = this;
 		}
-// 		string gettype (string name) {
-// 			Symbol *s = get(name);
-// 			if (s != NULL) {
-// 				return s->typestring;
-// 			}
-// 			return "";
-// 		}
+		string gettype (string name) {
+			Symbol *s = get(name);
+			if (s != NULL) {
+				return s->typestring;
+			}
+			return "";
+		}
 };
 class instruction {
 	public:

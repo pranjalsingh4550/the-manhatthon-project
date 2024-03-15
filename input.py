@@ -4,5 +4,3 @@ class Class:
     def fun():
         print(a)
 
-
-print(type(fun()))

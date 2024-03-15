@@ -191,7 +191,7 @@ class Symbol {
 		ull size;
 		ull offset=0;
 		SymbolTable *nested_table;
-	Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
+		Symbol (string name, string typestring, int lineno, int flag, SymbolTable* top) {
 		//
 		name = name;
 		typestring = typestring;
@@ -206,7 +206,7 @@ class Symbol {
 			exit(1); // or call error
 		}
 		if (typestring != "class")
-			size = cur_symboltable->classes[typestring]->size;
+			size = top->classes[typestring]->size;
 		else 
 			switch (typestring) {
 				case "bool":

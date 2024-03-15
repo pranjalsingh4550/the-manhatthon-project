@@ -269,57 +269,6 @@ class Node {
 #define CLASS_ST 2
 #define MEMBER_FN_ST 3
 
-class SymbolTable;
-
-extern SymbolTab
-
-class Symbol {
-	public:
-		string name;
-		string typestring;
-		ull lineno;
-		bool isFunction = false;
-		bool isClass = false;
-		ull size = 0;
-		ull offset=0;
-		int dimension=0;
-		SymbolTable *nested_table;
-	Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
-		//
-		name = name;
-		typestring = typestring;
-		lineno = (ull) lineno;
-		if (flag == FUNCTION_ST || flag == MEMBER_FN_ST)
-			isFunction = true;
-		if (flag == CLASS_ST)
-			isClass = true;
-		// fill dimension in parser
-		if (typestring == "" || cur_symboltable->classes.find(typestring)==cur_symboltable->classes.end()) {
-			cerr << "Undeclared type in line " << lineno << endl; // mroe details
-			exit(1); // or call error
-		}
-		if (typestring != "class")
-			size = cur_symboltable->classes[typestring]->size;
-		else {
-			if (typestring == "bool" || typestring == "float" || typestring == "int" ||) {
-				size = 8;
-			} else if (typestring == "complex" || typestring == "str") {
-				size = 16;
-			}
-		}
-		offset = cur_symboltable->table_size;
-		cur_symboltable->table_size += size;
-
-	}
-	Symbol () {
-		// emphy instance, to declare primitive types as "class"
-		size = 0;
-		name = "class";
-		typestring = "";
-	}
-};
-
-
 class SymbolTable {
 	public:
 		SymbolTable *parent;
@@ -415,14 +364,64 @@ class SymbolTable {
 		Symbol* get (Node* node) {
 			return get(node->production);
 		}
-		string gettype (string name) {
-			Symbol *s = get(name);
-			if (s != NULL) {
-				return s->typestring;
-			}
-			return "";
-		}
+// 		string gettype (string name) {
+// 			Symbol *s = get(name);
+// 			if (s != NULL) {
+// 				return s->typestring;
+// 			}
+// 			return "";
+// 		}
 	};
+
+
+class Symbol {
+	public:
+		string name;
+		string typestring;
+		ull lineno;
+		bool isFunction = false;
+		bool isClass = false;
+		ull size = 0;
+		ull offset=0;
+		int dimension=0;
+		SymbolTable *nested_table;
+	Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
+		//
+		name = name;
+		typestring = typestring;
+		lineno = (ull) lineno;
+		if (flag == FUNCTION_ST || flag == MEMBER_FN_ST)
+			isFunction = true;
+		if (flag == CLASS_ST)
+			isClass = true;
+		// fill dimension in parser
+		if (typestring == "" || cur_symboltable->classes.find(typestring)==cur_symboltable->classes.end()) {
+			cerr << "Undeclared type in line " << lineno << endl; // mroe details
+			exit(1); // or call error
+		}
+		if (typestring != "class")
+			size = cur_symboltable->classes[typestring]->size;
+		else {
+			if (typestring == "bool" || typestring == "float" || typestring == "int" ||) {
+				size = 8;
+			} else if (typestring == "complex" || typestring == "str") {
+				size = 16;
+			}
+		}
+		offset = cur_symboltable->table_size;
+		cur_symboltable->table_size += size;
+
+	}
+	Symbol () {
+		// emphy instance, to declare primitive types as "class"
+		size = 0;
+		name = "class";
+		typestring = "";
+	}
+};
+
+
+
 
 class instruction {
 	public:

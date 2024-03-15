@@ -181,7 +181,6 @@ class Symbol {
 		int isClass;
 		ull size;
 		ull offset=0;
-		int dimension=0;
 		SymbolTable *nested_table;
 };
 

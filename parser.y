@@ -397,10 +397,10 @@ suite:  simple_stmt[first]
 /* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */
 
 
-funcdef: "def" NAME[name]  functionstart "(" typedarglist_comma[param] ")" "->" test[ret] ":" suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($name, "Name"); $$->addchild($param,"Parameters"); $$->addchild($ret, "Return type"); $$->addchild($last, "Body");}
-	| "def" NAME "(" ")" "->" test ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($last, "Body");}
+funcdef: "def" NAME[name] functionstart "(" typedarglist_comma[param] ")" "->" test[ret] ":" suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($name, "Name"); $$->addchild($param,"Parameters"); $$->addchild($ret, "Return type"); $$->addchild($last, "Body");}
+	| "def" NAME functionstart "(" ")" "->" test ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($2, "Name"); $$->addchild($6, "Return type"); $$->addchild($last, "Body");}
 	| "def" NAME[name] functionstart "(" typedarglist_comma[param] ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0; $$ = new Node ("Function Defn"); $$->addchild($name, "Name"); $$->addchild($param,"Parameters"); $$->addchild($last, "Body");}
-	| "def" NAME "(" ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($last, "Body");}
+	| "def" NAME functionstart "(" ")" ":" {Funcsuite=1;name=$2;}suite[last] {name=NULL; Funcsuite=0;$$ = new Node ("Function Defn"); $$->addchild($2, "Name");$$->addchild($last, "Body");}
 
 functionstart:  {
 	printf("start function scope\n");

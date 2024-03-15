@@ -1,4 +1,5 @@
-def nice(az:int)->None:
-    a:int
+def fun()->int:
+    return 1
+    print("Hello")
 
-nice()
+print(type(fun()))

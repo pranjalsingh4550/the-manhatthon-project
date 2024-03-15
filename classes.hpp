@@ -399,35 +399,6 @@ class SymbolTable {
 // 			return "";
 // 		}
 };
-
-Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
-		//
-		name = name;
-		typestring = typestring;
-		lineno = (ull) lineno;
-		if (flag == FUNCTION_ST || flag == MEMBER_FN_ST)
-			isFunction = true;
-		if (flag == CLASS_ST)
-			isClass = true;
-		// fill dimension in parser
-		if (typestring == "" || cur_symboltable->classes.find(typestring)==cur_symboltable->classes.end()) {
-			cerr << "Undeclared type in line " << lineno << endl; // mroe details
-			exit(1); // or call error
-		}
-		if (typestring != "class")
-			size = cur_symboltable->classes[typestring]->size;
-		else {
-			if (typestring == "bool" || typestring == "float" || typestring == "int") {
-				size = 8;
-			} else if (typestring == "complex" || typestring == "str") {
-				size = 16;
-			}
-		}
-		offset = cur_symboltable->table_size;
-		cur_symboltable->table_size += size;
-
-	}
-
 class instruction {
 	public:
 		enum ir_operation instr;

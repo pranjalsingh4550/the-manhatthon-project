@@ -1,6 +1,1 @@
-a=20
-class Class:
-    a=10
-    def fun():
-        print(a)
-
+a:int = 3

@@ -33,10 +33,10 @@
 		if (flag == CLASS_ST)
 			isClass = true;
 		// fill dimension in parser
-		if (typestring == "" || cur_symboltable->classes.find(typestring)==cur_symboltable->classes.end()) {
-			cerr << "Undeclared type in line " << lineno << endl; // mroe details
-			exit(1); // or call error
-		}
+		// if (typestring == "" || cur_symboltable->classes.find(typestring)==cur_symboltable->classes.end()) {
+		// 	cerr << "Undeclared type in line " << lineno << endl; // mroe details
+		// 	exit(1); // or call error
+		// }
 		if (typestring != "class")
 			size = cur_symboltable->classes[typestring]->size;
 		else {
@@ -226,7 +226,7 @@
 
 
 %%
-program : input | program INDENT
+program : {printf("now\n");}input | program INDENT
 
 input: start 
 	| NEWLINE input
@@ -274,9 +274,10 @@ expr_stmt: test ":" test {
 			put($1,$3); //Actually $1 should take the type of $5 or there may be a type mismatch but python doesn't disallow it 
 			//but sir probably won't mismatch $3 and $5 otherwise it will be pointless to give static declarations
 			$$ = new Node ("Declaration");
+			$$->op = MOV_REG;
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
-			$$->addchild($5, "Value");
+			$$->addchild($5, "Value", $1);
 
 	}		
 	| test augassign test { 
@@ -421,7 +422,7 @@ typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($
 suite:  simple_stmt[first] 
 	| NEWLINE  INDENT  stmts[third] DEDENT 
 
-basesuite: {newscope("dummy")} simple_stmt[first] {endscope();}
+basesuite: {newscope("dummy");} simple_stmt[first] {endscope();}
 	| {newscope("dummy");}NEWLINE  INDENT  stmts[third] DEDENT {endscope();}
 /* when using multiple mid-rule actions avoid using $1, $2, $3 as its more rigid to code changes*/
 /* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */
@@ -531,6 +532,7 @@ int main(int argc, char** argv){
 	// command line options
 	// now points to first command line option
 
+	/* printf("asdfasdf\n"); */
 	top = new SymbolTable (NULL);
 	for(int i=1;i<argc;i++){
 		if (strcmp (argv[i], "-input") == 0) { // input file - replace stdin with it
@@ -593,7 +595,6 @@ int main(int argc, char** argv){
 	
 	graph = fopen (outputfile, "w+");
 	fprintf (graph, "strict digraph ast {\n");
-
 	yyparse();
 	if (graph) {
 		fprintf (graph, "}\n");

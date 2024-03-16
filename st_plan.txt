@@ -36,3 +36,28 @@ Whenever a global function gets called we'll check the (class/func) symbol table
 
 Function has a attribute for inClass to know whether its defined in a class or not, this is for the purpose that member functios by default have the first paramater as the class(most commonly denoted by self but could be anything really) which is not pass as an argument when called, so this creates a distinction in the two functions.
 
+handling a:b = c(d,e,f):
+	a = lea a.offset (%rbp)
+	// at compile time, sizeof(b) is allocated on the stack at this offset
+	pushparam a; // push onto child stack
+	pushparam d;
+	pushparam e;
+	pushparam f;
+	callq c;
+
+	orr for a:int = 2
+	a = lea a.offset ( %rbp)
+	mov a, 20;
+
+	what about
+	a:int = 10 + 10 + 10 + 2 ** 4 ** 1 << 2 >> 4; // need a lot of temporaries.
+	// 3ac uses infinite regs, later allocate to true regs
+	// so do we increment the offset for each temporary?
+	// idea: separate stack, 3ac and x86 for now!
+
+	(1) parsing generates temporaries for primitives
+	(2) alloc_stack()s for composite classes - referenced by pointers, not regs. regs allocated to contain pointers
+		-- we pretend these alloc_stack()ed regions aren't real registers/stack entities till actually creating the stack
+		-- optimise temporaries later. use refcounts/refvectors for reads/writes ig
+		-- when laying out stack, allocate the alloc_stacks unconditionally, unlike the primitive regs
+		-- if we are optimising, then we'll have to fill the offsets in SymbolTable in a separate pass

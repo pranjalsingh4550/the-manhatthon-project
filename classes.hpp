@@ -16,6 +16,7 @@ enum ir_operation {
 	LW,
 	SW,
 	RETQ,	// RETURN
+	MOV_REG,
 
 	ANDBW,	// bitwise and
 	ORBW,	// BITWISE OR
@@ -216,6 +217,9 @@ class Node {
 			// should ir_operations be a map <str, int>? ??????
 			fprintf (stdout, "adding operation %d between nodes %d and %d\n", op, 
 					leftoperand->nodeid, rightoperand->nodeid);
+				switch (op) {
+					case 5: printf ("\t\tMOV_REG t_%d , t_%d\n", leftoperand->nodeid, rightoperand->nodeid);
+				}
 
 			return ;
 		}
@@ -323,11 +327,11 @@ class SymbolTable {
 			this->name = "global";
 			// int, float complex bool str 
 			symbols["class"] = new Symbol ();
-			symbols["int"] = new Symbol("int", "class", -1, 0, p);
-			symbols["float"] = new Symbol("float", "class", -1, 0, p);
-			symbols["complex"] = new Symbol("complex", "class", -1, 0, p);
-			symbols["bool"] = new Symbol("bool", "class", -1, 0, p);
-			symbols["str"] = new Symbol("str", "class", -1, 0, p);
+			symbols["int"] = new Symbol("int", "class", -1, 0, this);
+			symbols["float"] = new Symbol("float", "class", -1, 0, this);
+			symbols["complex"] = new Symbol("complex", "class", -1, 0, this);
+			symbols["bool"] = new Symbol("bool", "class", -1, 0, this);
+			symbols["str"] = new Symbol("str", "class", -1, 0, this);
 			size = 0;
 		}
 		SymbolTable (SymbolTable *p, int flags, string name) {

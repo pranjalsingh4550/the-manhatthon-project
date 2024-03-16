@@ -4,6 +4,8 @@ class ShiftReduceParser:
     abc.srname: str = name_
 
 
+def gen(a)->None:
+      print(a)
 
 class LR0Parser(ShiftReduceParser):
 
@@ -24,6 +26,7 @@ class LALRParser(CLRParser):
   def __init__(self, myname_: str, clrname_: str, srname_: str):
     self.lalrname: str = myname_
     CLRParser.__init__(self, clrname_, srname_)
+    # gen(3)
 
   def print_name(self):
     print("SLR name:")

@@ -260,7 +260,7 @@ class SymbolTable {
 		int isGlobal;
 		ull lineno;
 		string name;
-		string return_type;
+		string return_type="None";
 		vector<string> arg_types; // for function, but class also ig
 		bool fn_inside_class;
 		map <string, SymbolTable*> classes; // if global

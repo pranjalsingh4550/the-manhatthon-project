@@ -259,12 +259,11 @@ expr_stmt: test[name] ":" {decltype=1; /*this is required checking for list[int]
 				if($name is not lvalue) error
 				if($name is already in current scope)error
 				if($type is not declared in GlobalSymTable->classes)error
-				if()
-
+				if($type and $value are not type compatible) error ( only int<->float and int <-> bool type mismatch are allowed give error otherwise)
+				if($value is a leaf && $value is not a constant ) check if $value is in scope or not
+				
 				add $name to curent scope with type $type and node $name (put($name,$type));
 			*/
-			put($1,$3); //Actually $1 should take the type of $5 or there may be a type mismatch but python doesn't disallow it 
-			//but sir probably won't mismatch $3 and $5 otherwise it will be pointless to give static declarations
 			$$ = new Node ("Declaration");
 			$$->op = MOV_REG;
 			$$->addchild($1, "Name");
@@ -273,29 +272,55 @@ expr_stmt: test[name] ":" {decltype=1; /*this is required checking for list[int]
 
 	}		
 	| test augassign test { 
-			check($1);
-			check($3);
-			if(!check($1,$3)){
-				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $1->production.c_str(), $3->production.c_str());
-				exit(1);
-			}
+			/*
+				if($1 is not lvalue) error
+				if($1 is not in current scope)error
+				if($1 and $3 are not type compatible)error
+				if($3 is a leaf && $3 is not a constant ) check if $3 is in scope or not
+			*/
+
 			$$ = new Node ($2->production);
 			$$->addchild($1);
 			$$->addchild($3);
-			$$->typestring = $1->typestring;
-			$$->lineno = $1->lineno;
 	}
 	| test "=" test{
-		//do we redifine a??
-		check($3);
-		top->get($1)->typestring= $3->typestring;
+			/*
+				if($1 is not lvalue) error
+				if($1 is not in current scope)error
+				if($1 and $3 are not type compatible)error
+				if($3 is a leaf && $3 is not a constant ) check if $3 is in scope or not
+
+			*/
+			$$ = new Node ("=");
+			$$->addchild($1);
+			$$->addchild($3);
 	}
-	| test {check($1);$$=$1;}
+	| test {
+		/*
+			if $1 is leaf and $1 is not a constant) check if is in current scope or not
+		*/
+	}
 
 augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
 
-return_stmt: "return" test {check($2);$1->addchild($2,"Data"); $$=$1;}
-	| "return" {string temp = "Keyword\n"; temp += "( return )"; $$ = new Node(temp);}
+return_stmt: "return" test {
+		/*
+			if(isFunction==0) error
+			if($2 is not in current scope) error
+			if ($2 is not type compatible with return type) error
+		*/
+			$1->addchild($2,"Data"); $$=$1;	
+	}
+	| "return" {
+		/*
+			if(isFunction==0) error
+			if(return type is not None) error
+		*/
+		string temp = "Keyword\n"; temp += "( return )"; $$ = new Node(temp);}
+
+// for each operation check if the operands are in current scope or not
+// check type compatibility
+//udate type of result
 
 test : and_test 
 	| test "or" and_test { $$ = new Node ("or"); $$->addchild ($1); $$->addchild ($3);}
@@ -350,10 +375,43 @@ power: primary
 */
 
 primary: atom 
-	| primary "." NAME 
-	| primary "[" test "]"
-	| primary "(" testlist ")" 
-	| primary "(" ")"
+	| primary "." NAME  {
+		/*
+			if primary is constant then error
+			if primary is not in current scope then error
+
+			getsymbol table for classes of primary and check if NAME is in it or not
+			
+			update type of result and update current scope
+		*/
+	}
+	| primary "[" test "]" {
+		/*
+			if primary is constant then error
+			if primary is not in current scope then error
+			if test is not int then error
+			if primary dimension is not 0 then error
+		*/
+	}
+	| primary "(" testlist ")" {
+		/*
+			if primary is constant then error
+			if primary is not in current scope then error
+			if primary is not a function then error
+
+			check if testlist is compatible with function parameters or not
+
+			update result type
+		*/
+	}
+	| primary "(" ")" {
+		/*
+			if primary is constant then error
+			if primary is not in current scope then error
+			if primary is not a function then error
+		*/
+	
+	}
 
 atom: NAME 
     | NUMBER 	
@@ -380,7 +438,11 @@ atom: NAME
 	| "[" "]" { $$ = new Node ("Empty List"); $1=new Node("Delimeter\n[");$2=new Node("Delimeter\n]"); $$->addchild($1); $$->addchild($2);}
 
 STRING_plus: STRING 
-	| STRING_plus STRING { $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
+	| STRING_plus STRING {
+		/*
+			update value as signle string
+		*/
+		 $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
 if_stmt: "if" test ":" basesuite { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($4, "Then");}
 	|  "if" test ":" basesuite elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($4, "Then"); $$->addchild($5, "Else"); }

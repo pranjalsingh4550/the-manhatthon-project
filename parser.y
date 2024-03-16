@@ -23,6 +23,7 @@
 	const char* edge_string;
 	int stderr_dup;
 	SymbolTable* top;
+	SymbolTable* GlobalSymTable;
 	Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
 		//
 		name = name;
@@ -89,6 +90,7 @@
 	void endscope(){
 		top = top->parent;
 	}
+	int gbl_decl =0;
 #define TEMPDEBUG 1
 %}
 
@@ -203,32 +205,70 @@ simple_stmt: small_stmt ";" NEWLINE
 
 
 small_stmt: expr_stmt
-	| return_stmt
-	| "break" 
-	| "continue" 
-	| "pass"
-	| global_stmt 
+	| { 
+		/*check if current scope isFunction or not by top->isFunction*/
+
+	} return_stmt
+
+	| "break" {
+		/*check if current scope is loop or not by top->isLoop*/
+
+	} 
+	| "continue"{
+		/*check if current scope is loop or not by top->isLoop*/
+	}
+	| {gbl_decl=1;} global_stmt {gbl_decl=0;}
 ;
 
 /* TO DO  dealing with global */
 
-global_stmt: "global" NAME 
+global_stmt: "global" NAME[name] {
+		/* if name in currentscope then error
+			if name not in global scope then error
+
+			$name->nodeid= GlobalSymTable->get(name)->nodeid;
+
+		*/
+} 
 	| global_stmt "," NAME  { $$ = new Node ("Multiple Global"); $$->addchild($1); $$->addchild($3);}
 
-expr_stmt: test ":" test { 
-			put($1,$3);
+	{
+		/* if name in currentscope then error
+			if name not in global scope then error
+
+			$name->nodeid= GlobalSymTable->get(name)->nodeid;
+
+		*/
+	}
+
+expr_stmt: test[name] ":" {decltype=1; /*this is required checking for list[int] is allowed or not */} test[type] {
+			/*
+				if($name is not lvalue) error
+				if($name is already in current scope)error
+				if($type is not declared in GlobalSymTable->classes)error
+
+				add $name to curent scope with type $type and node $name (put($name,$type));
+			*/
+			decltype=0; //reseting list[int]
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
 	}
-	| test ":" /*{dectype=1}*/ test "=" test {
+	| test[name] ":" {decltype=1;} test[type] "=" test[value] {
+			/*
+				if($name is not lvalue) error
+				if($name is already in current scope)error
+				if($type is not declared in GlobalSymTable->classes)error
+				if()
+
+				add $name to curent scope with type $type and node $name (put($name,$type));
+			*/
 			put($1,$3); //Actually $1 should take the type of $5 or there may be a type mismatch but python doesn't disallow it 
 			//but sir probably won't mismatch $3 and $5 otherwise it will be pointless to give static declarations
 			$$ = new Node ("Declaration");
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
 			$$->addchild($5, "Value");
-
 	}		
 	| test augassign test { 
 			check($1);
@@ -369,7 +409,7 @@ typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($
 suite:  simple_stmt[first] 
 	| NEWLINE  INDENT  stmts[third] DEDENT 
 
-basesuite: {newscope("dummy")} simple_stmt[first] {endscope();}
+basesuite: {newscope("dummy");} simple_stmt[first] {endscope();}
 	| {newscope("dummy");}NEWLINE  INDENT  stmts[third] DEDENT {endscope();}
 /* when using multiple mid-rule actions avoid using $1, $2, $3 as its more rigid to code changes*/
 /* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */

@@ -358,7 +358,17 @@ power: primary
 */
 
 primary: atom 
-	| primary "." NAME 
+	| primary "." NAME {
+		/*
+			if(primary is constant) error
+			if(primary is not defined) error
+			if(dimension is not 0) error
+			if(NAME is not in GlobalSymTable->classes[primary->typestring]) error
+
+			update $$->typestring as GlobalSymTable->classes[primary->typestring]->typestring
+		
+		*/
+	}
 	| primary "[" test "]"
 	| primary "(" testlist ")" 
 	| primary "(" ")"

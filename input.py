@@ -1,1 +1,1 @@
-a:int = 3
+GenericAlias

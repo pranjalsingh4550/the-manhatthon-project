@@ -3,6 +3,7 @@ parser.tab.c
 parser.tab.h
 parser.output
 parser
+parser.output
 lexer
 parser.gv
 lex.yy.c

@@ -424,22 +424,13 @@ atom: NAME
     | "True"
     | "False" 
     | "None" 
-	| "(" test ")" {
-		 $$ = $2;
-		 string temp;
-		 temp +="(  ) Contained\n";
-		 temp += $2->production;
-	 $$->rename(temp);
-	}
-	
 	| "[" testlist "]" {
 		 $$ = $2;
 		 string temp;
 		 temp +="[  ] Contained\n";
 		 temp += $2->production;
-	 $$->rename(temp);
+	 	$$->rename(temp);
 	 }
-	| "("")" { $$ = new Node ("Empty Tuple"); $1=new Node("Delimeter\n(");$2=new Node("Delimeter\n)"); $$->addchild($1); $$->addchild($2);}
 	| "[" "]" { $$ = new Node ("Empty List"); $1=new Node("Delimeter\n[");$2=new Node("Delimeter\n]"); $$->addchild($1); $$->addchild($2);}
 
 STRING_plus: STRING 

@@ -108,7 +108,6 @@
 %token <node> BREAK "break"
 %token <node> CONTINUE "continue"
 %token <node> RETURN "return"
-%token <node> PASS "pass"	
 %token <node> GLOBAL "global"
 
 %token <node> IF "if"
@@ -378,10 +377,9 @@ primary: atom
 	| primary "." NAME  {
 		/*
 			if primary is constant then error
-			if primary is not in current scope then error
+			if( init==1 ) then add NAME to current scope with type of primary
+			else check if name is in current scope or not
 
-			getsymbol table for classes of primary and check if NAME is in it or not
-			
 			update type of result and update current scope
 		*/
 	}
@@ -391,6 +389,8 @@ primary: atom
 			if primary is not in current scope then error
 			if test is not int then error
 			if primary dimension is not 0 then error
+
+			reduce dimension by 1 (basically make it 0 in our case)
 		*/
 	}
 	| primary "(" testlist ")" {
@@ -401,7 +401,7 @@ primary: atom
 
 			check if testlist is compatible with function parameters or not
 
-			update result type
+			update $result type as the return type of function
 		*/
 	}
 	| primary "(" ")" {
@@ -409,6 +409,8 @@ primary: atom
 			if primary is constant then error
 			if primary is not in current scope then error
 			if primary is not a function then error
+
+			update $result type as the return type of function
 		*/
 	
 	}

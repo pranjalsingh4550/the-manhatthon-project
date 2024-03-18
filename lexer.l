@@ -115,7 +115,6 @@ ignore2	\n[ \f\t]*{comments}?
 "break"	{return BREAK;}
 "continue"	{return CONTINUE;}
 "return"	{return RETURN;}
-"pass"	{return PASS;}
 "global"	{return GLOBAL;}
 
 "if"	{return IF;}

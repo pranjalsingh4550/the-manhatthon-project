@@ -270,9 +270,8 @@ expr_stmt: test ":" test {
 			$$->addchild($1, "Name");
 			$$->addchild($3, "Type");
 	}
-	| test ":" /*{dectype=1}*/ test "=" test {
-			put($1,$3); //Actually $1 should take the type of $5 or there may be a type mismatch but python doesn't disallow it 
-			//but sir probably won't mismatch $3 and $5 otherwise it will be pointless to give static declarations
+	| test ":" test "=" test {
+			put($1,$3); 
 			$$ = new Node ("Declaration");
 			$$->op = MOV_REG;
 			$$->addchild($1, "Name");
@@ -294,7 +293,6 @@ expr_stmt: test ":" test {
 			$$->lineno = $1->lineno;
 	}
 	| test "=" test{
-		//do we redifine a??
 		check($3);
 		top->get($1)->typestring= $3->typestring;
 	}
@@ -358,20 +356,43 @@ power: primary
 */
 
 primary: atom 
-	| primary "." NAME {
+	| primary "." NAME 
 		/*
-			if(primary is constant) error
-			if(primary is not defined) error
-			if(dimension is not 0) error
+			if(primary is leaf and primary is not in current symboltable)error
 			if(NAME is not in GlobalSymTable->classes[primary->typestring]) error
 
 			update $$->typestring as GlobalSymTable->classes[primary->typestring]->typestring
 		
 		*/
-	}
+	
 	| primary "[" test "]"
+		/*
+			if(primary is leaf and primary is not in symboltable)error
+			if(primary dimension is 0) error
+			if(test->typestring is not int) error
+			if (test is out of bounds) error
+			update $$->typestring as primary->typestring
+		
+		*/
 	| primary "(" testlist ")" 
+		/* 
+			if primary is leaf and primary is not in symboltable)error
+			if(primary is not a function) error
+			if(primary->arg_types.size() != testlist->children.size()) error
+			for i in range(primary->arg_types.size())
+				if(primary->arg_types[i] != testlist->children[i]->typestring) error
+			update $$->typestring as return type of function
+		*/
+	
 	| primary "(" ")"
+		/* 
+			if primary is leaf and primary is not in symboltable)error
+			if(primary is not a function) error
+			if(primary->arg_types.size() != 0) error
+			update $$->typestring as return type of function
+
+		 */
+
 
 /* TO DO 
 	Pass the lineno, datatype from the lexer through node
@@ -382,22 +403,13 @@ atom: NAME
     | "True"
     | "False" 
     | "None" 
-	| "(" test ")" {
-		 $$ = $2;
-		 string temp;
-		 temp +="(  ) Contained\n";
-		 temp += $2->production;
-	 $$->rename(temp);
-	}
-	
 	| "[" testlist "]" {
 		 $$ = $2;
 		 string temp;
 		 temp +="[  ] Contained\n";
 		 temp += $2->production;
-	 $$->rename(temp);
+	 	$$->rename(temp);
 	 }
-	| "("")" { $$ = new Node ("Empty Tuple"); $1=new Node("Delimeter\n(");$2=new Node("Delimeter\n)"); $$->addchild($1); $$->addchild($2);}
 	| "[" "]" { $$ = new Node ("Empty List"); $1=new Node("Delimeter\n[");$2=new Node("Delimeter\n]"); $$->addchild($1); $$->addchild($2);}
 
 STRING_plus: STRING 

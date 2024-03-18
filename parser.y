@@ -91,6 +91,7 @@
 		top = top->parent;
 	}
 	int gbl_decl =0;
+	int decl=0;
 #define TEMPDEBUG 1
 %}
 
@@ -207,7 +208,7 @@ small_stmt: expr_stmt
 	| { 
 		/*check if current scope isFunction or not by top->isFunction*/
 
-	} return_stmt
+	} return_stmt {$$=$2;}
 
 	| "break" {
 		/*check if current scope is loop or not by top->isLoop*/
@@ -229,9 +230,8 @@ global_stmt: "global" NAME[name] {
 
 		*/
 } 
-	| global_stmt "," NAME  { $$ = new Node ("Multiple Global"); $$->addchild($1); $$->addchild($3);}
+	| global_stmt "," NAME  { $$ = new Node ("Multiple Global"); $$->addchild($1); $$->addchild($3);
 
-	{
 		/* if name in currentscope then error
 			if name not in global scope then error
 
@@ -240,7 +240,7 @@ global_stmt: "global" NAME[name] {
 		*/
 	}
 
-expr_stmt: test[name] ":" {decltype=1; /*this is required checking for list[int] is allowed or not */} test[type] {
+expr_stmt: test[name] ":" declare test[type] {
 			/*
 				if($name is not lvalue) error
 				if($name is already in current scope)error
@@ -248,12 +248,12 @@ expr_stmt: test[name] ":" {decltype=1; /*this is required checking for list[int]
 
 				add $name to curent scope with type $type and node $name (put($name,$type));
 			*/
-			decltype=0; //reseting list[int]
+			decl=0; //reseting list[int]
 			$$ = new Node ("Declaration");
-			$$->addchild($1, "Name");
-			$$->addchild($3, "Type");
+			$$->addchild($name, "Name");
+			$$->addchild($type, "Type");
 	}
-	| test[name] ":" {decltype=1;} test[type] "=" test[value] {
+	| test[name] ":" declare test[type] "=" test[value] {
 			/*
 				if($name is not lvalue) error
 				if($name is already in current scope)error
@@ -263,11 +263,12 @@ expr_stmt: test[name] ":" {decltype=1; /*this is required checking for list[int]
 				
 				add $name to curent scope with type $type and node $name (put($name,$type));
 			*/
+			decl=0;
 			$$ = new Node ("Declaration");
 			$$->op = MOV_REG;
-			$$->addchild($1, "Name");
-			$$->addchild($3, "Type");
-			$$->addchild($5, "Value", $1);
+			$$->addchild($name, "Name");
+			$$->addchild($type, "Type");
+			$$->addchild($value, "Value", $name);
 
 	}		
 	| test augassign test { 
@@ -299,6 +300,8 @@ expr_stmt: test[name] ":" {decltype=1; /*this is required checking for list[int]
 			if $1 is leaf and $1 is not a constant) check if is in current scope or not
 		*/
 	}
+
+declare : {decl=1;}
 
 augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
 

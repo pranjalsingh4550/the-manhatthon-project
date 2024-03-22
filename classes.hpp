@@ -54,6 +54,10 @@ enum ir_operation {
 
 	INT2FL,
 	FL2INT,
+
+	// function/stack stuff
+	NEWSTACK, //x86's callq: push rbp, mov rsp to rbp, etc
+	FUNCTION_RETURN
 };
 
 enum datatypes {
@@ -99,6 +103,7 @@ class Node {
 		enum ir_operation op;
 		bool isConstant = false;
 		long int intVal;
+		short int dimension = 0;
 		double floatVal;
 		string strVal;
 		complexLiteral complexVal;
@@ -263,11 +268,30 @@ class SymbolTable {
 		string return_type;
 		vector<string> arg_types; // for function, but class also ig
 		bool fn_inside_class;
-		map <string, SymbolTable*> classes; // if global
-		map <string, SymbolTable*> member_functions; // for a class
-		map <string, SymbolTable*> functions;
+		// not using atm // map <string, SymbolTable*> classes; // if global
+		// not using atm // map <string, SymbolTable*> member_functions; // for a class
+		// not using atm // map <string, SymbolTable*> functions;
+		map <string, SymbolTable*> children;	// contains member functions, classes&global functions for the global namespace
+							// use children[name]->is{Class|Function} to check what it is
 		int size;
 		unsigned long table_size;
+		bool has_children (string name) {
+			if (children.find(name) != children.end()) {
+				return false;
+			}
+			if (parent != NULL) {
+				return parent->has_children(name);
+			}
+			return false;
+		}
+		SymbolTable* find_child (string name) {
+			if (this->children.find[name] == this->children.end())
+				return NULL; // NOT FOUND
+			else
+				return this->children.find[name]; // see comments above
+			// possible that this function completely supersedes has_children
+		}
+		
 		bool has (string name) {
 			if (symbols.find(name) != symbols.end()) {
 				return true;
@@ -277,10 +301,20 @@ class SymbolTable {
 			}
 			return false;
 		}
-		
-		bool has(Node* node){
+
+		bool has(Node* node){ // has symbol. doesn';t check for classes/function
 			return has(node->production);
 		}
+		/*
+		SymbolTable* has_suite(Node *node) {
+			if (this->isClass && this->member_functions.find(
+
+
+			if (this->classes.find(node->production) or parent scopes have productipon) // search recursively
+				return 2;
+			if (this->funco
+
+		  */
 		int put (Node* node, Node* type) {
 			auto s= new Symbol();
 			s->typestring = type->production;
@@ -317,7 +351,7 @@ class SymbolTable {
 			this->member_functions[node->production] = f;
 			return 1;
 		}
-		SymbolTable(SymbolTable *p) {
+		SymbolTable(SymbolTable *p) { // NOT THE DEFAULT CONSTRUCTOR: USE THE ONE IN parser.y
 			parent = p;
 			isFunction = false;
 			isClass = false;

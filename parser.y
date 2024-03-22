@@ -21,8 +21,9 @@
 	#define YYDEBUG 1
 	static Node* later;
 	const char* edge_string;
-	int stderr_dup;
-	SymbolTable* top;
+	int stderr_dup, stderr_copy;
+	bool inside_init = false;
+	SymbolTable* top, *globalSymTable;
 	Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
 		//
 		name = name;
@@ -355,8 +356,71 @@ power: primary
 
 */
 
-primary: atom 
+/*
+
+	ALL CASES
+	global()
+	globalclass_ctor()
+	globalclass_object.attr
+	globalclass.class_instance.attribute.another_instance
+	globalclass.class_instance.attribute.another_instance.member_fn()
+	something[2].something_else
+
+plan: SymbolTable* current maintains a  pointer to the top of the current production.
+in primary->primary.NAME, if name is a class instance, we update current_scope to the class
+on reading "my_cpp_map" "." "find", we set current_scope to find, anticipating an incoming "()"
+current_scope is NULL everywhere else
+every function that sets current_scope must check that someone frees it
+helper functions:	SymbolTable.has() checks for variables in scope: stack variables and class attributes
+			SymbolTable.has_children() checks for member functions/global functions and classes inside global namespace
+*/
+
+primary: atom {
+	}
 	| primary "." NAME 
+		{
+			// primary: leaf or compound or self
+			// NAME:	member function or attribute
+			if ($1->isLeaf && !top->has($1)) {
+				dprintf (stderr_copy, "Error undeclared object %s at line %d", $1->production, $3->lineno);
+				exit (1);
+			}
+
+			// check if primary is a valid scope. assume current_scope is correctly maintained.
+			if (current_scope) {
+				if (inside_init && $1->production== "self") { // create this var
+					thisscope->put($3, NULL);
+				} else if ($1->production == "self") {
+					dprintf (stderr_copy, "Error at line %d: 'self' keyword cannot be used outside __init__() constructor declarations\n", $1->lineno);
+					exit(1);
+				}
+
+				// shouldn't we be using if ($1->typestring == "class" also?
+				if (thisscope->has($3->production)) {
+					current_scope = NULL;
+					// fill the reference here
+					$$->typestring = $3->typestring;
+				} else if (thisscope->find_child($3->production)) {
+					if (current_scope->isClass)
+						current_scope = find_child($3->production);
+						// make the 3ac stuff
+					else if (find_child($3->production)->isFunction) {
+						// prepare for function call
+						current_scope = find_child ($3->production);
+					}
+					else
+						exit (printf ("shouldn't have reached this line\n"));
+				}
+				else {
+					dprintf (stderr_copy, "Error at line %d: class %s not have attribute/method %s\n", $3->lineno, $1->typestring, $3->production);
+					exit(1);
+				}
+			}
+			else {
+				dprintf (stderr_copy, "Error at line %d: reference to attribute %s of primitive object of type %s\n", $3->lineno, $3->production, $1->typestring);
+				exit(1);
+			}
+		}
 		/*
 			if(primary is leaf and primary is not in current symboltable)error
 			if(NAME is not in GlobalSymTable->classes[primary->typestring]) error
@@ -364,8 +428,28 @@ primary: atom
 			update $$->typestring as GlobalSymTable->classes[primary->typestring]->typestring
 		
 		*/
-	
+
 	| primary "[" test "]"
+		{
+			if ($1->isLeaf && !top->has($1)) {
+				dprintf (stderr_copy, "Error undeclared object %s at line %d", $1->production, $3->lineno);
+				exit (1);
+			}
+			if ($1->dimension == 0) {
+				dprintf (stderr_copy, "Error at line %d: %s object is not subscriptable.\n",
+						yylineno, $1->typestring);
+				exit (1);
+			}
+			if ($3->typestring != "int") {
+				dprintf (stderr_copy, "Error at line %d: index is not an integer\n"
+						yylineno, $3->production);
+				exit (1);
+			}
+			// if primary is out of bounds: run time error right?
+			// reminder: in 3ac, check bounds
+			$$->typestring = $1->typestring;
+		}
+				
 		/*
 			if(primary is leaf and primary is not in symboltable)error
 			if(primary dimension is 0) error
@@ -382,7 +466,28 @@ primary: atom
 			for i in range(primary->arg_types.size())
 				if(primary->arg_types[i] != testlist->children[i]->typestring) error
 			update $$->typestring as return type of function
+
+			
 		*/
+		{
+			if ($1->isLeaf && !top->has($1)) {
+				dprintf (stderr_copy, "Error at line %d: declared object %s",
+					       	$3->lineno, $1->production); // is $3->lineno maintained?
+				exit (1);
+				// what about a.b(c)?
+			}
+			SymbolTable* thisscope = 
+				globalSymTable->children[$1->typestring];
+			if (thisscope == NULL)
+			{
+				// error
+			}
+			if (thisscope->isClass)
+
+
+			SymbolTable* thisfn = thisscope->find($1->production);
+			$$->typestring = $3->typestring;
+		}
 	
 	| primary "(" ")"
 		/* 
@@ -542,7 +647,7 @@ int main(int argc, char** argv){
 	int input_fd = -1;
 	stderr_dup = -1;
 	int stderr_redirect = -1;
-	int stderr_copy = -1;
+	stderr_copy = -1;
 	int stderr_pipe[2];
 	int pread, pwr;
 	int verbosity = 0; // 1 for shift, 2 for reduce, 1|2 for both
@@ -556,6 +661,7 @@ int main(int argc, char** argv){
 
 	/* printf("asdfasdf\n"); */
 	top = new SymbolTable (NULL);
+	globalSymTable = top;
 	for(int i=1;i<argc;i++){
 		if (strcmp (argv[i], "-input") == 0) { // input file - replace stdin with it
 			if (argv[i+1] == NULL) {

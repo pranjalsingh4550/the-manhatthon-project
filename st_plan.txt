@@ -61,3 +61,7 @@ handling a:b = c(d,e,f):
 		-- optimise temporaries later. use refcounts/refvectors for reads/writes ig
 		-- when laying out stack, allocate the alloc_stacks unconditionally, unlike the primitive regs
 		-- if we are optimising, then we'll have to fill the offsets in SymbolTable in a separate pass
+
+19 march
+adding int dimension class Node: 1 for lists.
+	reminder - add element to list declaration

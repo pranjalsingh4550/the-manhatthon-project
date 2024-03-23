@@ -167,7 +167,7 @@ class Node {
 			//for string literals
 			token = tokenIn;
 			nodeid = nodecount++;
-			typestring = "string";
+			typestring = "str";
 			lineno = yylineno;
 			type = TYPE_STR;
 			isConstant = true;
@@ -284,14 +284,23 @@ class SymbolTable {
 			}
 			return false;
 		}
-		SymbolTable* find_child (string name) {
-			if (this->children.find[name] == this->children.end())
+		SymbolTable* find_class (string name) { // returns SymbolTable* if name is a class, NULL otherwise
+			if (this->children.find(name) == this->children.end())
 				return NULL; // NOT FOUND
+			else if (this->children.find(name)->second->isFunction)
+				return NULL;
 			else
-				return this->children.find[name]; // see comments above
-			// possible that this function completely supersedes has_children
+				return this->children.find(name)->second; // see comments above
 		}
-		
+		SymbolTable* find_member_fn (string name) { // returns SymbolTable* if name is a class, NULL otherwise
+			if (this->children.find(name) == this->children.end())
+				return NULL; // NOT FOUND
+			else if (this->children.find(name)->second->isClass)
+				return NULL;
+			else
+				return this->children.find(name)->second; // see comments above
+		}
+
 		bool has (string name) {
 			if (symbols.find(name) != symbols.end()) {
 				return true;
@@ -321,7 +330,7 @@ class SymbolTable {
 			s->lineno = node->lineno;
 			s->isFunction = 0;
 			s->isClass = 0;
-			symbols[node->production] = s;
+			this->symbols[node->production] = s;
 			return 1;
 		}
 		
@@ -348,7 +357,7 @@ class SymbolTable {
 			for (auto arg: args) {
 				f->arg_types.push_back(arg->production);
 			}
-			this->member_functions[node->production] = f;
+			this->children[node->production] = f;
 			return 1;
 		}
 		SymbolTable(SymbolTable *p) { // NOT THE DEFAULT CONSTRUCTOR: USE THE ONE IN parser.y
@@ -374,13 +383,13 @@ class SymbolTable {
 			}
 			parent = p;
 			if (isFunction = (flags == FUNCTION_ST))
-				parent->functions[name] = this;
+				parent->children[name] = this;
 			if (isClass = (flags == CLASS_ST))
-				parent->classes[name] = this;
+				parent->children[name] = this;
 			isGlobal = false;
 			lineno = 0;
 			if (fn_inside_class = (flags == MEMBER_FN_ST))
-				parent->member_functions[name] = this;
+				parent->children[name] = this;
 		}
 		string gettype (string name) {
 			Symbol *s = get(name);

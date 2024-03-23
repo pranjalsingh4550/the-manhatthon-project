@@ -23,7 +23,7 @@
 	const char* edge_string;
 	int stderr_dup, stderr_copy;
 	bool inside_init = false;
-	SymbolTable* top, *globalSymTable;
+	SymbolTable* top, *globalSymTable, *current_scope;
 	Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
 		//
 		name = name;
@@ -39,7 +39,7 @@
 		// 	exit(1); // or call error
 		// }
 		if (typestring != "class")
-			size = cur_symboltable->classes[typestring]->size;
+			size = cur_symboltable->children[typestring]->size;
 		else {
 			if (typestring == "bool" || typestring == "float" || typestring == "int") {
 				size = 8;
@@ -55,6 +55,14 @@
 		top->put(n1, n2);
 	}
 	void check(Node* n){
+		// for literals, return directly
+		if (!n) exit (printf ("line 59 Node is NULl"));
+		if (n->typestring == "int") return;
+		if (n->typestring == "bool") return;
+		if (n->typestring == "str") return;
+		if (n->typestring == "float") return;
+		if (n->typestring == "complex") return;
+		if (!n->isLeaf) return ;
 		if(!top->has(n)){
 			fprintf(stderr, "NameError: name %s is not defined\n", n->production.c_str());
 			exit(1);
@@ -294,6 +302,7 @@ expr_stmt: test ":" test {
 			$$->lineno = $1->lineno;
 	}
 	| test "=" test{
+		check ($1);
 		check($3);
 		top->get($1)->typestring= $3->typestring;
 	}
@@ -370,43 +379,112 @@ plan: SymbolTable* current maintains a  pointer to the top of the current produc
 in primary->primary.NAME, if name is a class instance, we update current_scope to the class
 on reading "my_cpp_map" "." "find", we set current_scope to find, anticipating an incoming "()"
 current_scope is NULL everywhere else
+	// or do we set it to top everywhere else?
 every function that sets current_scope must check that someone frees it
 helper functions:	SymbolTable.has() checks for variables in scope: stack variables and class attributes
 			SymbolTable.has_children() checks for member functions/global functions and classes inside global namespace
 */
 
+
+/* changes to be made later using :s
+#define pp1 $1->production
+#define pp3 $3->production
+#define ll3 $3->lineno
+#define tt1 $1->typestring
+#define tt3 $3->typestring
+*/
+
+primary: atom {
+	}
+	| primary "." NAME {
+		// primary:	leaf or compound or self
+		// NAME:	member function or attribute
+		// upon entry, primary.typestring is set to the corresponding value, whether "def", "class", "myclass", etc.
+		// question: do we even need cur_symbol_whatever?
+
+		SymbolTable* pscope = globalSymTable->find_class($1->typestring);
+
+		if (!pscope) {
+			if ($1->typestring!= "def")
+				dprintf (stderr_copy, "Error at line %d: object of type %s does not have attribute %s\n", $3->lineno, $1->typestring, $3->production);
+			else 
+				dprintf (stderr_copy, "Error at line %d: object of type Function does not have attribute %s\n", $3->lineno, $3->production);
+			exit(1);
+		}
+		SymbolTable* NAME_scope = pscope->find_member_fn($3->production);
+		if (NAME_scope) {
+			$$->typestring = "def";
+		}
+		NAME_scope = globalSymTable->find_class($3->typestring);
+		if (NAME_scope) {
+			$$->typestring = NAME_scope->name;
+		}
+		pscope->symbols.find($3->production);
+		if (pscope->symbols.find($3->production) != pscope->symbols.end()) {
+			$$->typestring = pscope->symbols.find($3->production)->second->name;
+		}
+		if ($1->production == "self") {
+			// this is the only occurence of declarations of the sort a.b:type = *. all other attributes to self are pre-defined class instances
+			// may also be a use in the rhs
+			// as good as any pointer to any other class element
+			// INCOMPLETE
+		}
+		else {
+			dprintf (stderr_copy, "Error at line %d: Object of type %s does not have attribute %s\ncheck the grammar here\n", $3->lineno, $1->typestring, $3->production);
+			exit(1);
+		}
+	}
+	| primary "[" test "]" {
+	}
+
+
+
+/*
+
 primary: atom {
 	}
 	| primary "." NAME 
 		{
-			// primary: leaf or compound or self
+			// primary:	leaf or compound or self
 			// NAME:	member function or attribute
 			if ($1->isLeaf && !top->has($1)) {
 				dprintf (stderr_copy, "Error undeclared object %s at line %d", $1->production, $3->lineno);
 				exit (1);
 			}
 
+			if (current_scope == NULL) {
+				// have not assumed $1 is a string.
+				SymbolTable * search_result = globalSymTable->find_child($1->typestring);
+				if (search_result && search_result->isClass)
+					current_scope = search_result;
+				else if (search_result) // it is a function. hardcoding because we've saved functions with typestring = "def"
+					dprintf (stderr_copy, "Error at line %d: object of type function does not have attribute %s\n", $3->lineno, $1->typestring, $3->production);
+				else
+					dprintf (stderr_copy, "Error at line %d: object of type %s does not have attribute %s\n", $3->lineno, $1->typestring, $3->production);
+				if (current_scope == NULL)
+					exit(1);
+			}
+
 			// check if primary is a valid scope. assume current_scope is correctly maintained.
 			if (current_scope) {
 				if (inside_init && $1->production== "self") { // create this var
-					thisscope->put($3, NULL);
+					top->put($3, NULL);
 				} else if ($1->production == "self") {
 					dprintf (stderr_copy, "Error at line %d: 'self' keyword cannot be used outside __init__() constructor declarations\n", $1->lineno);
 					exit(1);
 				}
 
-				// shouldn't we be using if ($1->typestring == "class" also?
-				if (thisscope->has($3->production)) {
+				if (current_scope->has($3->production)) { // primitive attribute of primary
 					current_scope = NULL;
 					// fill the reference here
 					$$->typestring = $3->typestring;
-				} else if (thisscope->find_child($3->production)) {
+				} else if (current_scope->find_child($3->production)) { // is an attrribute class/method
 					if (current_scope->isClass)
-						current_scope = find_child($3->production);
+						current_scope = current_scope->find_child($3->production);
 						// make the 3ac stuff
-					else if (find_child($3->production)->isFunction) {
+					else if (current_scope->find_child($3->production)->isFunction) {
 						// prepare for function call
-						current_scope = find_child ($3->production);
+						current_scope = current_scope->find_child ($3->production);
 					}
 					else
 						exit (printf ("shouldn't have reached this line\n"));
@@ -427,7 +505,7 @@ primary: atom {
 
 			update $$->typestring as GlobalSymTable->classes[primary->typestring]->typestring
 		
-		*/
+		*
 
 	| primary "[" test "]"
 		{
@@ -441,7 +519,7 @@ primary: atom {
 				exit (1);
 			}
 			if ($3->typestring != "int") {
-				dprintf (stderr_copy, "Error at line %d: index is not an integer\n"
+				dprintf (stderr_copy, "Error at line %d: index is not an integer\n",
 						yylineno, $3->production);
 				exit (1);
 			}
@@ -457,7 +535,7 @@ primary: atom {
 			if (test is out of bounds) error
 			update $$->typestring as primary->typestring
 		
-		*/
+		*
 	| primary "(" testlist ")" 
 		/* 
 			if primary is leaf and primary is not in symboltable)error
@@ -468,7 +546,7 @@ primary: atom {
 			update $$->typestring as return type of function
 
 			
-		*/
+		*
 		{
 			if ($1->isLeaf && !top->has($1)) {
 				dprintf (stderr_copy, "Error at line %d: declared object %s",
@@ -485,7 +563,7 @@ primary: atom {
 			if (thisscope->isClass)
 
 
-			SymbolTable* thisfn = thisscope->find($1->production);
+			// SymbolTable* thisfn = thisscope->find($1->production); // 
 			$$->typestring = $3->typestring;
 		}
 	
@@ -497,6 +575,7 @@ primary: atom {
 			update $$->typestring as return type of function
 
 		 */
+
 
 
 /* TO DO 
@@ -643,7 +722,7 @@ testlist: arglist
 
 
 int main(int argc, char** argv){
-	yydebug = 1;
+	yydebug = 0;
 	int input_fd = -1;
 	stderr_dup = -1;
 	int stderr_redirect = -1;

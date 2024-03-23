@@ -327,12 +327,15 @@ class SymbolTable {
 
 		  */
 		int put (Node* node, Node* type) {
+			printf ("call to put source %s destination %s\n", type->production.c_str(), node->typestring.c_str());
 			auto s= new Symbol();
-			s->typestring = type->production;
+			s->typestring = type->production; node->typestring = type->production;
 			s->lineno = node->lineno;
 			s->isFunction = 0;
 			s->isClass = 0;
-			this->symbols[node->production] = s;
+			// this->symbols[node->production] = s;
+			this->symbols.insert({node->production, s});
+			cout << "checking::" << node->typestring << endl;
 			return 1;
 		}
 		

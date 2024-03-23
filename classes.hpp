@@ -285,6 +285,8 @@ class SymbolTable {
 			return false;
 		}
 		SymbolTable* find_class (string name) { // returns SymbolTable* if name is a class, NULL otherwise
+			printf ("finding class %s. number of children %d, symbols %d\n", 
+					name.c_str(), this->children.size(), this->symbols.size());
 			if (this->children.find(name) == this->children.end())
 				return NULL; // NOT FOUND
 			else if (this->children.find(name)->second->isFunction)

@@ -85,6 +85,7 @@
 	// 	top_global = (GlobalTable*)top;
 	// }
 	void newscope(string name){
+	cout << "New scope " << name << endl;
 		if(Funcsuite){
 	// 		top_function= new FunctionTable(top);
 	// 		top_function->inClass=Classsuite;
@@ -402,36 +403,39 @@ primary: atom {
 		// upon entry, primary.typestring is set to the corresponding value, whether "def", "class", "myclass", etc.
 		// question: do we even need cur_symbol_whatever?
 
-		SymbolTable* pscope = globalSymTable->find_class($1->typestring);
-
-		if (!pscope) {
-			if ($1->typestring!= "def")
-				dprintf (stderr_copy, "Error at line %d: object of type %s does not have attribute %s\n", $3->lineno, $1->typestring, $3->production);
-			else 
-				dprintf (stderr_copy, "Error at line %d: object of type Function does not have attribute %s\n", $3->lineno, $3->production);
-			exit(1);
-		}
-		SymbolTable* NAME_scope = pscope->find_member_fn($3->production);
-		if (NAME_scope) {
-			$$->typestring = "def";
-		}
-		NAME_scope = globalSymTable->find_class($3->typestring);
-		if (NAME_scope) {
-			$$->typestring = NAME_scope->name;
-		}
-		pscope->symbols.find($3->production);
-		if (pscope->symbols.find($3->production) != pscope->symbols.end()) {
-			$$->typestring = pscope->symbols.find($3->production)->second->name;
-		}
-		if ($1->production == "self") {
+		if ($1->production == "self" && inside_init) {
 			// this is the only occurence of declarations of the sort a.b:type = *. all other attributes to self are pre-defined class instances
 			// may also be a use in the rhs
 			// as good as any pointer to any other class element
 			// INCOMPLETE
+			// just don't kill the process, later steps will add the declaration if it is one
+			$$ = new Node (0, "", $1->production + "." + $3->production);
 		}
 		else {
-			dprintf (stderr_copy, "Error at line %d: Object of type %s does not have attribute %s\ncheck the grammar here\n", $3->lineno, $1->typestring, $3->production);
-			exit(1);
+			SymbolTable* pscope = globalSymTable->find_class($1->typestring);
+			if (!pscope) {
+				if ($1->typestring!= "def")
+					dprintf (stderr_copy, "Error at line %d: object of type %s does not have attribute %s\n", $3->lineno, $1->typestring, $3->production);
+				else 
+					dprintf (stderr_copy, "Error at line %d: object of type Function does not have attribute %s\n", $3->lineno, $3->production);
+				exit(1);
+			}
+			SymbolTable* NAME_scope = pscope->find_member_fn($3->production);
+			if (NAME_scope) {
+				$$->typestring = "def";
+			}
+			NAME_scope = globalSymTable->find_class($3->typestring);
+			if (NAME_scope) {
+				$$->typestring = NAME_scope->name;
+			}
+			pscope->symbols.find($3->production);
+			if (pscope->symbols.find($3->production) != pscope->symbols.end()) {
+				$$->typestring = pscope->symbols.find($3->production)->second->name;
+			}
+			else {
+				dprintf (stderr_copy, "Error at line %d: Object of type %s does not have attribute %s\ncheck the grammar here\n", $3->lineno, $1->typestring, $3->production);
+				exit(1);
+			}
 		}
 	}
 	| primary "[" test "]" {
@@ -679,19 +683,22 @@ classdef: "class" NAME classstart ":"  suite[last] {
 		  $$ = new Node ("Class");
 		  $$->addchild($2, "Name");
 		  $$->addchild($last, "Contains");
-	  }
+		  inside_init = 0; endscope();
+	 }
 	| "class" NAME classstart "(" NAME[parent] ")" ":" suite[last] {
 	       	Classsuite=0;
 	       	$$ = new Node ("Class");
 	       	$$->addchild($2, "Name");
 	       	$$->addchild($parent, "Inherits");
 	       	$$->addchild($last,"Contains");
+		inside_init = 0; endscope();
 	}
 	| "class" NAME classstart "(" ")" ":" suite[last] {
 	       	Classsuite=0;
 	       	$$ = new Node ("Class");
 	       	$$->addchild($2, "Name");
 	       	$$->addchild($last, "Contains");
+		inside_init = 0; endscope();
 	}
 
 classstart:	{
@@ -699,8 +706,9 @@ classstart:	{
 	printf ("start class scope");
 	printf ("scope name %s\n", $<node>0->production.c_str());
 #endif
-	newscope ($<node>0->production);
 	Classsuite = 1;
+	inside_init = 1;
+	newscope ($<node>0->production);
 }
 
 compound_stmt: 
@@ -798,6 +806,7 @@ int main(int argc, char** argv){
 	if (verbosity == 0) {
 		// inint stderr_dup;
 		stderr_dup = dup (2);
+		stderr_copy = 2;
 	}
 	
 	graph = fopen (outputfile, "w+");

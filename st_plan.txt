@@ -61,3 +61,26 @@ handling a:b = c(d,e,f):
 		-- optimise temporaries later. use refcounts/refvectors for reads/writes ig
 		-- when laying out stack, allocate the alloc_stacks unconditionally, unlike the primitive regs
 		-- if we are optimising, then we'll have to fill the offsets in SymbolTable in a separate pass
+
+19 march
+adding int dimension class Node: 1 for lists.
+	reminder - add element to list declaration
+
+22 march:
+	inside classes: self.attr may appear on the lhs as well as rhs, and inside expressions.
+	Further, references to class attributes are always prefixed by "self."
+
+	we will not change scopes when we enter classes. declarations inside init will be prefixed with self,
+	so we needn't take special care except to check for type hints and fill symbol tables.
+
+	scope (top) will be changed transparently upon entering method definitions. declarations will 
+	default to function local variables. declarations with self are errors outside __init__()
+
+	tldr: do not change scope on entering a class definition. set a flag while inside __init__
+	change scope on entering a function
+
+	for expressions like a.b.c and a.b.d(): on parsing L to R, set current_scope to 
+	scope of the production. upon reaching "d", set current_scope to the function 
+	symbol table. in the production primary-> primary "(" ")", ...
+
+

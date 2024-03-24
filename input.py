@@ -1,16 +1,14 @@
+<<<<<<< HEAD
 
 
 class Parent():
-    a:int=5
     def __init__(self):
         self.b:int=5
 
 
 class Child(Parent):    
-    c:int=5
     def __init__(self):
         self.d:int=5
-        super().__init__()
 
 
 def main():
@@ -25,3 +23,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+class mm:
+	def __init__(self):
+		self.a:int = 1
+
+myobj:mm
+

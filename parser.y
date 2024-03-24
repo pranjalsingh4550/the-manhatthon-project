@@ -21,9 +21,9 @@
 	#define YYDEBUG 1
 	static Node* later;
 	const char* edge_string;
-	int stderr_dup;
-	SymbolTable* top;
-	SymbolTable* GlobalSymTable;
+	int stderr_dup, stderr_copy;
+	bool inside_init = false;
+	SymbolTable* top, *globalSymTable, *current_scope, *currently_defining_class;
 	Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
 		//
 		name = name;
@@ -39,7 +39,7 @@
 		// 	exit(1); // or call error
 		// }
 		if (typestring != "class")
-			size = cur_symboltable->classes[typestring]->size;
+			size = cur_symboltable->children[typestring]->size;
 		else {
 			if (typestring == "bool" || typestring == "float" || typestring == "int") {
 				size = 8;
@@ -52,9 +52,22 @@
 
 	}
 	void put(Node* n1, Node* n2){
-		top->put(n1, n2);
+		if (inside_init)
+			// add to the current symbol table
+			currently_defining_class->put(n1, n2);
+		else
+			top->put(n1, n2);
+		return ;
 	}
 	void check(Node* n){
+		// for literals, return directly
+		if (!n) exit (printf ("line 59 Node is NULl"));
+		if (n->typestring == "int") return;
+		if (n->typestring == "bool") return;
+		if (n->typestring == "str") return;
+		if (n->typestring == "float") return;
+		if (n->typestring == "complex") return;
+		if (!n->isLeaf) return ;
 		if(!top->has(n)){
 			fprintf(stderr, "NameError: name %s is not defined\n", n->production.c_str());
 			exit(1);
@@ -72,6 +85,7 @@
 	string return_type="None";
 	static Node* params;
 	void newscope(string name){
+	cout << "New scope " << name << endl;
 		if(Funcsuite){
 			if(Classsuite){
 				top = new SymbolTable (top, MEMBER_FN_ST, name);
@@ -90,8 +104,19 @@
 	void endscope(){
 		top = top->parent;
 	}
-	int gbl_decl =0;
+	int gbl_decl =0; // not sure if these 2 will be used
 	int decl=0;
+
+	SymbolTable *find_class(string name) { // because all classes are declared in the global namespace
+		printf ("finding class %s. number of children %d, symbols %d\n", 
+				name.c_str(), globalSymTable->children.size(), globalSymTable->symbols.size());
+		if (globalSymTable->children.find(name) == globalSymTable->children.end())
+			return NULL; // NOT FOUND
+		else if (globalSymTable->children.find(name)->second->isFunction)
+			return NULL;
+		else
+			return globalSymTable->children.find(name)->second; // see comments above
+	}
 #define TEMPDEBUG 1
 %}
 
@@ -238,8 +263,7 @@ global_stmt: "global" NAME[name] {
 			$name->nodeid= GlobalSymTable->get(name)->nodeid;
 
 		*/
-	}
-
+	
 expr_stmt: test[name] ":" declare test[type] {
 			/*
 				if($name is not lvalue) error
@@ -252,6 +276,7 @@ expr_stmt: test[name] ":" declare test[type] {
 			$$ = new Node ("Declaration");
 			$$->addchild($name, "Name");
 			$$->addchild($type, "Type");
+			$$->typestring = $3->typestring;
 	}
 	| test[name] ":" declare test[type] "=" test[value] {
 			/*
@@ -269,6 +294,8 @@ expr_stmt: test[name] ":" declare test[type] {
 			$$->addchild($name, "Name");
 			$$->addchild($type, "Type");
 			$$->addchild($value, "Value", $name);
+			$$->typestring = $3->typestring;
+			// replaces put($1, $3) hopefully;
 
 	}		
 	| test augassign test { 
@@ -278,6 +305,13 @@ expr_stmt: test[name] ":" declare test[type] {
 				if($1 and $3 are not type compatible)error
 				if($3 is a leaf && $3 is not a constant ) check if $3 is in scope or not
 			*/
+			// added during merging - check integrity later
+			check($1);
+			check($3);
+			if(!check($1,$3)){
+				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $1->production.c_str(), $3->production.c_str());
+				exit(1);
+			}
 
 			$$ = new Node ($2->production);
 			$$->addchild($1);
@@ -294,9 +328,13 @@ expr_stmt: test[name] ":" declare test[type] {
 			$$ = new Node ("=");
 			$$->addchild($1);
 			$$->addchild($3);
+			// these 3 lines copied during merging: check consistency
+			check ($1);
+			check($3);
+			top->get($1)->typestring= $3->typestring;
 	}
 	| test {
-		/*
+	/*
 			if $1 is leaf and $1 is not a constant) check if is in current scope or not
 		*/
 	}
@@ -376,13 +414,154 @@ power: primary
 
 */
 
-primary: atom 
-	| primary "." NAME  {
+/*
+
+	ALL CASES
+	global()
+	globalclass_ctor()
+	globalclass_object.attr
+	globalclass.class_instance.attribute.another_instance
+	globalclass.class_instance.attribute.another_instance.member_fn()
+	something[2].something_else
+
+plan: SymbolTable* current maintains a  pointer to the top of the current production.
+in primary->primary.NAME, if name is a class instance, we update current_scope to the class
+on reading "my_cpp_map" "." "find", we set current_scope to find, anticipating an incoming "()"
+current_scope is NULL everywhere else
+	// or do we set it to top everywhere else?
+every function that sets current_scope must check that someone frees it
+helper functions:	SymbolTable.has() checks for variables in scope: stack variables and class attributes
+			SymbolTable.has_children() checks for member functions/global functions and classes inside global namespace
+
+When evaluating an expression of the form a.b.c.d.e, current_scope points to the scope of primary in primary.name: a, then a.b, then a.b.c, etc.
+currently_defining_class is a pointer to the class currently being defined. defined because top does not change inside class suite.
+*/
+
+
+
+primary: atom {
+	}
+	| primary "." NAME {
+		printf ("-------------------------------\n");
+		// primary:	leaf or compound or self
+		// NAME:	member function or attribute
+		// upon entry, primary.typestring is set to the corresponding value, whether "def", "class", "myclass", etc.
+
+		if (current_scope == NULL) current_scope = top;
+		string this_ptr = "self"; // may change, correct this later
+		printf ("searching for object %s\n", $1->production.c_str());
+
+		// CHECKING PRIMARY
+		if (!current_scope->has($1->production)) {
+			if ($1->production != this_ptr || !inside_init) {
+				exit (dprintf (stderr_copy, "NameError at line %d: Undefined object %s\n",
+					$3->lineno, $1->production));
+			}
+			else {
+				// do not confirm that this is an assignment on the lhs
+				// set typestring to "", errors will come up in type checking
+				// this is a def or a use of self.*
+				if (current_scope->get($3->production) != NULL)
+					$1->typestring = current_scope->get($3->production)->typestring;
+				else
+					$1->typestring = "" ;
+				$$ = new Node (0, $1->typestring, $1->production + "." + $3->production);
+				// references to self.* must change the scope
+				// who resets the scope? for definitions, it is put(). for uses? funcend?
+				// current_scope = currently_defining_class;
+				// if inside_init, currently_defining class is set by entry into init
+			}
+		}
+		else { // PRIMARY is present in the table, now check if it's a class instance
+			// $1->typestring need not be initialised: primary -> atom
+			if ($1->isLeaf) { // check for existence
+				if (current_scope->get($1->production) == NULL)
+					exit (dprintf (stderr_copy, "NameError at line %d: Undeclared identifier %s referenced\n",
+								$1->lineno, $1->production));
+				else $1->typestring = current_scope->get($1->production)->typestring;
+			} // now we are assured $1->typestring is valid
+			if (find_class($1->typestring)) { // class instance stored
+				current_scope = find_class($1->typestring);
+			} else if (current_scope->has($3->production)) { // primitive attribute
+				current_scope = NULL;
+				$$->typestring = current_scope->get($3->production)->name;
+			} else if (current_scope->find_member_fn($3->production)) {
+				current_scope = current_scope->find_member_fn($3->production);
+			} else
+				exit (dprintf (stderr_copy, "NameError at line %d: Undefined attribute/method %s of class %s referenced\n",
+					$3->lineno, $3->production.c_str(), $1->typestring));
+			$$->typestring = $3->typestring;
+		}
+	}
+	| primary "[" test "]" {
+	}
+
+
+
+/*
+
+primary: atom {
+	}
+	| primary "." NAME 
+		{
+			// primary:	leaf or compound or self
+			// NAME:	member function or attribute
+			if ($1->isLeaf && !top->has($1)) {
+				dprintf (stderr_copy, "Error undeclared object %s at line %d", $1->production, $3->lineno);
+				exit (1);
+			}
+
+			if (current_scope == NULL) {
+				// have not assumed $1 is a string.
+				SymbolTable * search_result = globalSymTable->find_child($1->typestring);
+				if (search_result && search_result->isClass)
+					current_scope = search_result;
+				else if (search_result) // it is a function. hardcoding because we've saved functions with typestring = "def"
+					dprintf (stderr_copy, "Error at line %d: object of type function does not have attribute %s\n", $3->lineno, $1->typestring, $3->production);
+				else
+					dprintf (stderr_copy, "Error at line %d: object of type %s does not have attribute %s\n", $3->lineno, $1->typestring, $3->production);
+				if (current_scope == NULL)
+					exit(1);
+			}
+
+			// check if primary is a valid scope. assume current_scope is correctly maintained.
+			if (current_scope) {
+				if (inside_init && $1->production== "self") { // create this var
+					top->put($3, NULL);
+				} else if ($1->production == "self") {
+					dprintf (stderr_copy, "Error at line %d: 'self' keyword cannot be used outside __init__() constructor declarations\n", $1->lineno);
+					exit(1);
+				}
+
+				if (current_scope->has($3->production)) { // primitive attribute of primary
+					current_scope = NULL;
+					// fill the reference here
+					$$->typestring = $3->typestring;
+				} else if (current_scope->find_child($3->production)) { // is an attrribute class/method
+					if (current_scope->isClass)
+						current_scope = current_scope->find_child($3->production);
+						// make the 3ac stuff
+					else if (current_scope->find_child($3->production)->isFunction) {
+						// prepare for function call
+						current_scope = current_scope->find_child ($3->production);
+					}
+					else
+						exit (printf ("shouldn't have reached this line\n"));
+				}
+				else {
+					dprintf (stderr_copy, "Error at line %d: class %s not have attribute/method %s\n", $3->lineno, $1->typestring, $3->production);
+					exit(1);
+				}
+			}
+			else {
+				dprintf (stderr_copy, "Error at line %d: reference to attribute %s of primitive object of type %s\n", $3->lineno, $3->production, $1->typestring);
+				exit(1);
+			}
+		}
 		/*
 			if primary is constant then error
 			if( init==1 ) then add NAME to current scope with type of primary
 			else check if name is in current scope or not
-
 			update type of result and update current scope
 		*/
 	}
@@ -418,6 +597,81 @@ primary: atom
 	
 	}
 
+
+	| primary "[" test "]"
+		{
+			if ($1->isLeaf && !top->has($1)) {
+				dprintf (stderr_copy, "Error undeclared object %s at line %d", $1->production, $3->lineno);
+				exit (1);
+			}
+			if ($1->dimension == 0) {
+				dprintf (stderr_copy, "Error at line %d: %s object is not subscriptable.\n",
+						yylineno, $1->typestring);
+				exit (1);
+			}
+			if ($3->typestring != "int") {
+				dprintf (stderr_copy, "Error at line %d: index is not an integer\n",
+						yylineno, $3->production);
+				exit (1);
+			}
+			// if primary is out of bounds: run time error right?
+			// reminder: in 3ac, check bounds
+			$$->typestring = $1->typestring;
+		}
+				
+		/*
+			if(primary is leaf and primary is not in symboltable)error
+			if(primary dimension is 0) error
+			if(test->typestring is not int) error
+			if (test is out of bounds) error
+			update $$->typestring as primary->typestring
+		
+		*
+	| primary "(" testlist ")" 
+		/* 
+			if primary is leaf and primary is not in symboltable)error
+			if(primary is not a function) error
+			if(primary->arg_types.size() != testlist->children.size()) error
+			for i in range(primary->arg_types.size())
+				if(primary->arg_types[i] != testlist->children[i]->typestring) error
+			update $$->typestring as return type of function
+
+			
+		*
+		{
+			if ($1->isLeaf && !top->has($1)) {
+				dprintf (stderr_copy, "Error at line %d: declared object %s",
+					       	$3->lineno, $1->production); // is $3->lineno maintained?
+				exit (1);
+				// what about a.b(c)?
+			}
+			SymbolTable* thisscope = 
+				globalSymTable->children[$1->typestring];
+			if (thisscope == NULL)
+			{
+				// error
+			}
+			if (thisscope->isClass)
+
+
+			// SymbolTable* thisfn = thisscope->find($1->production); // 
+			$$->typestring = $3->typestring;
+		}
+	
+	| primary "(" ")"
+		/* 
+			if primary is leaf and primary is not in symboltable)error
+			if(primary is not a function) error
+			if(primary->arg_types.size() != 0) error
+			update $$->typestring as return type of function
+
+		 */
+
+
+
+/* TO DO 
+	Pass the lineno, datatype from the lexer through node
+*/
 atom: NAME 
     | NUMBER 	
     | STRING_plus 
@@ -477,6 +731,7 @@ basesuite: {newscope("dummy");} simple_stmt[first] {endscope();}
 
 funcdef: "def" NAME[name]  functionstart "(" typedarglist_comma[param] ")" "->" test[ret] ":" suite[last] {
 		Funcsuite=0;
+		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
 		$$->addchild($name, "Name");
 		$$->addchild($param,"Parameters");
@@ -485,12 +740,14 @@ funcdef: "def" NAME[name]  functionstart "(" typedarglist_comma[param] ")" "->" 
 	}
 	| "def" NAME[name] functionstart "(" ")" "->" test[returntype] ":" suite[last] {
 	       	Funcsuite=0;
+		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn"); $$->addchild($name, "Name");
 	       	$$->addchild($returntype, "Return type");
 	       	$$->addchild($last, "Body");
 	}
 	| "def" NAME[name] functionstart "(" typedarglist_comma[param] ")" ":" suite[last] {
 	       	Funcsuite=0;
+		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn");
 	       	$$->addchild($name, "Name");
 	       	$$->addchild($param,"Parameters");
@@ -498,6 +755,7 @@ funcdef: "def" NAME[name]  functionstart "(" typedarglist_comma[param] ")" "->" 
 	}
 	| "def" NAME[name] functionstart "(" ")" ":" suite[last] {
 	       	Funcsuite=0;
+		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
 		$$->addchild($name, "Name");
 		$$->addchild($last, "Body");
@@ -505,14 +763,17 @@ funcdef: "def" NAME[name]  functionstart "(" typedarglist_comma[param] ")" "->" 
 
 functionstart:  {
 #if TEMPDEBUG
-	printf("start function scope\n");
-	printf("scope name= %s\n", $<node>0->production.c_str());
+		printf("start function scope\n");
+		printf("scope name= %s\n", $<node>0->production.c_str());
 #endif
-	Funcsuite = 1;
-	if (Classsuite)
-		newscope($<node>0->production);
-	else 
-		newscope($<node>0->production);
+		Funcsuite = 1;
+		if (Classsuite)
+			newscope($<node>0->production);
+		else 
+			newscope($<node>0->production);
+		if (Classsuite && $<node>0->production == "__init__"){
+			inside_init = 1;
+		}
 	}
 ;
 classdef: "class" NAME classstart ":"  suite[last] {
@@ -520,28 +781,36 @@ classdef: "class" NAME classstart ":"  suite[last] {
 		  $$ = new Node ("Class");
 		  $$->addchild($2, "Name");
 		  $$->addchild($last, "Contains");
-	  }
+		  inside_init = 0; // endscope();
+		currently_defining_class = NULL;
+	 }
 	| "class" NAME classstart "(" NAME[parent] ")" ":" suite[last] {
 	       	Classsuite=0;
 	       	$$ = new Node ("Class");
 	       	$$->addchild($2, "Name");
 	       	$$->addchild($parent, "Inherits");
 	       	$$->addchild($last,"Contains");
+		inside_init = 0; // endscope();
+		currently_defining_class = NULL;
 	}
 	| "class" NAME classstart "(" ")" ":" suite[last] {
 	       	Classsuite=0;
 	       	$$ = new Node ("Class");
 	       	$$->addchild($2, "Name");
 	       	$$->addchild($last, "Contains");
+		inside_init = 0; // endscope();
+		currently_defining_class = NULL;
 	}
 
 classstart:	{
 #if TEMPDEBUG
 	printf ("start class scope");
+	printf ("scope name %s\n", "temporary_class_name");
 	printf ("scope name %s\n", $<node>0->production.c_str());
 #endif
-	newscope ($<node>0->production);
 	Classsuite = 1;
+	newscope ($<node>0->production);
+	currently_defining_class = top;
 }
 
 compound_stmt: 
@@ -563,11 +832,11 @@ testlist: arglist
 
 
 int main(int argc, char** argv){
-	yydebug = 1;
+	yydebug = 0;
 	int input_fd = -1;
 	stderr_dup = -1;
 	int stderr_redirect = -1;
-	int stderr_copy = -1;
+	stderr_copy = -1;
 	int stderr_pipe[2];
 	int pread, pwr;
 	int verbosity = 0; // 1 for shift, 2 for reduce, 1|2 for both
@@ -581,6 +850,8 @@ int main(int argc, char** argv){
 
 	/* printf("asdfasdf\n"); */
 	top = new SymbolTable (NULL);
+	globalSymTable = top;
+	current_scope = NULL;
 	for(int i=1;i<argc;i++){
 		if (strcmp (argv[i], "-input") == 0) { // input file - replace stdin with it
 			if (argv[i+1] == NULL) {
@@ -638,6 +909,7 @@ int main(int argc, char** argv){
 	if (verbosity == 0) {
 		// inint stderr_dup;
 		stderr_dup = dup (2);
+		stderr_copy = 2;
 	}
 	
 	graph = fopen (outputfile, "w+");

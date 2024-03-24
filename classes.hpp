@@ -54,6 +54,10 @@ enum ir_operation {
 
 	INT2FL,
 	FL2INT,
+
+	// function/stack stuff
+	NEWSTACK, //x86's callq: push rbp, mov rsp to rbp, etc
+	FUNCTION_RETURN
 };
 
 enum datatypes {
@@ -99,6 +103,7 @@ class Node {
 		enum ir_operation op;
 		bool isConstant = false;
 		long int intVal;
+		short int dimension = 0;
 		double floatVal;
 		string strVal;
 		complexLiteral complexVal;
@@ -162,7 +167,7 @@ class Node {
 			//for string literals
 			token = tokenIn;
 			nodeid = nodecount++;
-			typestring = "string";
+			typestring = "str";
 			lineno = yylineno;
 			type = TYPE_STR;
 			isConstant = true;
@@ -263,11 +268,41 @@ class SymbolTable {
 		string return_type="None";
 		vector<string> arg_types; // for function, but class also ig
 		bool fn_inside_class;
-		map <string, SymbolTable*> classes; // if global
-		map <string, SymbolTable*> member_functions; // for a class
-		map <string, SymbolTable*> functions;
+		// not using atm // map <string, SymbolTable*> classes; // if global
+		// not using atm // map <string, SymbolTable*> member_functions; // for a class
+		// not using atm // map <string, SymbolTable*> functions;
+		map <string, SymbolTable*> children;	// contains member functions, classes&global functions for the global namespace
+							// use children[name]->is{Class|Function} to check what it is
 		int size;
 		unsigned long table_size;
+		bool has_children (string name) {
+			if (children.find(name) != children.end()) {
+				return false;
+			}
+			if (parent != NULL) {
+				return parent->has_children(name);
+			}
+			return false;
+		}
+		SymbolTable* find_class (string name) { // returns SymbolTable* if name is a class, NULL otherwise
+			printf ("finding class %s. number of children %d, symbols %d\n", 
+					name.c_str(), this->children.size(), this->symbols.size());
+			if (this->children.find(name) == this->children.end())
+				return NULL; // NOT FOUND
+			else if (this->children.find(name)->second->isFunction)
+				return NULL;
+			else
+				return this->children.find(name)->second; // see comments above
+		}
+		SymbolTable* find_member_fn (string name) { // returns SymbolTable* if name is a class, NULL otherwise
+			if (this->children.find(name) == this->children.end())
+				return NULL; // NOT FOUND
+			else if (this->children.find(name)->second->isClass)
+				return NULL;
+			else
+				return this->children.find(name)->second; // see comments above
+		}
+
 		bool has (string name) {
 			if (symbols.find(name) != symbols.end()) {
 				return true;
@@ -277,17 +312,30 @@ class SymbolTable {
 			}
 			return false;
 		}
-		
-		bool has(Node* node){
+
+		bool has(Node* node){ // has symbol. doesn';t check for classes/function
 			return has(node->production);
 		}
+		/*
+		SymbolTable* has_suite(Node *node) {
+			if (this->isClass && this->member_functions.find(
+
+
+			if (this->classes.find(node->production) or parent scopes have productipon) // search recursively
+				return 2;
+			if (this->funco
+
+		  */
 		int put (Node* node, Node* type) {
+			printf ("call to put source %s destination %s\n", type->production.c_str(), node->typestring.c_str());
 			auto s= new Symbol();
-			s->typestring = type->production;
+			s->typestring = type->production; node->typestring = type->production;
 			s->lineno = node->lineno;
 			s->isFunction = 0;
 			s->isClass = 0;
-			symbols[node->production] = s;
+			// this->symbols[node->production] = s;
+			this->symbols.insert({node->production, s});
+			cout << "checking::" << node->typestring << endl;
 			return 1;
 		}
 		
@@ -314,10 +362,10 @@ class SymbolTable {
 			for (auto arg: args) {
 				f->arg_types.push_back(arg->production);
 			}
-			this->member_functions[node->production] = f;
+			this->children[node->production] = f;
 			return 1;
 		}
-		SymbolTable(SymbolTable *p) {
+		SymbolTable(SymbolTable *p) { // NOT THE DEFAULT CONSTRUCTOR: USE THE ONE IN parser.y
 			parent = p;
 			isFunction = false;
 			isClass = false;
@@ -340,13 +388,13 @@ class SymbolTable {
 			}
 			parent = p;
 			if (isFunction = (flags == FUNCTION_ST))
-				parent->functions[name] = this;
+				parent->children[name] = this;
 			if (isClass = (flags == CLASS_ST))
-				parent->classes[name] = this;
+				parent->children[name] = this;
 			isGlobal = false;
 			lineno = 0;
 			if (fn_inside_class = (flags == MEMBER_FN_ST))
-				parent->member_functions[name] = this;
+				parent->children[name] = this;
 		}
 		string gettype (string name) {
 			Symbol *s = get(name);

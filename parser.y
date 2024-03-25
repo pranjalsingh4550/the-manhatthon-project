@@ -424,7 +424,7 @@ primary: atom {
 		if (current_scope == NULL) current_scope = top;
 		string this_ptr = "self"; // may change, correct this later
 		printf ("searching for object %s\n", $1->production.c_str());
-
+			// ??? first check if primary is a leaf?????
 		// CHECKING PRIMARY
 		if (!current_scope->has($1->production)) {
 			if ($1->production != this_ptr || !inside_init) {

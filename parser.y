@@ -283,6 +283,11 @@ expr_stmt: test[name] ":" declare test[type] {
 				dprintf (stderr_copy, "Error: Invalid type hint\n");
 				exit(98);
 			}
+			if (top->has($name)) {
+				dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
+						$name->lineno, $name->production.c_str());
+				exit(87);
+			}
 			decl=0; //reseting list[int]
 			$$ = new Node ("Declaration");
 			$$->addchild($name, "Name");
@@ -303,9 +308,13 @@ expr_stmt: test[name] ":" declare test[type] {
 						$name->lineno);
 #if TEMPDEBUG
 				printf ("empty typestring: production is %s token %d\n", $value->production.c_str(), $value->token);
-				printf ("nodeid is %d\n", $value->nodeid);
 #endif
-				// exit (94);
+				exit (96);
+			}
+			if (top->has($name)) {
+				dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
+						$name->lineno, $name->production.c_str());
+				exit(87);
 			}
 			/*
 				if($name is not lvalue) error
@@ -333,10 +342,16 @@ expr_stmt: test[name] ":" declare test[type] {
 				if($3 is a leaf && $3 is not a constant ) check if $3 is in scope or not
 			*/
 			// added during merging - check integrity later
-			if ($3->typestring == "") {
-				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n", $3->lineno);
-				// exit (94);
+			if (is_not_name ($1)) {
+				dprintf (stderr_copy, "Error at line %d: assignment must be to an identifier\n",
+						yylineno);
+				exit (33);
 			}
+			if (!top->has($3) && ($3->typestring == "")) {
+				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n", $3->lineno);
+				exit (94);
+			} else if (top->has($3))
+				$3->typestring = top->get($3->production)->typestring;
 			check($1);
 			check($3);
 			if(!check($1,$3)){
@@ -356,9 +371,10 @@ expr_stmt: test[name] ":" declare test[type] {
 				if($3 is a leaf && $3 is not a constant ) check if $3 is in scope or not
 
 			*/
-			if ($3->typestring == "") {
-				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n", $3->lineno);
-				// exit (94);
+			if (is_not_name ($1)) {
+				dprintf (stderr_copy, "Error at line %d: assignment must be to an identifier\n",
+						yylineno);
+				exit (33);
 			}
 			$$ = new Node ("=");
 			$$->addchild($1);
@@ -486,12 +502,9 @@ on entry to primary "." NAME: if primary is a leaf, nothing is set.
 
 primary: atom {
 		// set typestring if available, so we know if it's a declaration or a use
-			$$ = $1;
+		$$ = $1;
 		if (top->has($1->production))
-			$$->typestring = $1->typestring;
-		else
-			$1->typestring = "";
-
+			$$->typestring = top->get($1)->typestring;
 	}
 	| primary "." NAME {
 		printf ("-------------------------------\n");
@@ -749,7 +762,7 @@ primary: atom {
 	Pass the lineno, datatype from the lexer through node
 */
 atom: NAME 
-    | NUMBER 	
+    | NUMBER
     | STRING_plus 
     | "True"
     | "False" 
@@ -793,8 +806,13 @@ typedarglist:  typedargument {/*top->arguments push*/}
 
 typedarglist_comma: typedarglist | typedarglist ","
 
-typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"Name"); $$->addchild($3,"Type");}
-	| test ":" test "=" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"name"); $$->addchild($3,"Type"); $$->addchild($5,"Default");}
+typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"Name"); $$->addchild($3,"Type");
+		put ($1, $3);
+	}
+	| test ":" test "=" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"name"); $$->addchild($3,"Type"); $$->addchild($5,"Default");
+		put ($1, $3);
+		// TODO: set default value
+	}
 
 suite:  simple_stmt[first] 
 	| NEWLINE  INDENT  stmts[third] DEDENT 
@@ -1040,7 +1058,6 @@ int main(int argc, char** argv){
 bool is_not_name (Node* ncheck) {
 #if TEMPDEBUG
 	printf ("checking if %s is a leaf %s leaf-%d token-%d\n", ncheck->production.c_str(), ncheck->typestring.c_str(), ncheck->isLeaf, ncheck->token);
-	printf ("nodeid is %d\n", ncheck->nodeid);
 #endif
 	return !(ncheck->isLeaf && ncheck->token == NAME);
 }

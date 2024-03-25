@@ -310,7 +310,7 @@ class SymbolTable {
 		}
 
 		bool has (string name) {
-			if (symbols.find(name) != symbols.end()) {
+			if (this->symbols.find(name) != this->symbols.end()) {
 				return true;
 			}
 			if (parent != NULL) {
@@ -339,9 +339,10 @@ class SymbolTable {
 			s->lineno = node->lineno;
 			s->isFunction = 0;
 			s->isClass = 0;
-			// this->symbols[node->production] = s;
+			this->symbols[node->production] = s;
 			this->symbols.insert({node->production, s});
-			cout << "checking::" << node->typestring << endl;
+			this->size = this->size + 1;
+			cout << "checking::" << node->typestring << " table size = " << this->size<< endl;
 			return 1;
 		}
 		

@@ -219,7 +219,6 @@ ignore2	\n[ \f\t]*{comments}?
     printf("\t\tLI t_%d, %ld\n", nodecount,val);
 	yylval.node = new Node(NUMBER, val);
 	yylval.node->production = strdup (yytext);
-	yylval.node->typestring = "int";
 	return NUMBER;
 }
 {number}	{dprintf (stderr_dup, "leading zeros in decimal integer literals are not permitted\nError at line %d\n", yylineno);exit(1);}

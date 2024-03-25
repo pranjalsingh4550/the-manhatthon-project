@@ -1,17 +1,17 @@
 tt:int = 55
-tt = tt
-tt = tt + 55
-
-def try_fn():
+def try_fn(tg:int, th:int, tl:float):
 	tv:int = tt
-	tu:int = tt - 3
+	tg = tl
+	tu:int = te - 3
 	tu = tv - 3
+	tl = th
+	th = tt
 
-
-def try_fn2(d:int):
-	tu:int = d
-	tu = tv
-
+# 
+# def try_fn2(d:int):
+# 	tu:float = d
+# 	tu = tv
+# 
 # 
 # class Parent():
 #     def __init__(self):

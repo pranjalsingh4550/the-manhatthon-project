@@ -230,6 +230,12 @@ class Node {
 		}
 	};
 
+struct str_struct {
+	char* beginning;
+	int length;
+	int allocated_length; // probably won't be used but aligns the struct to 16B
+};
+
 #define FUNCTION_ST 1
 #define CLASS_ST 2
 #define MEMBER_FN_ST 3
@@ -374,16 +380,16 @@ class SymbolTable {
 			this->fn_inside_class = false;
 			this->name = "global";
 			// int, float complex bool str 
-			symbols["class"] = new Symbol ();
-			symbols["int"] = new Symbol("int", "class", -1, 0, this);
-			symbols["float"] = new Symbol("float", "class", -1, 0, this);
-			symbols["complex"] = new Symbol("complex", "class", -1, 0, this);
-			symbols["bool"] = new Symbol("bool", "class", -1, 0, this);
-			symbols["str"] = new Symbol("str", "class", -1, 0, this);
+			children["class"] = new SymbolTable ("class", CLASS_ST, "class", 0);
+			children["int"] = new SymbolTable ("class", CLASS_ST, "int", 8);
+			children["float"] = new SymbolTable ("class", CLASS_ST, "float", 8);
+			children["complex"] = new SymbolTable ("class", CLASS_ST, "complex", 16);
+			children["bool"] = new SymbolTable ("class", CLASS_ST, "bool", 8);
+			children["str"] = new SymbolTable ("class", CLASS_ST, "str", sizeof(str_struct));
 			size = 0;
 			printf ("Call to st ctor. now parent's size is %d, number of children in parent is %d\n", this->symbols.size(), this->children.size());
 		}
-		SymbolTable (SymbolTable *p, int flags, string name) {
+		SymbolTable (SymbolTable* p, int flags, string name) {
 			if (flags > 3 || flags < 1) {
 				cerr << "Bad flags\n"; exit(6);
 			}
@@ -398,6 +404,19 @@ class SymbolTable {
 			if (fn_inside_class = (flags == MEMBER_FN_ST))
 				parent->children[name] = this;
 			printf ("Call to st ctor %s. now parent's size is %d, number of children in parent is %d\n", name.c_str(), p->symbols.size(), p->children.size());
+		}
+		SymbolTable (string p, int flags, string name, int size) { // for primitives
+			if (flags != CLASS_ST) {
+				cerr << "Bad flags\n"; exit(6);
+			}
+			parent = NULL;
+			this->name = name;
+			this->size = size;
+			isFunction= 0;
+			isClass = (flags == CLASS_ST);
+			isGlobal = true;
+			lineno = 0;
+			fn_inside_class = false;
 		}
 		string gettype (string name) {
 			Symbol *s = get(name);

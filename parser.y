@@ -25,6 +25,8 @@
 	bool inside_init = false;
 	string class_name_saved_for_init;
 	SymbolTable* top, *globalSymTable, *current_scope, *currently_defining_class;
+#define TEMPDEBUG 1
+	bool is_not_name (Node*);
 	Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
 		//
 		name = name;
@@ -119,7 +121,6 @@
 			printf ("we've found the class %s. remove this line before commit\n", name.c_str());
 		return globalSymTable->children.find(name)->second; // see comments above
 	}
-#define TEMPDEBUG 1
 %}
 
 %union {
@@ -275,13 +276,37 @@ expr_stmt: test[name] ":" declare test[type] {
 
 				add $name to curent scope with type $type and node $name (put($name,$type));
 			*/
+			if (is_not_name ($name)) {
+				dprintf (stderr_copy, "Error: assignment to non-identifier at line *\n");
+				exit(97);
+			} else if (is_not_name($type)) {
+				dprintf (stderr_copy, "Error: Invalid type hint\n");
+				exit(98);
+			}
 			decl=0; //reseting list[int]
 			$$ = new Node ("Declaration");
 			$$->addchild($name, "Name");
 			$$->addchild($type, "Type");
 			$$->typestring = $type->typestring;
+			put ($name, $type);
 	}
 	| test[name] ":" declare test[type] "=" test[value] {
+			if (is_not_name ($name)) {
+				dprintf (stderr_copy, "Error: assignment to non-identifier at line *\n");
+				exit(97);
+			} else if (is_not_name($type)) {
+				dprintf (stderr_copy, "Error: Invalid type hint\n");
+				exit(98);
+			}
+			if ($value->typestring == "") {
+				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n",
+						$name->lineno);
+#if TEMPDEBUG
+				printf ("empty typestring: production is %s token %d\n", $value->production.c_str(), $value->token);
+				printf ("nodeid is %d\n", $value->nodeid);
+#endif
+				// exit (94);
+			}
 			/*
 				if($name is not lvalue) error
 				if($name is already in current scope)error
@@ -298,9 +323,8 @@ expr_stmt: test[name] ":" declare test[type] {
 			$$->addchild($type, "Type");
 			$$->addchild($value, "Value", $name);
 			$$->typestring = $type->typestring;
-			// replaces put($1, $3) hopefully;
-
-	}		
+			put ($name, $type);
+	}
 	| test augassign test { 
 			/*
 				if($1 is not lvalue) error
@@ -309,6 +333,10 @@ expr_stmt: test[name] ":" declare test[type] {
 				if($3 is a leaf && $3 is not a constant ) check if $3 is in scope or not
 			*/
 			// added during merging - check integrity later
+			if ($3->typestring == "") {
+				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n", $3->lineno);
+				// exit (94);
+			}
 			check($1);
 			check($3);
 			if(!check($1,$3)){
@@ -328,6 +356,10 @@ expr_stmt: test[name] ":" declare test[type] {
 				if($3 is a leaf && $3 is not a constant ) check if $3 is in scope or not
 
 			*/
+			if ($3->typestring == "") {
+				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n", $3->lineno);
+				// exit (94);
+			}
 			$$ = new Node ("=");
 			$$->addchild($1);
 			$$->addchild($3);
@@ -337,9 +369,15 @@ expr_stmt: test[name] ":" declare test[type] {
 			top->get($1)->typestring= $3->typestring;
 	}
 	| test {
-	/*
-			if $1 is leaf and $1 is not a constant) check if is in current scope or not
-		*/
+		printf ("line 341\n");
+		if ($1->isLeaf) {
+			if (!top->has($1->production) && $1->token==NAME){
+				dprintf (stderr_copy, "NameError at line %d: identifier %s has not been declared\n",
+						$1->lineno, $1->production.c_str()); exit(42);
+			}
+			else printf ("valid identifier %s\n", $1->production.c_str());
+		}
+		$$ = $1;
 	}
 
 declare : {decl=1;}
@@ -365,7 +403,8 @@ return_stmt: "return" test {
 // check type compatibility
 //udate type of result
 
-test : and_test 
+test : and_test {
+	}
 	| test "or" and_test { $$ = new Node ("or"); $$->addchild ($1); $$->addchild ($3);}
 
 and_test : not_test
@@ -446,7 +485,13 @@ on entry to primary "." NAME: if primary is a leaf, nothing is set.
 
 
 primary: atom {
-		// do not set typestring: this may be the declaration of atom
+		// set typestring if available, so we know if it's a declaration or a use
+			$$ = $1;
+		if (top->has($1->production))
+			$$->typestring = $1->typestring;
+		else
+			$1->typestring = "";
+
 	}
 	| primary "." NAME {
 		printf ("-------------------------------\n");
@@ -992,6 +1037,13 @@ int main(int argc, char** argv){
 }
 
 
+bool is_not_name (Node* ncheck) {
+#if TEMPDEBUG
+	printf ("checking if %s is a leaf %s leaf-%d token-%d\n", ncheck->production.c_str(), ncheck->typestring.c_str(), ncheck->isLeaf, ncheck->token);
+	printf ("nodeid is %d\n", ncheck->nodeid);
+#endif
+	return !(ncheck->isLeaf && ncheck->token == NAME);
+}
 
 
 int yyerror(const char *s){

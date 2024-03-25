@@ -218,6 +218,8 @@ ignore2	\n[ \f\t]*{comments}?
 	}
     printf("\t\tLI t_%d, %ld\n", nodecount,val);
 	yylval.node = new Node(NUMBER, val);
+	yylval.node->production = strdup (yytext);
+	yylval.node->typestring = "int";
 	return NUMBER;
 }
 {number}	{dprintf (stderr_dup, "leading zeros in decimal integer literals are not permitted\nError at line %d\n", yylineno);exit(1);}
@@ -237,6 +239,8 @@ ignore2	\n[ \f\t]*{comments}?
 		exit(1);
 	}
 	yylval.node = new Node(NUMBER, val);
+	yylval.node->production = strdup (yytext);
+	yylval.node->typestring = "int";
 	return NUMBER;
 }
 0[xX](_?[0-9a-fA-F]+)+	{
@@ -253,7 +257,9 @@ ignore2	\n[ \f\t]*{comments}?
 		dprintf(stderr_dup, "Error at line %d:\nMagnitude of integer %s is too big\n", yylineno, yytext);
 		exit(1);
 	}
-	yylval.node = new Node(0, val);
+	yylval.node = new Node(NUMBER, val);
+	yylval.node->production = strdup (yytext);
+	yylval.node->typestring = "int";
 	return NUMBER;
 }
 0[bB](_?[01]+)+	{
@@ -269,7 +275,9 @@ ignore2	\n[ \f\t]*{comments}?
 		dprintf(stderr_dup, "Error at line %d:\nError in getting value of integer %s\n", yylineno, yytext);
 		exit(1);
 	}
-	yylval.node = new Node(0, val);
+	yylval.node = new Node(NUMBER, val);
+	yylval.node->production = strdup (yytext);
+	yylval.node->typestring = "int";
 	return NUMBER;
 }
 
@@ -287,13 +295,15 @@ ignore2	\n[ \f\t]*{comments}?
 			text += temp[i];
 	}
 	//just use strtof
-	double val = strtof(text.c_str(), NULL);
+	double val = strtod(text.c_str(), NULL);
 	if (errno) {
 		dprintf(stderr_dup, "Error at line %d:\nError in getting value of float %s\n", yylineno, yytext);
 		exit(1);
 
 	}
-	yylval.node = new Node(0, val);
+	yylval.node = new Node(NUMBER, val);
+	yylval.node->production = strdup (yytext);
+	yylval.node->typestring = "float";
 	return NUMBER;
 }
 {imagnumber}    {
@@ -314,7 +324,9 @@ ignore2	\n[ \f\t]*{comments}?
 		dprintf(stderr_dup, "Error at line %d:\nError in getting value of complex number %s\n", yylineno, yytext);
 		exit(1);
 	}
-	yylval.node = new Node(0, val);
+	yylval.node = new Node(NUMBER, val);
+	yylval.node->typestring = "complex";
+	yylval.node->production = strdup (yytext);
 	return NUMBER;
 }
 (?x:(r|R)?(\"[^\"\\\n]*(\\(.|\n)[^\"\\\n]*)*\")|(\'[^\'\\\n]*(\\(.|\n)[^\'\\\n]*)*\'))   {
@@ -336,7 +348,8 @@ ignore2	\n[ \f\t]*{comments}?
             default: s.push_back(yytext[i]);
         }
     }
-    yylval.node=new Node(0, s);
+    yylval.node=new Node(STRING, s);
+	yylval.node->production = strdup (yytext);
     return STRING;
 }
 
@@ -360,13 +373,14 @@ ignore2	\n[ \f\t]*{comments}?
         }
     }
     yylval.node=new Node(STRING, s);
+	yylval.node->production = strdup (yytext);
     return STRING;
 }
 
 True	{yylval.node=new Node(TRUE, true); return TRUE;}
 False	{yylval.node=new Node(FALSE, false); return FALSE;}
 None	{yylval.node=new Node(0);return NONE;}
-{NAME}	{yylval.node=new Node(NAME, "identifier", yytext);return NAME;}
+{NAME}	{yylval.node=new Node(NAME, "", yytext);return NAME;}
 {ignore}
 <parOpen,squareOpen><<EOF>>	{
 	dprintf (stderr_dup, "Unopened bracket %c at line no: %d\n", brackettype, bracketline);

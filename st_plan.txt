@@ -83,4 +83,15 @@ adding int dimension class Node: 1 for lists.
 	scope of the production. upon reaching "d", set current_scope to the function 
 	symbol table. in the production primary-> primary "(" ")", ...
 
+25 march
+within a class suite, currently_defining_class is set to the under-construction st of the class.
+i don't remember why we aren't changing top here, but both options are fine: we only need if (currently_defining_class != NULL) in newscope, etc
+
+self.* objects don't need special care as self is treated as a function parameter available in the function st.
+but declarations like self.attr : type need special care:
+	in put(), we'll check if the node is a leaf.
+	if not, we do if (inside_init && currently_defining_class) 
+		currently_defining_class->put (the other node, to which we don't have a pointer yet)
+		put ("attr_name", type_node); // i don't have a pointer to attr_name. 
+		solution: in primary "." NAME, set $$->production = $3->production IF $1->production == "self"
 

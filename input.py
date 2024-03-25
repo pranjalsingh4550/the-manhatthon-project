@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 
 
 class Parent():
@@ -10,6 +9,8 @@ class Child(Parent):
     def __init__(self):
         self.d:int=5
 
+line:int = 12
+line2:int = 13
 
 def main():
     p:Parent = Parent()

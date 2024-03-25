@@ -273,8 +273,8 @@ class SymbolTable {
 		// not using atm // map <string, SymbolTable*> functions;
 		map <string, SymbolTable*> children;	// contains member functions, classes&global functions for the global namespace
 							// use children[name]->is{Class|Function} to check what it is
-		int size;
-		unsigned long table_size;
+		int size = 0;
+		unsigned long table_size = 0;
 		bool has_children (string name) {
 			if (children.find(name) != children.end()) {
 				return false;
@@ -381,12 +381,14 @@ class SymbolTable {
 			symbols["bool"] = new Symbol("bool", "class", -1, 0, this);
 			symbols["str"] = new Symbol("str", "class", -1, 0, this);
 			size = 0;
+			printf ("Call to st ctor. now parent's size is %d, number of children in parent is %d\n", this->symbols.size(), this->children.size());
 		}
 		SymbolTable (SymbolTable *p, int flags, string name) {
 			if (flags > 3 || flags < 1) {
 				cerr << "Bad flags\n"; exit(6);
 			}
 			parent = p;
+			this->name = name;
 			if (isFunction = (flags == FUNCTION_ST))
 				parent->children[name] = this;
 			if (isClass = (flags == CLASS_ST))
@@ -395,6 +397,7 @@ class SymbolTable {
 			lineno = 0;
 			if (fn_inside_class = (flags == MEMBER_FN_ST))
 				parent->children[name] = this;
+			printf ("Call to st ctor %s. now parent's size is %d, number of children in parent is %d\n", name.c_str(), p->symbols.size(), p->children.size());
 		}
 		string gettype (string name) {
 			Symbol *s = get(name);

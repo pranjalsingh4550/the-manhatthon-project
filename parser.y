@@ -185,6 +185,7 @@
 %token <node> TRUE "True"
 %token <node> FALSE "False"
 %token <node> NONE "None"
+%token <node> SELF "self"
 
 %type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite basesuite funcdef classdef compound_stmt for_stmt testlist STRING_plus  typedarglist_comma typedarglist elif_block typedargument global_stmt
 
@@ -235,11 +236,11 @@ small_stmt: expr_stmt
 
 /* TO DO  dealing with global */
 
-global_stmt: "global" NAME[name] {
+global_stmt: "global" NAME[id] {
 		/* if name in currentscope then error
 			if name not in global scope then error
 
-			$name->nodeid= GlobalSymTable->get(name)->nodeid;
+			$id->nodeid= GlobalSymTable->get(name)->nodeid;
 
 		*/
 } 
@@ -248,51 +249,51 @@ global_stmt: "global" NAME[name] {
 		/* if name in currentscope then error
 			if name not in global scope then error
 
-			$name->nodeid= GlobalSymTable->get(name)->nodeid;
+			$id->nodeid= GlobalSymTable->get(name)->nodeid;
 
 		*/
 	}
 	
-expr_stmt: test[name] ":" declare test[type] {
+expr_stmt: NAME[id] ":" declare test[type] {
 			/*
-				if($name is not lvalue) error
-				if($name is already in current scope)error
+				if($id is not lvalue) error
+				if($id is already in current scope)error
 				if($type is not declared in GlobalSymTable->classes)error
 
-				add $name to curent scope with type $type and node $name (put($name,$type));
+				add $id to curent scope with type $type and node $id (put($id,$type));
 			*/
-			if (Classsuite && !$name->isLeaf && $name->token == NAME) {
-				// self.attr; $name->production is attr
+			if (Classsuite && !$id->isLeaf && $id->token == NAME) {
+				// self.attr; $id->production is attr
 				decl = 0;
-				if (currently_defining_class->has ($name)){
+				if (currently_defining_class->has ($id)){
 					dprintf (stderr_copy, "Redeclaration error at line %d: Identifier %s redeclared in class %s\n",
-							$1->lineno, $name->production, currently_defining_class->name);
+							(int)$1->lineno, $id->production.c_str(), currently_defining_class->name.c_str());
 					exit (46);
 				}
-				put ($name, $type);
+				put ($id, $type);
 			}
-
-			if (is_not_name ($name)) {
+			if (is_not_name ($id)) {
 				dprintf (stderr_copy, "Error: assignment to non-identifier at line *\n");
 				exit(97);
 			} else if (is_not_name($type)) {
 				dprintf (stderr_copy, "Error: Invalid type hint\n");
 				exit(98);
 			}
-			if (top->has($name)) {
+			if (top->has($id)) {
 				dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
-						$name->lineno, $name->production.c_str());
+						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
 			decl=0; //reseting list[int]
 			$$ = new Node ("Declaration");
-			$$->addchild($name, "Name");
+			$$->addchild($id, "Name");
 			$$->addchild($type, "Type");
 			$$->typestring = $type->typestring;
-			put ($name, $type);
+			put ($id, $type);
 	}
-	| test[name] ":" declare test[type] "=" test[value] {
-			if (is_not_name ($name)) {
+	|"self" "." NAME[id] ":" declare test[type] 
+	| NAME[id] ":" declare test[type] "=" test[value] {
+			if (is_not_name ($id)) {
 				dprintf (stderr_copy, "Error: assignment to non-identifier at line *\n");
 				exit(97);
 			} else if (is_not_name($type)) {
@@ -301,35 +302,36 @@ expr_stmt: test[name] ":" declare test[type] {
 			}
 			if ($value->typestring == "") {
 				dprintf (stderr_copy, "Error at line %ld: Invalid value on RHS of unknown type\n",
-						$name->lineno);
+						$id->lineno);
 #if TEMPDEBUG
 				printf ("empty typestring: production is %s token %d\n", $value->production.c_str(), $value->token);
 #endif
 				exit (96);
 			}
-			if (top->has($name)) {
+			if (top->has($id)) {
 				dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
-						$name->lineno, $name->production.c_str());
+						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
 			/*
-				if($name is not lvalue) error
-				if($name is already in current scope)error
+				if($id is not lvalue) error
+				if($id is already in current scope)error
 				if($type is not declared in GlobalSymTable->classes)error
 				if($type and $value are not type compatible) error ( only int<->float and int <-> bool type mismatch are allowed give error otherwise)
 				if($value is a leaf && $value is not a constant ) check if $value is in scope or not
 				
-				add $name to curent scope with type $type and node $name (put($name,$type));
+				add $id to curent scope with type $type and node $id (put($id,$type));
 			*/
 			decl=0;
 			$$ = new Node ("Declaration");
 			$$->op = MOV_REG;
-			$$->addchild($name, "Name");
+			$$->addchild($id, "Name");
 			$$->addchild($type, "Type");
-			$$->addchild($value, "Value", $name);
+			$$->addchild($value, "Value", $id);
 			$$->typestring = $type->typestring;
-			put ($name, $type);
+			put ($id, $type);
 	}
+	| "self" "." NAME[id] ":" declare test[type] "=" test[value] 
 	| test augassign test { 
 			/*
 				if($1 is not lvalue) error
@@ -399,7 +401,7 @@ augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "
 
 return_stmt: "return" test {
 		/*
-			if(isFunction==0) error
+			if(Funcsuite==0) error
 			if($2 is not in current scope) error
 			if ($2 is not type compatible with return type) error
 		*/
@@ -407,7 +409,7 @@ return_stmt: "return" test {
 	}
 	| "return" {
 		/*
-			if(isFunction==0) error
+			if(Funcsuitex==0) error
 			if(return type is not None) error
 		*/
 		string temp = "Keyword\n"; temp += "( return )"; $$ = new Node(temp);}
@@ -848,35 +850,35 @@ basesuite: {newscope("dummy");} simple_stmt[first] {endscope();}
 /* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */
 
 
-funcdef: "def" NAME[name]  functionstart "(" typedarglist_comma[param] ")" "->" test[ret] ":" suite[last] {
+funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" test[ret] ":" suite[last] {
 		Funcsuite=0;
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
-		$$->addchild($name, "Name");
+		$$->addchild($id, "Name");
 		$$->addchild($param,"Parameters");
 		$$->addchild($ret, "Return type");
 		$$->addchild($last, "Body");
 	}
-	| "def" NAME[name] functionstart "(" ")" "->" test[returntype] ":" suite[last] {
+	| "def" NAME[id] functionstart "(" ")" "->" test[returntype] ":" suite[last] {
 	       	Funcsuite=0;
 		endscope(); inside_init = 0;
-	       	$$ = new Node ("Function Defn"); $$->addchild($name, "Name");
+	       	$$ = new Node ("Function Defn"); $$->addchild($id, "Name");
 	       	$$->addchild($returntype, "Return type");
 	       	$$->addchild($last, "Body");
 	}
-	| "def" NAME[name] functionstart "(" typedarglist_comma[param] ")" ":" suite[last] {
+	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" suite[last] {
 	       	Funcsuite=0;
 		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn");
-	       	$$->addchild($name, "Name");
+	       	$$->addchild($id, "Name");
 	       	$$->addchild($param,"Parameters");
 	       	$$->addchild($last, "Body");
 	}
-	| "def" NAME[name] functionstart "(" ")" ":" suite[last] {
+	| "def" NAME[id] functionstart "(" ")" ":" suite[last] {
 	       	Funcsuite=0;
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
-		$$->addchild($name, "Name");
+		$$->addchild($id, "Name");
 		$$->addchild($last, "Body");
 	}
 

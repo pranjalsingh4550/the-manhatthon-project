@@ -490,5 +490,4 @@ class instruction {
 #define IR_OPERAND1 (instr->operand_is_int ? instr->literal1: instr->dliteral1 )
 #define IR_OPERAND2 (instr->operand_is_int ? instr->literal2: instr->dliteral2 )
 		// not convinced about this setup yet
-
 };

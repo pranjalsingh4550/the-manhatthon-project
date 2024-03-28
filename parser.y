@@ -15,6 +15,7 @@
     extern int yylex();
     extern int yyparse();
     extern void debugprintf (const char *) ;
+	extern FILE *tac;
     extern int yylineno;
 	extern char *yytext;
     int yyerror(const char *s);
@@ -25,7 +26,7 @@
 	bool inside_init = false;
 	string class_name_saved_for_init;
 	SymbolTable* top, *globalSymTable, *current_scope, *currently_defining_class;
-#define TEMPDEBUG 1
+#define TEMPDEBUG 0
 	bool is_not_name (Node*);
 	Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
 		//
@@ -62,20 +63,7 @@
 			top->put(n1, n2);
 		return ;
 	}
-	void check(Node* n){
-		// for literals, return directly
-		if (!n) exit (printf ("line 59 Node is NULl"));
-		if (n->typestring == "int") return;
-		if (n->typestring == "bool") return;
-		if (n->typestring == "str") return;
-		if (n->typestring == "float") return;
-		if (n->typestring == "complex") return;
-		if (!n->isLeaf) return ;
-		if(!top->has(n)){
-			fprintf(stderr, "NameError: name %s is not defined\n", n->production.c_str());
-			exit(1);
-		}
-	}
+	extern void check (Node* n) ;
 	bool check(Node* n1, Node* n2){
 		if(n1->typestring != n2->typestring){
 			return false;
@@ -111,15 +99,12 @@
 	int decl=0;
 
 	SymbolTable *find_class(string name) { // because all classes are declared in the global namespace
-		printf ("finding class %s. number of children %d, symbols %d\n", 
-				name.c_str(), globalSymTable->children.size(), globalSymTable->symbols.size());
 		if (globalSymTable->children.find(name) == globalSymTable->children.end())
 			return NULL; // NOT FOUND
 		else if (globalSymTable->children.find(name)->second->isFunction)
 			return NULL;
 		else
-			printf ("we've found the class %s. remove this line before commit\n", name.c_str());
-		return globalSymTable->children.find(name)->second; // see comments above
+			return globalSymTable->children.find(name)->second; // see comments above
 	}
 %}
 
@@ -276,6 +261,17 @@ expr_stmt: test[name] ":" declare test[type] {
 
 				add $name to curent scope with type $type and node $name (put($name,$type));
 			*/
+			if (Classsuite && !$name->isLeaf && $name->token == NAME) {
+				// self.attr; $name->production is attr
+				decl = 0;
+				if (currently_defining_class->has ($name)){
+					dprintf (stderr_copy, "Redeclaration error at line %d: Identifier %s redeclared in class %s\n",
+							$1->lineno, $name->production, currently_defining_class->name);
+					exit (46);
+				}
+				put ($name, $type);
+			}
+
 			if (is_not_name ($name)) {
 				dprintf (stderr_copy, "Error: assignment to non-identifier at line *\n");
 				exit(97);
@@ -284,7 +280,7 @@ expr_stmt: test[name] ":" declare test[type] {
 				exit(98);
 			}
 			if (top->has($name)) {
-				dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
+				dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
 						$name->lineno, $name->production.c_str());
 				exit(87);
 			}
@@ -304,7 +300,7 @@ expr_stmt: test[name] ":" declare test[type] {
 				exit(98);
 			}
 			if ($value->typestring == "") {
-				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n",
+				dprintf (stderr_copy, "Error at line %ld: Invalid value on RHS of unknown type\n",
 						$name->lineno);
 #if TEMPDEBUG
 				printf ("empty typestring: production is %s token %d\n", $value->production.c_str(), $value->token);
@@ -312,7 +308,7 @@ expr_stmt: test[name] ":" declare test[type] {
 				exit (96);
 			}
 			if (top->has($name)) {
-				dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
+				dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
 						$name->lineno, $name->production.c_str());
 				exit(87);
 			}
@@ -348,7 +344,7 @@ expr_stmt: test[name] ":" declare test[type] {
 				exit (33);
 			}
 			if (!top->has($3) && ($3->typestring == "")) {
-				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n", $3->lineno);
+				dprintf (stderr_copy, "Error at line %ld: Invalid value on RHS of unknown type\n", $3->lineno);
 				exit (94);
 			} else if (top->has($3))
 				$3->typestring = top->get($3->production)->typestring;
@@ -383,12 +379,13 @@ expr_stmt: test[name] ":" declare test[type] {
 			check ($1);
 			check($3);
 			top->get($1)->typestring= $3->typestring;
+			$$->add_op ($3, $3, MOV_REG);
 	}
 	| test {
 		printf ("line 341\n");
 		if ($1->isLeaf) {
 			if (!top->has($1->production) && $1->token==NAME){
-				dprintf (stderr_copy, "NameError at line %d: identifier %s has not been declared\n",
+				dprintf (stderr_copy, "NameError at line %ld: identifier %s has not been declared\n",
 						$1->lineno, $1->production.c_str()); exit(42);
 			}
 			else printf ("valid identifier %s\n", $1->production.c_str());
@@ -508,21 +505,18 @@ primary: atom {
 	}
 	| primary "." NAME {
 		printf ("-------------------------------\n");
-		// primary:	leaf or compound or self
-		// NAME:	member function or attribute
-		// upon entry, primary.typestring is set to the corresponding value, whether "def", "class", "myclass", etc.
 
 		/* new pseudocode:
 		if priamry is leaf: check top and set typestring
 		if ($1->isLeaf) {
-			string this_ptr = "self"; // may change, correct this later
-			printf ("searching for object %s\n", $1->production.c_str());
-			if ($1->production == this_ptr) {
-				// i don't know what to do
-			}
-		else: assert (primary.typestring is correctly set)
-		check that obtained typestring is a declared class, not a primitive/literal
-		set $$->typestring
+			if ($1 == "self" && present in table) set typestring and continue
+			if ($1 == "self" && ! present in table) {
+				set token to NAME, isLeaf=false, typestring to "" so it isn't used
+			if ($1 != "self") assert (present in table);
+		}
+		else if ($1->isLeaf == false) {
+			else: assert (primary.typestring is correctly set)
+		}
 		return
 		*/
 
@@ -532,9 +526,15 @@ primary: atom {
 			// ??? first check if primary is a leaf?????
 		// CHECKING PRIMARY
 		if (!current_scope->has($1->production)) {
-			if ($1->production != this_ptr || !inside_init) {
-				exit (dprintf (stderr_copy, "NameError at line %d: Undefined object %s\n",
-					$3->lineno, $1->production));
+			if ($1->production != this_ptr) {
+				exit (dprintf (stderr_copy, "NameError at line %ld: Undefined object %s\n",
+					$3->lineno, $1->production.c_str()));
+			} else if ($1->production == this_ptr) {
+				// valid in L-value, r-value, as well as outside init
+				// .isLeaf = false, .token = NAME
+				$$->token = NAME;
+				$$->production = $3->production;
+				$$->lineno = $3->lineno;
 			}
 			else {
 				// do not confirm that this is an assignment on the lhs
@@ -555,8 +555,8 @@ primary: atom {
 			// $1->typestring need not be initialised: primary -> atom
 			if ($1->isLeaf) { // check for existence
 				if (current_scope->get($1->production) == NULL)
-					exit (dprintf (stderr_copy, "NameError at line %d: Undeclared identifier %s referenced\n",
-								$1->lineno, $1->production));
+					exit (dprintf (stderr_copy, "NameError at line %ld: Undeclared identifier %s referenced\n",
+								$1->lineno, $1->production.c_str()));
 				else $1->typestring = current_scope->get($1->production)->typestring;
 			} // now we are assured $1->typestring is valid
 			if (find_class($1->typestring)) { // class instance stored
@@ -567,8 +567,8 @@ primary: atom {
 			} else if (current_scope->find_member_fn($3->production)) {
 				current_scope = current_scope->find_member_fn($3->production);
 			} else
-				exit (dprintf (stderr_copy, "NameError at line %d: Undefined attribute/method %s of class %s referenced\n",
-					$3->lineno, $3->production.c_str(), $1->typestring));
+				exit (dprintf (stderr_copy, "NameError at line %ld: Undefined attribute/method %s of class %s referenced\n",
+					$3->lineno, $3->production.c_str(), $1->typestring.c_str()));
 			$$->typestring = $3->typestring;
 		}
 	}
@@ -659,17 +659,17 @@ primary: atom {
 	| primary "[" test "]"
 		{
 			if ($1->isLeaf && !top->has($1)) {
-				dprintf (stderr_copy, "Error undeclared object %s at line %d", $1->production, $3->lineno);
+				dprintf (stderr_copy, "Error undeclared object %s at line %ld", $1->production.c_str(), $3->lineno);
 				exit (1);
 			}
 			if ($1->dimension == 0) {
 				dprintf (stderr_copy, "Error at line %d: %s object is not subscriptable.\n",
-						yylineno, $1->typestring);
+						yylineno, $1->typestring.c_str());
 				exit (1);
 			}
 			if ($3->typestring != "int") {
 				dprintf (stderr_copy, "Error at line %d: index is not an integer\n",
-						yylineno, $3->production);
+						yylineno);
 				exit (1);
 			}
 			// if primary is out of bounds: run time error right?
@@ -735,17 +735,17 @@ primary: atom {
 		if ($1->isLeaf) {
 			if (top->find_member_fn ($1->production)) {
 				$1->typestring = "def";
-				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
+				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
 				// fill 3ac for function call
 			} else if (top->find_class($1->production)) { // call to constructor
-				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 			} else {
-				dprintf (stderr_copy, "Error at line %d: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
+				dprintf (stderr_copy, "Error at line %ld: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
 				exit(44);
 			}
 		} else { // now we expect typestring to be set to def, symboltable to be available in current_scope
 			if ($1->typestring != "def") {
-				dprintf (stderr_copy, "TypeError at line %d: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
+				dprintf (stderr_copy, "TypeError at line %ld: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
 			} else { // valid function call
 				printf ("valid function call to function whose name isn't maintained line 689\n");
@@ -801,12 +801,37 @@ arglist: test
 
 
 typedarglist:  typedargument {/*top->arguments push*/}
-	| test {/*this pointer in case inClass==1 otherwise error*/}
+	| test {/*this pointer in case inClass==1 otherwise error*/
+		if (!Classsuite && !is_not_name($1))
+			dprintf (stderr_copy, "Error in line %ld: Argument %s to function does not have a type hint\n", $1->lineno, $1->production.c_str());
+		else if (!Classsuite)
+			dprintf (stderr_copy, "Error in line %ld: Argument %s to function is not a valid L-value\n", $1->lineno, $1->production.c_str());
+		if ($1->production != "self") {
+			dprintf (stderr_copy, "Error at line %d: pointer to class object in class method must be named \"self\"\n", yylineno);
+			exit (43);
+		}
+	}
 	| typedarglist "," typedargument { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
 
 typedarglist_comma: typedarglist | typedarglist ","
 
 typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"Name"); $$->addchild($3,"Type");
+		if (is_not_name($3)) {
+			dprintf (stderr_copy, "Error at line %d: type hints must be L-values\n", yylineno);
+			exit(45);
+		}
+		if (is_not_name($1)) {
+			dprintf (stderr_copy, "Error at line %d: function arguments must be L-values\n", yylineno);
+			exit(45);
+		}
+		if (find_class ($3->production) == NULL) {
+			dprintf (stderr_copy, "Error at line %ld: Unknown type hint %s to function parameters\n", $1->lineno, $3->production.c_str());
+			exit (42);
+		}
+		if (top->symbols.find($1->production) != top->symbols.end()) {
+			dprintf (stderr_copy, "Error at line %ld: identifier %s redeclared in function scope\n", $1->lineno, $1->production.c_str());
+			exit(49);
+		}
 		put ($1, $3);
 	}
 	| test ":" test "=" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"name"); $$->addchild($3,"Type"); $$->addchild($5,"Default");
@@ -870,7 +895,7 @@ functionstart:  {
 		Funcsuite = 1;
 
 		if (inside_init)
-			top = new SymbolTable (globalSymTable, FUNCTION_ST, currently_defining_class->name);
+			top = new SymbolTable (globalSymTable, CTOR_ST, currently_defining_class->name);
 		else
 			top = new SymbolTable (
 					currently_defining_class? currently_defining_class : top,
@@ -1057,7 +1082,7 @@ int main(int argc, char** argv){
 
 bool is_not_name (Node* ncheck) {
 #if TEMPDEBUG
-	printf ("checking if %s is a leaf %s leaf-%d token-%d\n", ncheck->production.c_str(), ncheck->typestring.c_str(), ncheck->isLeaf, ncheck->token);
+	// printf ("checking if %s is a leaf %s leaf-%d token-%d\n", ncheck->production.c_str(), ncheck->typestring.c_str(), ncheck->isLeaf, ncheck->token);
 #endif
 	return !(ncheck->isLeaf && ncheck->token == NAME);
 }
@@ -1066,4 +1091,19 @@ bool is_not_name (Node* ncheck) {
 int yyerror(const char *s){
     dprintf (stderr_dup, "Error %s at line number %d.\n", s, yylineno);
     return 0;
+}
+void check(Node* n){
+	// for literals, return directly
+	if (Classsuite && !n->isLeaf && n->token == NAME) return; //self.*
+	if (!n) exit (printf ("line 59 Node is NULl"));
+	if (n->typestring == "int") return;
+	if (n->typestring == "bool") return;
+	if (n->typestring == "str") return;
+	if (n->typestring == "float") return;
+	if (n->typestring == "complex") return;
+	if (!n->isLeaf) return ;
+	if(!top->has(n)){
+		fprintf(stderr, "NameError: name %s is not defined\n", n->production.c_str());
+		exit(1);
+	}
 }

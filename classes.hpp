@@ -8,6 +8,7 @@ using namespace std;
 extern int nodecount;
 extern FILE *graph;
 extern int yylineno;
+static FILE* tac = NULL;
 
 
 enum ir_operation {
@@ -56,7 +57,7 @@ enum ir_operation {
 	FL2INT,
 
 	// function/stack stuff
-	NEWSTACK, //x86's callq: push rbp, mov rsp to rbp, etc
+	FUNCTION_CALL, //x86's callq: push rbp, mov rsp to rbp, etc
 	FUNCTION_RETURN
 };
 
@@ -220,10 +221,53 @@ class Node {
 		}
 		void add_op (Node *leftoperand, Node *rightoperand, enum ir_operation op) {
 			// should ir_operations be a map <str, int>? ??????
-			fprintf (stdout, "adding operation %d between nodes %d and %d\n", op, 
-					leftoperand->nodeid, rightoperand->nodeid);
+
+#define STRING(x) #x
+#define BINARY_OP(op, in1, in2) {fprintf(tac, "\tt_%d = %s\t(t_%d,\tt_%d)\n", this->nodeid, STRING(op), in1->nodeid, in2->nodeid); break;}
+#define UNARY_OP(op, in1, in2) {fprintf(tac, "\tt_%d = %s\t(t_%d)\n", this->nodeid, STRING(op), in1->nodeid); break;}
+			if (tac == NULL) tac = stdout;
 				switch (op) {
-					case 5: printf ("\t\tMOV_REG t_%d , t_%d\n", leftoperand->nodeid, rightoperand->nodeid);
+
+					case UJUMP	:
+					case CJUMP	:
+					case LW		: UNARY_OP(LW, leftoperand, rightoperand);
+					case SW		: UNARY_OP(SW, leftoperand, rightoperand);
+					case RETQ	:
+					case MOV_REG: UNARY_OP(MOV_REG, leftoperand, rightoperand);
+					case ANDBW	: BINARY_OP(ANDBW, leftoperand, rightoperand);
+					case ORBW	: BINARY_OP(ORBW, leftoperand, rightoperand);
+					case NOTBW	: UNARY_OP(NOTBW, leftoperand, rightoperand);
+					case ORBL	: BINARY_OP(ORBL, leftoperand, rightoperand);
+					case ANDBL	: BINARY_OP(ANDBL, leftoperand, rightoperand);
+					case NOTBL	: BINARY_OP(NOTBL, leftoperand, rightoperand);
+					case XORBW	: BINARY_OP(XORBW, leftoperand, rightoperand);
+					case SHRBW	: BINARY_OP(SHRBW, leftoperand, rightoperand);
+					case SHLBW	: BINARY_OP(SHLBW, leftoperand, rightoperand);
+					case CMPEQ	: BINARY_OP(CMPEQ, leftoperand, rightoperand);
+					case CMPNE	: BINARY_OP(CMPNE, leftoperand, rightoperand);
+					case CMPGT	: BINARY_OP(CMPGT, leftoperand, rightoperand);
+					case CMPGE	: BINARY_OP(CMPGE, leftoperand, rightoperand);
+					case CMPLT	: BINARY_OP(CMPLT, leftoperand, rightoperand);
+					case CMPLE	: BINARY_OP(CMPLE, leftoperand, rightoperand);
+					case ADDI	: BINARY_OP(ADDI, leftoperand, rightoperand);
+					case SUBI	: BINARY_OP(SUBI, leftoperand, rightoperand);
+					case MULI	: BINARY_OP(MULI, leftoperand, rightoperand);
+					case DIVI	: BINARY_OP(DIVI, leftoperand, rightoperand);
+					case FLOORI	: UNARY_OP(FLOORI, leftoperand, rightoperand);
+					case MODI	: UNARY_OP(MODI, leftoperand, rightoperand);
+					case EXPI	: BINARY_OP(EXPI, leftoperand, rightoperand);
+					case ADDF	: BINARY_OP(ADDF, leftoperand, rightoperand);
+					case SUBF	: BINARY_OP(SUBF, leftoperand, rightoperand);
+					case MULF	: BINARY_OP(MULF, leftoperand, rightoperand);
+					case DIVF	: BINARY_OP(DIVF, leftoperand, rightoperand);
+					case FLOORF	: UNARY_OP(FLOORF, leftoperand, rightoperand);
+					case MODF	: UNARY_OP(MODF, leftoperand, rightoperand);
+					case EXPF	: BINARY_OP(EXPF, leftoperand, rightoperand);
+					case INT2FL	: UNARY_OP(INT2FL, leftoperand, rightoperand);
+					case FL2INT	: UNARY_OP(FL2INT, leftoperand, rightoperand);
+					case FUNCTION_CALL	:
+					case FUNCTION_RETURN: ;
+
 				}
 
 			return ;
@@ -239,6 +283,7 @@ struct str_struct {
 #define FUNCTION_ST 1
 #define CLASS_ST 2
 #define MEMBER_FN_ST 3
+#define CTOR_ST	4
 
 class SymbolTable;
 
@@ -279,6 +324,7 @@ class SymbolTable {
 		// not using atm // map <string, SymbolTable*> functions;
 		map <string, SymbolTable*> children;	// contains member functions, classes&global functions for the global namespace
 							// use children[name]->is{Class|Function} to check what it is
+		map <string, SymbolTable*> ctor;	// contains all constructors
 		int size = 0;
 		unsigned long table_size = 0;
 		bool has_children (string name) {
@@ -291,7 +337,7 @@ class SymbolTable {
 			return false;
 		}
 		SymbolTable* find_class (string name) { // returns SymbolTable* if name is a class, NULL otherwise
-			printf ("finding class %s. number of children %d, symbols %d\n", 
+			printf ("finding class %s. number of children %ld, symbols %ld\n", 
 					name.c_str(), this->children.size(), this->symbols.size());
 			if (this->children.find(name) == this->children.end())
 				return NULL; // NOT FOUND
@@ -342,7 +388,6 @@ class SymbolTable {
 			this->symbols[node->production] = s;
 			this->symbols.insert({node->production, s});
 			this->size = this->size + 1;
-			cout << "checking::" << node->typestring << " table size = " << this->size<< endl;
 			return 1;
 		}
 		
@@ -388,10 +433,10 @@ class SymbolTable {
 			children["bool"] = new SymbolTable ("class", CLASS_ST, "bool", 8);
 			children["str"] = new SymbolTable ("class", CLASS_ST, "str", sizeof(str_struct));
 			size = 0;
-			printf ("Call to st ctor. now parent's size is %d, number of children in parent is %d\n", this->symbols.size(), this->children.size());
+			printf ("Call to st ctor. now parent's size is %ld, number of children in parent is %ld\n", this->symbols.size(), this->children.size());
 		}
 		SymbolTable (SymbolTable* p, int flags, string name) {
-			if (flags > 3 || flags < 1) {
+			if (flags > 4 || flags < 1) {
 				cerr << "Bad flags\n"; exit(6);
 			}
 			parent = p;
@@ -400,13 +445,15 @@ class SymbolTable {
 				parent->children[name] = this;
 			if (isClass = (flags == CLASS_ST))
 				parent->children[name] = this;
+			if (isFunction = (flags == CTOR_ST))
+				parent->ctor[name] = this;
 			isGlobal = false;
 			lineno = 0;
 			if (fn_inside_class = (flags == MEMBER_FN_ST))
 				parent->children[name] = this;
-			printf ("Call to st ctor %s. now parent's size is %d, number of children in parent is %d\n", name.c_str(), p->symbols.size(), p->children.size());
+			printf ("Call to st ctor %s. now parent's size is %ld, number of children in parent is %ld\n", name.c_str(), p->symbols.size(), p->children.size());
 		}
-		SymbolTable (string p, int flags, string name, int size) { // for primitives
+		SymbolTable (string p, int flags, string name, int size) { // for primitives: int, char, bool, etc. may use later for print, range, len
 			if (flags != CLASS_ST) {
 				cerr << "Bad flags\n"; exit(6);
 			}

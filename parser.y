@@ -42,7 +42,7 @@
 		// 	cerr << "Undeclared type in line " << lineno << endl; // mroe details
 		// 	exit(1); // or call error
 		// }
-		if (typestring != "class")
+		if (typestring != "class" && name != "self")
 			size = cur_symboltable->children[typestring]->size;
 		else {
 			if (typestring == "bool" || typestring == "float" || typestring == "int") {
@@ -56,11 +56,7 @@
 
 	}
 	void put(Node* n1, Node* n2){
-		if (inside_init)
-			// add to the current symbol table
-			currently_defining_class->put(n1, n2);
-		else
-			top->put(n1, n2);
+		top->put(n1, n2);
 		return ;
 	}
 	extern void check (Node* n) ;
@@ -105,6 +101,13 @@
 			return NULL;
 		else
 			return globalSymTable->children.find(name)->second; // see comments above
+	}
+	void verify_typestring (Node* n) {
+		if (find_class (n->production) == NULL) {
+			dprintf (stderr_copy, "Error at line %d: Declaration of identifier with unknown type %s\n",
+					(int) n->lineno, n->production.c_str());
+			exit(56);
+		}
 	}
 %}
 
@@ -189,6 +192,7 @@
 %token <node> LIST "list"
 
 %type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite basesuite funcdef classdef compound_stmt for_stmt testlist STRING_plus  typedarglist_comma typedarglist elif_block typedargument global_stmt typeclass 
+%type <node> primary_object
 
 %start program
 
@@ -257,30 +261,12 @@ global_stmt: "global" NAME[id] {
 	
 expr_stmt: NAME[id] ":" declare typeclass[type] {
 			/*
-				if($id is not lvalue) error
 				if($id is already in current scope)error
 				if($type is not declared in GlobalSymTable->classes)error
 
 				add $id to curent scope with type $type and node $id (put($id,$type));
 			*/
-			if (Classsuite && !$id->isLeaf && $id->token == NAME) {
-				// self.attr; $id->production is attr
-				decl = 0;
-				if (currently_defining_class->has ($id)){
-					dprintf (stderr_copy, "Redeclaration error at line %d: Identifier %s redeclared in class %s\n",
-							(int)$1->lineno, $id->production.c_str(), currently_defining_class->name.c_str());
-					exit (46);
-				}
-				put ($id, $type);
-			}
-			if (is_not_name ($id)) {
-				dprintf (stderr_copy, "Error: assignment to non-identifier at line *\n");
-				exit(97);
-			} else if (is_not_name($type)) {
-				dprintf (stderr_copy, "Error: Invalid type hint\n");
-				exit(98);
-			}
-			if (top->has($id)) {
+			if (top->symbols.find($id->production) != top->symbols.end()) {
 				dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
 						$id->lineno, $id->production.c_str());
 				exit(87);
@@ -292,7 +278,27 @@ expr_stmt: NAME[id] ":" declare typeclass[type] {
 			$$->typestring = $type->typestring;
 			put ($id, $type);
 	}
-	|"self" "." NAME[id] ":" declare typeclass[type] 
+	|"self" "." NAME[id] ":" declare typeclass[type] {
+		if (!Classsuite	|| !currently_defining_class) {
+			dprintf (stderr_copy, "Error at line %d: self object cannot be used outside class scope\n",
+					(int) $id->lineno);
+			exit (57);
+		} else if (!inside_init) {
+			dprintf (stderr_copy, "Error at line %d: class attributes cannot be declard outside the constructor\n",
+					(int) $id->lineno);
+			exit (57);
+		} else if (currently_defining_class->symbols.find($id->production) != currently_defining_class->symbols.end()) {
+			dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
+					$id->lineno, $id->production.c_str());
+			exit(87);
+		}
+		decl = 0;
+		currently_defining_class->put ($id, $type);
+		$$ = new Node ("Declaration");
+		$$->addchild($id, "Name");
+		$$->addchild($type, "Type");
+		$$->typestring = $type->typestring;
+	}
 	| NAME[id] ":" declare typeclass[type] "=" test[value] {
 			if (is_not_name ($id)) {
 				dprintf (stderr_copy, "Error: assignment to non-identifier at line *\n");
@@ -332,7 +338,27 @@ expr_stmt: NAME[id] ":" declare typeclass[type] {
 			$$->typestring = $type->typestring;
 			put ($id, $type);
 	}
-	| "self" "." NAME[id] ":" declare typeclass[type] "=" test[value] 
+	| "self" "." NAME[id] ":" declare typeclass[type] "=" test[value] {
+		if (!Classsuite	|| !currently_defining_class) {
+			dprintf (stderr_copy, "Error at line %d: self object cannot be used outside class scope\n",
+					(int) $id->lineno);
+			exit (57);
+		} else if (!inside_init) {
+			dprintf (stderr_copy, "Error at line %d: class attributes cannot be declard outside the constructor\n",
+					(int) $id->lineno);
+			exit (57);
+		} else if (currently_defining_class->symbols.find($id->production) != currently_defining_class->symbols.end()) {
+			dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
+					$id->lineno, $id->production.c_str());
+			exit(87);
+		}
+		decl = 0;
+		put ($id, $type);
+		$$ = new Node ("Declaration");
+		$$->addchild($id, "Name");
+		$$->addchild($type, "Type");
+		$$->typestring = $type->typestring;
+	}
 	| test augassign test { 
 			/*
 				if($1 is not lvalue) error
@@ -362,7 +388,7 @@ expr_stmt: NAME[id] ":" declare typeclass[type] {
 			$$->addchild($1);
 			$$->addchild($3);
 	}
-	| test "=" test{
+	| primary_object "=" test{
 			/*
 				if($1 is not lvalue) error
 				if($1 is not in current scope)error
@@ -370,7 +396,7 @@ expr_stmt: NAME[id] ":" declare typeclass[type] {
 				if($3 is a leaf && $3 is not a constant ) check if $3 is in scope or not
 
 			*/
-			if (is_not_name ($1)) {
+			if ($1->typestring == "def" || $1->typestring == "class") {
 				dprintf (stderr_copy, "Error at line %d: assignment must be to an identifier\n",
 						yylineno);
 				exit (33);
@@ -398,9 +424,15 @@ expr_stmt: NAME[id] ":" declare typeclass[type] {
 
 declare : {decl=1;}
 
-typeclass: NAME | 
-			"list" 
-			"[" NAME "]"
+typeclass: NAME {
+		verify_typestring ($1);
+		$$ = $1;
+	}
+	| "list" "[" NAME "]" {
+		$$ = $1;
+		$$->dimension = 1;
+		verify_typestring ($3);
+	}
 
 augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
 
@@ -503,14 +535,13 @@ on entry to primary "." NAME: if primary is a leaf, nothing is set.
 */
 
 
-
-primary: atom {
+primary_object: atom {
 		// set typestring if available, so we know if it's a declaration or a use
 		$$ = $1;
 		if (top->has($1->production))
 			$$->typestring = top->get($1)->typestring;
 	}
-	| primary "." NAME {
+	| primary_object "." NAME {
 		printf ("-------------------------------\n");
 
 		/* new pseudocode:
@@ -646,23 +677,6 @@ primary: atom {
 			else check if name is in current scope or not
 			update type of result and update current scope
 		*/
-	| primary "(" testlist ")" {
-		/*
-			if primary is leaf and primary is not in symboltable)error
-			if(primary is not a function) error
-			if(primary->arg_types.size() != testlist->children.size()) error
-			for i in range(primary->arg_types.size())
-				if(primary->arg_types[i] != testlist->children[i]->typestring) error
-			update $$->typestring as return type of function
-			if primary is constant then error
-			if primary is not in current scope then error
-			if primary is not a function then error
-
-			check if testlist is compatible with function parameters or not
-
-			update $result type as the return type of function
-		*/
-	}
 	| primary "[" test "]"
 		{
 			if ($1->isLeaf && !top->has($1)) {
@@ -731,6 +745,25 @@ primary: atom {
 			update $$->typestring as return type of function
 
 		 */
+primary:
+	primary_object
+	| primary "(" testlist ")" {
+		/*
+			if primary is leaf and primary is not in symboltable)error
+			if(primary is not a function) error
+			if(primary->arg_types.size() != testlist->children.size()) error
+			for i in range(primary->arg_types.size())
+				if(primary->arg_types[i] != testlist->children[i]->typestring) error
+			update $$->typestring as return type of function
+			if primary is constant then error
+			if primary is not in current scope then error
+			if primary is not a function then error
+
+			check if testlist is compatible with function parameters or not
+
+			update $result type as the return type of function
+		*/
+	}
 	| primary "(" ")" {
 		/*
 			if primary is constant then error
@@ -808,15 +841,15 @@ arglist: test
 
 
 typedarglist:  typedargument {/*top->arguments push*/}
-	| test {/*this pointer in case inClass==1 otherwise error*/
-		if (!Classsuite && !is_not_name($1))
-			dprintf (stderr_copy, "Error in line %ld: Argument %s to function does not have a type hint\n", $1->lineno, $1->production.c_str());
-		else if (!Classsuite)
-			dprintf (stderr_copy, "Error in line %ld: Argument %s to function is not a valid L-value\n", $1->lineno, $1->production.c_str());
-		if ($1->production != "self") {
-			dprintf (stderr_copy, "Error at line %d: pointer to class object in class method must be named \"self\"\n", yylineno);
-			exit (43);
+	| "self" {
+		if (!Classsuite || !currently_defining_class) {
+			dprintf (stderr_copy, "Error at line %d: self keyword can be used only in class methods\n",
+					(int)$1->lineno);
+			exit (40);
 		}
+		Symbol* s = new Symbol ("self", currently_defining_class->name, (int) $1->lineno, 0, top);
+		s->size = currently_defining_class->table_size;
+		top->symbols["self"] = s;
 	}
 	| typedarglist "," typedargument { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
 
@@ -1072,6 +1105,8 @@ int main(int argc, char** argv){
 				dprintf (stderr_copy, "%s", line);
 			if ((strncmp (line, "Next token", 10) == 0) && (verbosity & 8))
 				dprintf (stderr_copy, "%s", line);
+			if (strncmp (line, "Error syntax error", 13) == 0)
+				dprintf (stderr_copy, "Error reported by Bison: %s\n", line);
 
 			line = NULL; n = 0;
 		}

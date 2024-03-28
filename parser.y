@@ -186,6 +186,7 @@
 %token <node> FALSE "False"
 %token <node> NONE "None"
 %token <node> SELF "self"
+%token <node> LIST "list"
 
 %type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite basesuite funcdef classdef compound_stmt for_stmt testlist STRING_plus  typedarglist_comma typedarglist elif_block typedargument global_stmt
 
@@ -254,7 +255,7 @@ global_stmt: "global" NAME[id] {
 		*/
 	}
 	
-expr_stmt: NAME[id] ":" declare test[type] {
+expr_stmt: NAME[id] ":" declare typeclass[type] {
 			/*
 				if($id is not lvalue) error
 				if($id is already in current scope)error
@@ -291,8 +292,8 @@ expr_stmt: NAME[id] ":" declare test[type] {
 			$$->typestring = $type->typestring;
 			put ($id, $type);
 	}
-	|"self" "." NAME[id] ":" declare test[type] 
-	| NAME[id] ":" declare test[type] "=" test[value] {
+	|"self" "." NAME[id] ":" declare typeclass[type] 
+	| NAME[id] ":" declare typeclass[type] "=" test[value] {
 			if (is_not_name ($id)) {
 				dprintf (stderr_copy, "Error: assignment to non-identifier at line *\n");
 				exit(97);
@@ -331,7 +332,7 @@ expr_stmt: NAME[id] ":" declare test[type] {
 			$$->typestring = $type->typestring;
 			put ($id, $type);
 	}
-	| "self" "." NAME[id] ":" declare test[type] "=" test[value] 
+	| "self" "." NAME[id] ":" declare typeclass[type] "=" test[value] 
 	| test augassign test { 
 			/*
 				if($1 is not lvalue) error
@@ -396,6 +397,10 @@ expr_stmt: NAME[id] ":" declare test[type] {
 	}
 
 declare : {decl=1;}
+
+typeclass: NAME | 
+			"list" 
+			"[" NAME "]"
 
 augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
 
@@ -817,7 +822,7 @@ typedarglist:  typedargument {/*top->arguments push*/}
 
 typedarglist_comma: typedarglist | typedarglist ","
 
-typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"Name"); $$->addchild($3,"Type");
+typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addchild($1,"Name"); $$->addchild($3,"Type");
 		if (is_not_name($3)) {
 			dprintf (stderr_copy, "Error at line %d: type hints must be L-values\n", yylineno);
 			exit(45);
@@ -836,10 +841,6 @@ typedargument: test ":" test { $$ = new Node ("Typed Parameter"); $$->addchild($
 		}
 		put ($1, $3);
 	}
-	| test ":" test "=" test { $$ = new Node ("Typed Parameter"); $$->addchild($1,"name"); $$->addchild($3,"Type"); $$->addchild($5,"Default");
-		put ($1, $3);
-		// TODO: set default value
-	}
 
 suite:  simple_stmt[first] 
 	| NEWLINE  INDENT  stmts[third] DEDENT 
@@ -850,7 +851,7 @@ basesuite: {newscope("dummy");} simple_stmt[first] {endscope();}
 /* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */
 
 
-funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" test[ret] ":" suite[last] {
+funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" typeclass[ret] ":" suite[last] {
 		Funcsuite=0;
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
@@ -859,7 +860,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" te
 		$$->addchild($ret, "Return type");
 		$$->addchild($last, "Body");
 	}
-	| "def" NAME[id] functionstart "(" ")" "->" test[returntype] ":" suite[last] {
+	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] ":" suite[last] {
 	       	Funcsuite=0;
 		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn"); $$->addchild($id, "Name");

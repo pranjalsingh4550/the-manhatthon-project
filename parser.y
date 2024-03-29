@@ -26,7 +26,7 @@
 	bool inside_init = false;
 	string class_name_saved_for_init;
 	SymbolTable* top, *globalSymTable, *current_scope, *currently_defining_class;
-#define TEMPDEBUG 0
+#define TEMPDEBUG 1
 	bool is_not_name (Node*);
 	Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
 		//
@@ -258,7 +258,7 @@ global_stmt: "global" NAME[id] {
 		*/
 	}
 	
-expr_stmt: primary[id] ":" declare typeclass[type] {
+expr_stmt: NAME[id] ":" declare typeclass[type] {
 			/*
 				if($id is already in current scope)error
 				if($type is not declared in GlobalSymTable->classes)error
@@ -298,7 +298,7 @@ expr_stmt: primary[id] ":" declare typeclass[type] {
 		$$->addchild($type, "Type");
 		$$->typestring = $type->typestring;
 	}
-	| primary[id] ":" declare typeclass[type] "=" test[value] {
+	| NAME[id] ":" declare typeclass[type] "=" test[value] {
 			if (is_not_name ($id)) {
 				dprintf (stderr_copy, "Error: assignment to non-identifier at line *\n");
 				exit(97);
@@ -478,8 +478,8 @@ factor: "+" factor	{ $$ = new Node ("+"); $$->addchild($2);}
 	| "-" factor	{ $$ = new Node ("-"); $$->addchild($2);}
 	| "~" factor	{ $$ = new Node ("~"); $$->addchild($2);}
 	| power
-power: primary
-	| primary "**" factor	{ $$ = new Node ("**"); $$->addchild($1); $$->addchild($3); }
+power: primary { current_scope = NULL; $$ = $1; }
+	| primary "**" factor	{ $$ = new Node ("**"); $$->addchild($1); $$->addchild($3); current_scope = NULL;}
 
 /* TO DO 
 	Complete typechecking and attribute scope checking for each primary symbol expansion
@@ -536,58 +536,44 @@ primary_object: atom {
 		return
 		*/
 
-		if (current_scope == NULL) current_scope = top;
-		string this_ptr = current_scope->thisname; // may change, correct this later
+		string this_ptr = top->thisname;
 		printf ("searching for object %s\n", $1->production.c_str());
 			// ??? first check if primary is a leaf?????
 		// CHECKING PRIMARY
-		if (!current_scope->has($1->production)) {
-			if ($1->production != this_ptr) {
-				exit (dprintf (stderr_copy, "NameError at line %ld: Undefined object %s\n",
-					$3->lineno, $1->production.c_str()));
-			} else if ($1->production == this_ptr) {
-				printf("Checking for self\n");
-				// valid in L-value, r-value, as well as outside init
-				// .isLeaf = false, .token = NAME
-				$$->token = NAME;
-				$$->production = $3->production;
-				$$->lineno = $3->lineno;
+		if ($1->isLeaf) { // set typestring
+			if (top->get ($1))
+				$1->typestring = top->gettype($1->production);
+			else if ($1->production == top->thisname) {
+				if (!Classsuite || !currently_defining_class) {
+					dprintf (stderr_copy, "Error at line %d: self pointer cannot be used outside class scope\n", (int)$1->lineno);
+					exit(63);
+				}
+				$1->typestring = currently_defining_class->name;
 			}
 			else {
-				// do not confirm that this is an assignment on the lhs
-				// set typestring to "", errors will come up in type checking
-				// this is a def or a use of self.*
-				if (current_scope->get($3->production) != NULL)
-					$1->typestring = current_scope->get($3->production)->typestring;
-				else
-					$1->typestring = "" ;
-				$$ = new Node (0, $1->typestring, $1->production + "." + $3->production);
-				// references to self.* must change the scope
-				// who resets the scope? for definitions, it is put(). for uses? funcend?
-				// current_scope = currently_defining_class;
-				// if inside_init, currently_defining class is set by entry into init
+				dprintf (stderr_copy, "Error at line %d: Identifier %s not declared in this scope\n",
+						(int) $1->lineno, $1->production.c_str());
+				exit (65);
 			}
 		}
-		else { // PRIMARY is present in the table, now check if it's a class instance
-			// $1->typestring need not be initialised: primary -> atom
-			if ($1->isLeaf) { // check for existence
-				if (current_scope->get($1->production) == NULL)
-					exit (dprintf (stderr_copy, "NameError at line %ld: Undeclared identifier %s referenced\n",
-								$1->lineno, $1->production.c_str()));
-				else $1->typestring = current_scope->get($1->production)->typestring;
-			} // now we are assured $1->typestring is valid
-			if (find_class($1->typestring)) { // class instance stored
-				current_scope = find_class($1->typestring);
-			} else if (current_scope->has($3->production)) { // primitive attribute
-				current_scope = NULL;
-				$$->typestring = current_scope->get($3->production)->name;
-			} else if (current_scope->find_member_fn($3->production)) {
-				current_scope = current_scope->find_member_fn($3->production);
-			} else
-				exit (dprintf (stderr_copy, "NameError at line %ld: Undefined attribute/method %s of class %s referenced\n",
-					$3->lineno, $3->production.c_str(), $1->typestring.c_str()));
-			$$->typestring = $3->typestring;
+		if ($1->typestring == "") {
+			dprintf (stderr_copy, "Error at line %d: object of unknown type referenced\n", (int)$3->lineno);
+			exit(55);
 		}
+		current_scope = find_class($1->typestring);
+		if (current_scope == NULL || $1->typestring == "class" || $1->typestring == "def") {
+			dprintf (stderr_copy, "Error at line %d: Object has invalid type, or is a function or class name\n", (int) $3->lineno);
+			exit (56);
+		}
+		if ($3->production == current_scope->thisname) {
+			dprintf (stderr_copy, "Error at line %d: self pointer %s cannot be referenced outside function scope\n", (int)$3->lineno, current_scope->thisname.c_str());
+			exit(68);
+		}
+		if (current_scope->find_member_fn ($3->production)) {
+			$$->typestring = "def";
+		}
+		else
+			$$->typestring = current_scope->gettype($3->production);
 	}
 
 /*
@@ -742,6 +728,26 @@ primary:
 
 			update $result type as the return type of function
 		*/
+		if ($1->isLeaf) {
+			if (top->find_member_fn ($1->production)) {
+				$1->typestring = "def";
+				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
+				// fill 3ac for function call
+			} else if (top->ctor.find($1->production) != top->ctor.end()) { // call to constructor
+				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+				$$->typestring = $1->production;
+			} else {
+				dprintf (stderr_copy, "Error at line %ld: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
+				exit(44);
+			}
+		} else { // now we expect typestring to be set to def, symboltable to be available in current_scope
+			if ($1->typestring != "def") {
+				dprintf (stderr_copy, "TypeError at line %ld: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
+				exit(45);
+			} else { // valid function call
+				printf ("valid function call to function whose name isn't maintained line 689\n");
+			}
+		}
 	}
 	| primary "(" ")" {
 		/*
@@ -756,8 +762,9 @@ primary:
 				$1->typestring = "def";
 				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
 				// fill 3ac for function call
-			} else if (top->find_class($1->production)) { // call to constructor
+			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
 				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+				$$->typestring = $1->production;
 			} else {
 				dprintf (stderr_copy, "Error at line %ld: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
 				exit(44);
@@ -821,18 +828,16 @@ arglist: test
 
 typedarglist:  typedargument {/*top->arguments push*/}
 	| NAME {/*this pointer in case inClass==1 otherwise error*/
-		if (!Classsuite && !is_not_name($1))
+		if (!Classsuite) {
 			dprintf (stderr_copy, "Error in line %ld: Argument %s to function does not have a type hint\n", $1->lineno, $1->production.c_str());
-		else if (!Classsuite)
-			dprintf (stderr_copy, "Error in line %ld: Argument %s to function is not a valid L-value\n", $1->lineno, $1->production.c_str());
+			exit (77);
+		}
+		if (top->thisname != "") {
+			dprintf (stderr_copy, "Error in line %ld: Argument %s to function does not have a type hint. \"this\" pointer has been declared.\n", $1->lineno, $1->production.c_str());
+			exit (76);
+		}
 		top->thisname=$1->production;
-		printf("this is the seg fault\n");
-		printf("Current class name  = %s\n", top->parent->name.c_str());
-		top->put($1, top->parent->name);
-		// if ($1->production != "self") {
-		// 	dprintf (stderr_copy, "Error at line %d: pointer to class object in class method must be named \"self\"\n", yylineno);
-		// 	exit (43);
-		// }
+		top->put($1, currently_defining_class->name);
 	}
 	| typedarglist "," typedargument { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
 

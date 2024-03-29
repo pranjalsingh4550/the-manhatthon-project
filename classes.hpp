@@ -315,7 +315,7 @@ class SymbolTable {
 		int isGlobal;
 		ull lineno;
 		string name;
-		string thisname;
+		string thisname = "";
 		string return_type="None";
 		vector<string> arg_types; // for function, but class also ig
 		bool fn_inside_class;

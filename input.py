@@ -20,3 +20,10 @@ class mm :
 		t = 33.5
 		self.val1 = num
 	
+	def show(self):
+		temp:float = self.val1
+
+
+k:mm = mm()
+k.show()
+

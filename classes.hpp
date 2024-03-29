@@ -388,6 +388,7 @@ class SymbolTable {
 			this->symbols[node->production] = s;
 			this->symbols.insert({node->production, s});
 			this->size = this->size + 1;
+			s->dimension = type->dimension;
 			return 1;
 		}
 		int put (Node* node, string type) {

@@ -185,7 +185,6 @@
 %token <node> TRUE "True"
 %token <node> FALSE "False"
 %token <node> NONE "None"
-%token <node> SELF "self"
 %token <node> LIST "list"
 
 %type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite basesuite funcdef classdef compound_stmt for_stmt testlist STRING_plus  typedarglist_comma typedarglist elif_block typedargument global_stmt typeclass 
@@ -255,7 +254,7 @@ global_stmt: "global" NAME[id] {
 		*/
 	}
 	
-expr_stmt: NAME[id] ":" declare typeclass[type] {
+expr_stmt: primary[id] ":" declare typeclass[type] {
 			/*
 				if($id is not lvalue) error
 				if($id is already in current scope)error
@@ -292,8 +291,7 @@ expr_stmt: NAME[id] ":" declare typeclass[type] {
 			$$->typestring = $type->typestring;
 			put ($id, $type);
 	}
-	|"self" "." NAME[id] ":" declare typeclass[type] 
-	| NAME[id] ":" declare typeclass[type] "=" test[value] {
+	| primary[id] ":" declare typeclass[type] "=" test[value] {
 			if (is_not_name ($id)) {
 				dprintf (stderr_copy, "Error: assignment to non-identifier at line *\n");
 				exit(97);
@@ -331,9 +329,8 @@ expr_stmt: NAME[id] ":" declare typeclass[type] {
 			$$->addchild($value, "Value", $id);
 			$$->typestring = $type->typestring;
 			put ($id, $type);
-	}
-	| "self" "." NAME[id] ":" declare typeclass[type] "=" test[value] 
-	| test augassign test { 
+	} 
+	| primary augassign test { 
 			/*
 				if($1 is not lvalue) error
 				if($1 is not in current scope)error
@@ -362,7 +359,7 @@ expr_stmt: NAME[id] ":" declare typeclass[type] {
 			$$->addchild($1);
 			$$->addchild($3);
 	}
-	| test "=" test{
+	| primary "=" test{
 			/*
 				if($1 is not lvalue) error
 				if($1 is not in current scope)error
@@ -528,7 +525,7 @@ primary: atom {
 		*/
 
 		if (current_scope == NULL) current_scope = top;
-		string this_ptr = "self"; // may change, correct this later
+		string this_ptr = current_scope->thisname; // may change, correct this later
 		printf ("searching for object %s\n", $1->production.c_str());
 			// ??? first check if primary is a leaf?????
 		// CHECKING PRIMARY
@@ -537,6 +534,7 @@ primary: atom {
 				exit (dprintf (stderr_copy, "NameError at line %ld: Undefined object %s\n",
 					$3->lineno, $1->production.c_str()));
 			} else if ($1->production == this_ptr) {
+				printf("Checking for self\n");
 				// valid in L-value, r-value, as well as outside init
 				// .isLeaf = false, .token = NAME
 				$$->token = NAME;
@@ -808,15 +806,19 @@ arglist: test
 
 
 typedarglist:  typedargument {/*top->arguments push*/}
-	| test {/*this pointer in case inClass==1 otherwise error*/
+	| NAME {/*this pointer in case inClass==1 otherwise error*/
 		if (!Classsuite && !is_not_name($1))
 			dprintf (stderr_copy, "Error in line %ld: Argument %s to function does not have a type hint\n", $1->lineno, $1->production.c_str());
 		else if (!Classsuite)
 			dprintf (stderr_copy, "Error in line %ld: Argument %s to function is not a valid L-value\n", $1->lineno, $1->production.c_str());
-		if ($1->production != "self") {
-			dprintf (stderr_copy, "Error at line %d: pointer to class object in class method must be named \"self\"\n", yylineno);
-			exit (43);
-		}
+		top->thisname=$1->production;
+		printf("this is the seg fault\n");
+		printf("Current class name  = %s\n", top->parent->name.c_str());
+		top->put($1, top->parent->name);
+		// if ($1->production != "self") {
+		// 	dprintf (stderr_copy, "Error at line %d: pointer to class object in class method must be named \"self\"\n", yylineno);
+		// 	exit (43);
+		// }
 	}
 	| typedarglist "," typedargument { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
 

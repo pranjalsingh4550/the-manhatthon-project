@@ -379,8 +379,7 @@ ignore2	\n[ \f\t]*{comments}?
 True	{yylval.node=new Node(TRUE, true); return TRUE;}
 False	{yylval.node=new Node(FALSE, false); return FALSE;}
 None	{yylval.node=new Node(0);return NONE;}
-self    {yylval.node=new Node(SELF);return SELF;}
-list    {yylval.node=new Node(LIST);return LIST;}
+list    {yylval.node=new Node(LIST,"",yytext);return LIST;}
 {NAME}	{yylval.node=new Node(NAME, "", yytext);return NAME;}
 {ignore}
 <parOpen,squareOpen><<EOF>>	{

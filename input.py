@@ -19,5 +19,4 @@ class mm :
 		self.val1: float
 		t = 33.5
 		self.val1 = num
-
-
+	

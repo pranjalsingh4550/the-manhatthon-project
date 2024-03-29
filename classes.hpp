@@ -120,7 +120,6 @@ class Node {
 			isConstant = true;
 			isLeaf = true;
 		}
-		
 		Node (int tokenIn, const string typestr, const string label) {
 			//for identifiers
 			token = tokenIn;
@@ -316,6 +315,7 @@ class SymbolTable {
 		int isGlobal;
 		ull lineno;
 		string name;
+		string thisname;
 		string return_type="None";
 		vector<string> arg_types; // for function, but class also ig
 		bool fn_inside_class;
@@ -390,7 +390,18 @@ class SymbolTable {
 			this->size = this->size + 1;
 			return 1;
 		}
-		
+		int put (Node* node, string type) {
+			printf ("call to put source %s destination %s\n", type.c_str(), node->typestring.c_str());
+			auto s= new Symbol();
+			s->typestring = type; node->typestring = type;
+			s->lineno = node->lineno;
+			s->isFunction = 0;
+			s->isClass = 0;
+			this->symbols[node->production] = s;
+			this->symbols.insert({node->production, s});
+			this->size = this->size + 1;
+			return 1;
+		}
 		Symbol* get (string name) {
 			if(symbols.find(name) != symbols.end()) {
 				return symbols[name];

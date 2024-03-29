@@ -258,25 +258,27 @@ global_stmt: "global" NAME[id] {
 		*/
 	}
 	
-expr_stmt: NAME[id] ":" declare typeclass[type] {
+expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 			/*
 				if($id is already in current scope)error
 				if($type is not declared in GlobalSymTable->classes)error
 
 				add $id to curent scope with type $type and node $id (put($id,$type));
-			*/
-			if (top->symbols.find($id->production) != top->symbols.end()) {
-				dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
-						$id->lineno, $id->production.c_str());
-				exit(87);
-			}
-			decl=0; //reseting list[int]
-			$$ = new Node ("Declaration");
-			$$->addchild($id, "Name");
-			$$->addchild($type, "Type");
-			$$->typestring = $type->typestring;
-			put ($id, $type);
+			*
+			// if (top->symbols.find($id->production) != top->symbols.end()) {
+			// 	dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
+			// 			$id->lineno, $id->production.c_str());
+			// 	exit(87);
+			// }
+			// decl=0; //reseting list[int]
+			// $$ = new Node ("Declaration");
+			// $$->addchild($id, "Name");
+			// $$->addchild($type, "Type");
+			// $$->typestring = $type->typestring;
+			// put ($id, $type);
 	}
+*/
+/*
 	|"self" "." NAME[id] ":" declare typeclass[type] {
 		if (!Classsuite	|| !currently_defining_class) {
 			dprintf (stderr_copy, "Error at line %d: self object cannot be used outside class scope\n",
@@ -298,7 +300,49 @@ expr_stmt: NAME[id] ":" declare typeclass[type] {
 		$$->addchild($type, "Type");
 		$$->typestring = $type->typestring;
 	}
-	| NAME[id] ":" declare typeclass[type] "=" test[value] {
+	*/
+	 primary[id] ":" declare typeclass[type] {
+		if ($id->isLeaf) {
+
+			if (top->symbols.find($id->production) != top->symbols.end()) {
+				dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
+						$id->lineno, $id->production.c_str());
+				exit(87);
+			}
+			decl=0; //reseting list[int]
+			$$ = new Node ("Declaration");
+			$$->addchild($id, "Name");
+			$$->addchild($type, "Type");
+			$$->typestring = $type->typestring;
+			put ($id, $type);
+		} else { // mind the indent
+		if (!$id->isdecl) {
+			dprintf (stderr_copy, "Error at line %d: invalid L-value in declaration\n", (int) yylineno);
+			exit (34);
+		}
+		if (!Classsuite	|| !currently_defining_class) {
+			dprintf (stderr_copy, "Error at line %d: self object cannot be used outside class scope\n",
+					(int) $id->lineno);
+			exit (57);
+		} else if (!inside_init) {
+			dprintf (stderr_copy, "Error at line %d: class attributes cannot be declard outside the constructor\n",
+					(int) $id->lineno);
+			exit (57);
+		} else if (currently_defining_class->symbols.find($id->production) != currently_defining_class->symbols.end()) {
+			dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
+					$id->lineno, $id->production.c_str());
+			exit(87);
+		}
+		decl = 0;
+		currently_defining_class->put ($id, $type);
+		$$ = new Node ("Declaration");
+		$$->addchild($id, "Name");
+		$$->addchild($type, "Type");
+		$$->typestring = $type->typestring;
+		}
+	}
+	| primary[id] ":" declare typeclass[type] "=" test[value] {
+		if ($id->isLeaf) {
 			if (is_not_name ($id)) {
 				dprintf (stderr_copy, "Error: assignment to non-identifier at line *\n");
 				exit(97);
@@ -336,6 +380,31 @@ expr_stmt: NAME[id] ":" declare typeclass[type] {
 			$$->addchild($value, "Value", $id);
 			$$->typestring = $type->typestring;
 			put ($id, $type);
+		} else { // mind the indent
+			if (!$id->isdecl) {
+				dprintf (stderr_copy, "Error at line %d: invalid L-value in declaration\n", (int) yylineno);
+				exit (34);
+			}
+			if (!Classsuite	|| !currently_defining_class) {
+				dprintf (stderr_copy, "Error at line %d: self object cannot be used outside class scope\n",
+						(int) $id->lineno);
+				exit (57);
+			} else if (!inside_init) {
+				dprintf (stderr_copy, "Error at line %d: class attributes cannot be declard outside the constructor\n",
+						(int) $id->lineno);
+				exit (57);
+			} else if (currently_defining_class->symbols.find($id->production) != currently_defining_class->symbols.end()) {
+				dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
+						$id->lineno, $id->production.c_str());
+				exit(87);
+			}
+			decl = 0;
+			currently_defining_class->put ($id, $type);
+			$$ = new Node ("Declaration");
+			$$->addchild($id, "Name");
+			$$->addchild($type, "Type");
+			$$->typestring = $type->typestring;
+		}
 	} 
 	| primary augassign test { 
 			/*
@@ -385,7 +454,8 @@ expr_stmt: NAME[id] ":" declare typeclass[type] {
 			// these 3 lines copied during merging: check consistency
 			check ($1);
 			check($3);
-			top->get($1)->typestring= $3->typestring;
+			if ($1->isLeaf)
+				top->get($1)->typestring= $3->typestring;
 			$$->add_op ($3, $3, MOV_REG);
 	}
 	| test {
@@ -513,13 +583,17 @@ on entry to primary "." NAME: if primary is a leaf, nothing is set.
 */
 
 
-primary_object: atom {
+primary: atom {
 		// set typestring if available, so we know if it's a declaration or a use
 		$$ = $1;
+		$$->islval = true;
 		if (top->has($1->production))
 			$$->typestring = top->get($1)->typestring;
+		if ($1->production == top->thisname) {
+			$$->isdecl = false;
+		}
 	}
-	| primary_object "." NAME {
+	| primary "." NAME {
 		printf ("-------------------------------\n");
 
 		/* new pseudocode:
@@ -535,9 +609,16 @@ primary_object: atom {
 		}
 		return
 		*/
+		$$ = new Node (0, "", $3->typestring);
+		$$->isLeaf = false;
+		if (inside_init && $1->isLeaf && $1->production == top->thisname) {
+			$$->isdecl = true;	$$->islval = true;
+		} else {
+			$$->isdecl = false; $$->islval = true;
+		}
 
 		string this_ptr = top->thisname;
-		printf ("searching for object %s\n", $1->production.c_str());
+		printf ("searching for object %s %s\n", $1->production.c_str(), $3->production.c_str());
 			// ??? first check if primary is a leaf?????
 		// CHECKING PRIMARY
 		if ($1->isLeaf) { // set typestring
@@ -574,6 +655,12 @@ primary_object: atom {
 		}
 		else
 			$$->typestring = current_scope->gettype($3->production);
+		$$->production = $3->production;
+		if (!$$->isdecl && current_scope->get($3->production) == NULL) {
+			dprintf (stderr_copy, "Error at line %d: Class %s does not have attribute %s\n",
+					(int) $3->lineno, $1->typestring.c_str(), $3->production.c_str());
+			exit (84);
+		}
 	}
 
 /*
@@ -644,6 +731,8 @@ primary: atom {
 		*/
 	| primary "[" test "]"
 		{
+			$$->isdecl = false;
+			$$->islval = true;
 			if ($1->isLeaf && !top->has($1)) {
 				dprintf (stderr_copy, "Error undeclared object %s at line %ld", $1->production.c_str(), $3->lineno);
 				exit (1);
@@ -710,8 +799,6 @@ primary: atom {
 			update $$->typestring as return type of function
 
 		 */
-primary:
-	primary_object
 	| primary "(" testlist ")" {
 		/*
 			if primary is leaf and primary is not in symboltable)error
@@ -748,6 +835,8 @@ primary:
 				printf ("valid function call to function whose name isn't maintained line 689\n");
 			}
 		}
+		$$->islval = false;
+		$$->isdecl = false;
 	}
 	| primary "(" ")" {
 		/*
@@ -777,7 +866,8 @@ primary:
 				printf ("valid function call to function whose name isn't maintained line 689\n");
 			}
 		}
-
+		$$->islval = false;
+		$$->isdecl = false;
 	}
 
 

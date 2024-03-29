@@ -110,12 +110,14 @@ class Node {
 		complexLiteral complexVal;
 		
 		bool isLeaf = false;
+		bool isdecl = false;	// true if the node can be the body of a production
+		bool islval = true;		// false for fn()
 		
 		Node (int tokenIn) {
 			//none, but let the lexer pass the token value so that I don't have to include parser.tab.h here
 			token = tokenIn;
 			nodeid = nodecount++;
-			typestring = "none";
+			typestring = "";
 			lineno = yylineno;
 			isConstant = true;
 			isLeaf = true;
@@ -385,8 +387,8 @@ class SymbolTable {
 			s->lineno = node->lineno;
 			s->isFunction = 0;
 			s->isClass = 0;
+			s->name = node->production;
 			this->symbols[node->production] = s;
-			this->symbols.insert({node->production, s});
 			this->size = this->size + 1;
 			s->dimension = type->dimension;
 			return 1;
@@ -398,8 +400,8 @@ class SymbolTable {
 			s->lineno = node->lineno;
 			s->isFunction = 0;
 			s->isClass = 0;
+			s->name = node->production;
 			this->symbols[node->production] = s;
-			this->symbols.insert({node->production, s});
 			this->size = this->size + 1;
 			return 1;
 		}
@@ -479,7 +481,7 @@ class SymbolTable {
 			fn_inside_class = false;
 		}
 		string gettype (string name) {
-			Symbol *s = get(name);
+			Symbol *s = this->get(name);
 			if (s != NULL) {
 				return s->typestring;
 			}

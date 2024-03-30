@@ -68,6 +68,7 @@
 	}
 	int Funcsuite=0;
 	int Classsuite=0;
+	int inLoop=0;
 	static Node* name;
 	string return_type="None";
 	static Node* params;
@@ -92,7 +93,6 @@
 		top = top->parent;
 	}
 	int gbl_decl =0; // not sure if these 2 will be used
-	int decl=0;
 
 	SymbolTable *find_class(string name) { // because all classes are declared in the global namespace
 		if (globalSymTable->children.find(name) == globalSymTable->children.end())
@@ -190,7 +190,7 @@
 %token <node> NONE "None"
 %token <node> LIST "list"
 
-%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite basesuite funcdef classdef compound_stmt for_stmt testlist STRING_plus  typedarglist_comma typedarglist elif_block typedargument global_stmt typeclass 
+%type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite funcdef classdef compound_stmt for_stmt testlist STRING_plus  typedarglist_comma typedarglist elif_block typedargument global_stmt typeclass 
 
 %start program
 
@@ -224,17 +224,29 @@ simple_stmt: small_stmt ";" NEWLINE
 small_stmt: expr_stmt
 	| { 
 		/*check if current scope isFunction or not by top->isFunction*/
-
+		if(!Funcsuite){
+			dprintf (stderr_copy, "Error at line %d: return is not inside a function\n", (int) yylineno);
+			exit(57);
+		}
 	} return_stmt {$$=$2;}
 
 	| "break" {
 		/*check if current scope is loop or not by top->isLoop*/
-
+		if(!inLoop){
+			dprintf (stderr_copy, "Error at line %d: break is not inside a loop\n", (int) yylineno);
+			exit(58);
+		}
+		$$=$1;
 	} 
 	| "continue"{
 		/*check if current scope is loop or not by top->isLoop*/
+		if(!inLoop){
+			dprintf (stderr_copy, "Error at line %d: continue is not inside a loop\n", (int) yylineno);
+			exit(59);
+		}
+		$$=$1;
 	}
-	| {gbl_decl=1;} global_stmt {gbl_decl=0;}
+	| {gbl_decl=1;} global_stmt[gbl] {gbl_decl=0;$$=$gbl;}
 ;
 
 /* TO DO  dealing with global */
@@ -246,8 +258,18 @@ global_stmt: "global" NAME[id] {
 			$id->nodeid= GlobalSymTable->get(name)->nodeid;
 
 		*/
-} 
-	| global_stmt "," NAME  { $$ = new Node ("Multiple Global"); $$->addchild($1); $$->addchild($3);
+		if(top->local($id)){
+			dprintf (stderr_copy, "Error at line %d: %s is already declared in current scope\n", (int) $id->lineno, $id->production.c_str());
+			exit(87);
+		}
+		if(!globalSymTable->local($id)){
+			dprintf (stderr_copy, "Error at line %d: %s is not declared in global scope\n", (int) $id->lineno, $id->production.c_str());
+			exit(87);
+		}
+		$id->nodeid= globalSymTable->get($id)->node->nodeid;
+		$$=$id;
+	} 
+	| global_stmt "," NAME[id]  { $$ = new Node ("Multiple Global"); $$->addchild($1); $$->addchild($3);
 
 		/* if name in currentscope then error
 			if name not in global scope then error
@@ -255,6 +277,16 @@ global_stmt: "global" NAME[id] {
 			$id->nodeid= GlobalSymTable->get(name)->nodeid;
 
 		*/
+		if(top->local($id)){
+			dprintf (stderr_copy, "Error at line %d: %s is already declared in current scope\n", (int) $id->lineno, $id->production.c_str());
+			exit(87);
+		}
+		if(!globalSymTable->local($id)){
+			dprintf (stderr_copy, "Error at line %d: %s is not declared in global scope\n", (int) $id->lineno, $id->production.c_str());
+			exit(87);
+		}
+		$id->nodeid= globalSymTable->get($id)->node->nodeid;
+		$$=$id;
 	}
 	
 expr_stmt: /* NAME[id] ":" declare typeclass[type] {
@@ -292,7 +324,6 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 					$id->lineno, $id->production.c_str());
 			exit(87);
 		}
-		decl = 0;
 		currently_defining_class->put ($id, $type);
 		$$ = new Node ("Declaration");
 		$$->addchild($id, "Name");
@@ -300,7 +331,7 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 		$$->typestring = $type->typestring;
 	}
 	*/
-	 primary[id] ":" declare typeclass[type] {
+	 primary[id] ":" typeclass[type] {
 		if ($id->isLeaf) {
 
 			if (top->symbols.find($id->production) != top->symbols.end()) {
@@ -308,7 +339,6 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
-			decl=0; //reseting list[int]
 			$$ = new Node ("Declaration");
 			$$->addchild($id, "Name");
 			$$->addchild($type, "Type");
@@ -332,7 +362,6 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 					$id->lineno, $id->production.c_str());
 			exit(87);
 		}
-		decl = 0;
 		currently_defining_class->put ($id, $type);
 		$$ = new Node ("Declaration");
 		$$->addchild($id, "Name");
@@ -340,7 +369,7 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 		$$->typestring = $type->typestring;
 		}
 	}
-	| primary[id] ":" declare typeclass[type] "=" test[value] {
+	| primary[id] ":" typeclass[type] "=" test[value] {
 		if ($id->isLeaf) {
 			if (is_not_name ($id)) {
 				dprintf (stderr_copy, "Error: assignment to non-identifier at line *\n");
@@ -371,7 +400,6 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 				
 				add $id to curent scope with type $type and node $id (put($id,$type));
 			*/
-			decl=0;
 			$$ = new Node ("Declaration");
 			$$->op = MOV_REG;
 			$$->addchild($id, "Name");
@@ -397,7 +425,6 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
-			decl = 0;
 			currently_defining_class->put ($id, $type);
 			$$ = new Node ("Declaration");
 			$$->addchild($id, "Name");
@@ -478,7 +505,6 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 		$$ = $1;
 	}
 
-declare : {decl=1;}
 
 typeclass: NAME {
 		verify_typestring ($1);
@@ -681,7 +707,7 @@ primary: atom {
 			$$ = new Node (0, $1->typestring, "");
 			if ($3->typestring != "int") {
 				dprintf (stderr_copy, "Error at line %d: array subscript cannot be of type %s, must be int\n",
-						yylineno, $3->typestring);
+						yylineno, $3->typestring.c_str());
 				exit (74);
 			}
 		current_scope = NULL;
@@ -793,8 +819,7 @@ atom: NAME
 		 temp += $2->production;
 	 	$$->rename(temp);
 	 }
-	| "[" "]" { $$ = new Node ("Empty List"); $1=new Node("Delimeter\n[");$2=new Node("Delimeter\n]"); $$->addchild($1); $$->addchild($2);}
-
+	/* Empty list not needed */
 STRING_plus: STRING 
 	| STRING_plus STRING {
 		/*
@@ -802,15 +827,15 @@ STRING_plus: STRING
 		*/
 		 $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
-if_stmt: "if" test ":" basesuite { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($4, "Then");}
-	|  "if" test ":" basesuite elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($4, "Then"); $$->addchild($5, "Else"); }
+if_stmt: "if" test ":" suite { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($4, "Then");}
+	|  "if" test ":" suite elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($4, "Then"); $$->addchild($5, "Else"); }
 
 elif_block:
-	"else" ":" basesuite	{ $$ = $3;}
-	| "elif" test ":" basesuite	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($4, "Then"); } /* ok????? fine */ 
-	| "elif" test ":" basesuite elif_block	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($4, "Then"); $$->addchild ($5, "Else"); }
+	"else" ":" suite	{ $$ = $3;}
+	| "elif" test ":" suite	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($4, "Then"); } /* ok????? fine */ 
+	| "elif" test ":" suite elif_block	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($4, "Then"); $$->addchild ($5, "Else"); }
 
-while_stmt: "while" test ":" basesuite {$$ = new Node ("While"); $$->addchild($2, "Condition"); $$->addchild($4, "Do");}
+while_stmt: "while" test ":" suite {$$ = new Node ("While"); $$->addchild($2, "Condition"); $$->addchild($4, "Do");}
 
 
 
@@ -858,9 +883,6 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 
 suite:  simple_stmt[first] 
 	| NEWLINE  INDENT  stmts[third] DEDENT 
-
-basesuite: {newscope("dummy");} simple_stmt[first] {endscope();}
-	| {newscope("dummy");}NEWLINE  INDENT  stmts[third] DEDENT {endscope();}
 /* when using multiple mid-rule actions avoid using $1, $2, $3 as its more rigid to code changes*/
 /* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */
 
@@ -967,8 +989,8 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" expr "in" test ":" basesuite "else" ":" basesuite { $$ = new Node ("For block"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
-        | "for" expr "in" test ":" basesuite  { $$ = new Node ("For Block"); $$->addchild($2,"Iterator"); $$->addchild($4,"Object"); $$->addchild($6,"Body");}                                    
+for_stmt: "for" expr "in" test ":" suite "else" ":" suite { $$ = new Node ("For block"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
+        | "for" expr "in" test ":" suite  { $$ = new Node ("For Block"); $$->addchild($2,"Iterator"); $$->addchild($4,"Object"); $$->addchild($6,"Body");}                                    
 
 testlist: arglist
         | arglist ","

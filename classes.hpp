@@ -298,6 +298,7 @@ class Symbol {
 		ull size = 0;
 		ull offset=0;
 		int dimension=0;
+		Node* node;
 		SymbolTable *nested_table;
 		Symbol(){
 			size = 0;
@@ -374,6 +375,12 @@ class SymbolTable {
 		bool has(Node* node){ // has symbol. doesn';t check for classes/function
 			return has(node->production);
 		}
+		bool local(Node* node) {
+			if (this->symbols.find(node->production) != this->symbols.end()) {
+				return true;
+			}
+			return false;
+		}
 		/*
 		SymbolTable* has_suite(Node *node) {
 			if (this->isClass && this->member_functions.find(
@@ -395,6 +402,7 @@ class SymbolTable {
 			this->symbols[node->production] = s;
 			this->size = this->size + 1;
 			s->dimension = type->dimension;
+			s->node= node;
 			return 1;
 		}
 		int put (Node* node, string type) {
@@ -407,6 +415,8 @@ class SymbolTable {
 			s->name = node->production;
 			this->symbols[node->production] = s;
 			this->size = this->size + 1;
+			s->dimension = node->dimension;
+			s->node= node;
 			return 1;
 		}
 		Symbol* get (string name) {

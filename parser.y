@@ -191,7 +191,6 @@
 %token <node> LIST "list"
 
 %type <node> start stmts stmt simple_stmt small_stmt expr_stmt test augassign return_stmt and_test not_test comparison expr xor_expr ans_expr shift_expr sum term factor power primary atom if_stmt while_stmt arglist suite basesuite funcdef classdef compound_stmt for_stmt testlist STRING_plus  typedarglist_comma typedarglist elif_block typedargument global_stmt typeclass 
-%type <node> primary_object
 
 %start program
 
@@ -587,6 +586,7 @@ primary: atom {
 		// set typestring if available, so we know if it's a declaration or a use
 		$$ = $1;
 		$$->islval = true;
+		$$->isdecl = true;
 		if (top->has($1->production))
 			$$->typestring = top->get($1)->typestring;
 		if ($1->production == top->thisname) {
@@ -594,21 +594,6 @@ primary: atom {
 		}
 	}
 	| primary "." NAME {
-		printf ("-------------------------------\n");
-
-		/* new pseudocode:
-		if priamry is leaf: check top and set typestring
-		if ($1->isLeaf) {
-			if ($1 == "self" && present in table) set typestring and continue
-			if ($1 == "self" && ! present in table) {
-				set token to NAME, isLeaf=false, typestring to "" so it isn't used
-			if ($1 != "self") assert (present in table);
-		}
-		else if ($1->isLeaf == false) {
-			else: assert (primary.typestring is correctly set)
-		}
-		return
-		*/
 		$$ = new Node (0, "", $3->typestring);
 		$$->isLeaf = false;
 		if (inside_init && $1->isLeaf && $1->production == top->thisname) {
@@ -663,72 +648,6 @@ primary: atom {
 		}
 	}
 
-/*
-
-primary: atom {
-	}
-	| primary "." NAME 
-		{
-			// primary:	leaf or compound or self
-			// NAME:	member function or attribute
-			if ($1->isLeaf && !top->has($1)) {
-				dprintf (stderr_copy, "Error undeclared object %s at line %d", $1->production, $3->lineno);
-				exit (1);
-			}
-
-			if (current_scope == NULL) {
-				// have not assumed $1 is a string.
-				SymbolTable * search_result = globalSymTable->find_child($1->typestring);
-				if (search_result && search_result->isClass)
-					current_scope = search_result;
-				else if (search_result) // it is a function. hardcoding because we've saved functions with typestring = "def"
-					dprintf (stderr_copy, "Error at line %d: object of type function does not have attribute %s\n", $3->lineno, $1->typestring, $3->production);
-				else
-					dprintf (stderr_copy, "Error at line %d: object of type %s does not have attribute %s\n", $3->lineno, $1->typestring, $3->production);
-				if (current_scope == NULL)
-					exit(1);
-			}
-
-			// check if primary is a valid scope. assume current_scope is correctly maintained.
-			if (current_scope) {
-				if (inside_init && $1->production== "self") { // create this var
-					top->put($3, NULL);
-				} else if ($1->production == "self") {
-					dprintf (stderr_copy, "Error at line %d: 'self' keyword cannot be used outside __init__() constructor declarations\n", $1->lineno);
-					exit(1);
-				}
-
-				if (current_scope->has($3->production)) { // primitive attribute of primary
-					current_scope = NULL;
-					// fill the reference here
-					$$->typestring = $3->typestring;
-				} else if (current_scope->find_child($3->production)) { // is an attrribute class/method
-					if (current_scope->isClass)
-						current_scope = current_scope->find_child($3->production);
-						// make the 3ac stuff
-					else if (current_scope->find_child($3->production)->isFunction) {
-						// prepare for function call
-						current_scope = current_scope->find_child ($3->production);
-					}
-					else
-						exit (printf ("shouldn't have reached this line\n"));
-				}
-				else {
-					dprintf (stderr_copy, "Error at line %d: class %s not have attribute/method %s\n", $3->lineno, $1->typestring, $3->production);
-					exit(1);
-				}
-			}
-			else {
-				dprintf (stderr_copy, "Error at line %d: reference to attribute %s of primitive object of type %s\n", $3->lineno, $3->production, $1->typestring);
-				exit(1);
-			}
-		}
-		/*
-			if primary is constant then error
-			if( init==1 ) then add NAME to current scope with type of primary
-			else check if name is in current scope or not
-			update type of result and update current scope
-		*/
 	| primary "[" test "]"
 		{
 			$$->isdecl = false;
@@ -749,56 +668,13 @@ primary: atom {
 			}
 			// if primary is out of bounds: run time error right?
 			// reminder: in 3ac, check bounds
-			$$->typestring = $1->typestring;
-		}
-				
-		/*
-			if(primary is leaf and primary is not in symboltable)error
-			if(primary dimension is 0) error
-			if(test->typestring is not int) error
-			if (test is out of bounds) error
-			update $$->typestring as primary->typestring
-		
-			if primary is constant then error
-			if primary is not in current scope then error
-			if test is not int then error
-			if primary dimension is not 0 then error
-
-			reduce dimension by 1 (basically make it 0 in our case)
-		*
-	| primary "(" testlist ")" 
-		/* 
-
-			
-		*
-		{
-			if ($1->isLeaf && !top->has($1)) {
-				dprintf (stderr_copy, "Error at line %d: declared object %s",
-					       	$3->lineno, $1->production); // is $3->lineno maintained?
-				exit (1);
-				// what about a.b(c)?
+			$$ = new Node (0, $1->typestring, "");
+			if ($3->typestring != "int") {
+				dprintf (stderr_copy, "Error at line %d: array subscript cannot be of type %s, must be int\n",
+						yylineno, $3->typestring);
+				exit (74);
 			}
-			SymbolTable* thisscope = 
-				globalSymTable->children[$1->typestring];
-			if (thisscope == NULL)
-			{
-				// error
-			}
-			if (thisscope->isClass)
-
-
-			// SymbolTable* thisfn = thisscope->find($1->production); // 
-			$$->typestring = $3->typestring;
 		}
-	
-	| primary "(" ")"
-		/* 
-			if primary is leaf and primary is not in symboltable)error
-			if(primary is not a function) error
-			if(primary->arg_types.size() != 0) error
-			update $$->typestring as return type of function
-
-		 */
 	| primary "(" testlist ")" {
 		/*
 			if primary is leaf and primary is not in symboltable)error
@@ -815,14 +691,22 @@ primary: atom {
 
 			update $result type as the return type of function
 		*/
+		$$ = new Node (0, "", "");
+		$$->islval = false;
+		$$->isdecl = false;
 		if ($1->isLeaf) {
 			if (top->find_member_fn ($1->production)) {
+				current_scope = top->find_member_fn($1->production);
 				$1->typestring = "def";
 				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
 				// fill 3ac for function call
-			} else if (top->ctor.find($1->production) != top->ctor.end()) { // call to constructor
+			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
+				current_scope = globalSymTable->ctor.find ($1->production)->second;
 				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 				$$->typestring = $1->production;
+			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
+				current_scope = globalSymTable->children.find ($1->production)->second;
+				$$->typestring = current_scope->return_type;
 			} else {
 				dprintf (stderr_copy, "Error at line %ld: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
 				exit(44);
@@ -835,8 +719,6 @@ primary: atom {
 				printf ("valid function call to function whose name isn't maintained line 689\n");
 			}
 		}
-		$$->islval = false;
-		$$->isdecl = false;
 	}
 	| primary "(" ")" {
 		/*
@@ -846,6 +728,7 @@ primary: atom {
 
 			update $result type as the return type of function
 		*/
+		$$ = new Node (0, "", "");
 		if ($1->isLeaf) {
 			if (top->find_member_fn ($1->production)) {
 				$1->typestring = "def";
@@ -854,6 +737,9 @@ primary: atom {
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
 				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 				$$->typestring = $1->production;
+			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
+				current_scope = globalSymTable->children.find ($1->production)->second;
+				$$->typestring = current_scope->return_type;
 			} else {
 				dprintf (stderr_copy, "Error at line %ld: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
 				exit(44);

@@ -413,9 +413,14 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 				if($3 is a leaf && $3 is not a constant ) check if $3 is in scope or not
 			*/
 			// added during merging - check integrity later
-			if (is_not_name ($1)) {
-				dprintf (stderr_copy, "Error at line %d: assignment must be to an identifier\n",
-						yylineno);
+			if ($1->typestring == "" && !$1->isLeaf) {
+				dprintf (stderr_copy, "Error at line %d: class attribute %s has not been defined\n",
+						(int)$1->lineno, $1->production.c_str());
+				exit (40);
+			}
+			if ($1->typestring == "def" || $1->typestring == "class" || $1->islval == false) {
+				dprintf (stderr_copy, "Error at line %d: assignment must be to an identifier or class attribute\n",
+						(int) $1->lineno);
 				exit (33);
 			}
 			if (!top->has($3) && ($3->typestring == "")) {
@@ -442,9 +447,14 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 				if($3 is a leaf && $3 is not a constant ) check if $3 is in scope or not
 
 			*/
-			if ($1->typestring == "def" || $1->typestring == "class") {
-				dprintf (stderr_copy, "Error at line %d: assignment must be to an identifier\n",
-						yylineno);
+			if ($1->typestring == "" && !$1->isLeaf) {
+				dprintf (stderr_copy, "Error at line %d: class attribute %s has not been defined\n",
+						(int)$1->lineno, $1->production.c_str());
+				exit (40);
+			}
+			if ($1->typestring == "def" || $1->typestring == "class" || $1->islval == false) {
+				dprintf (stderr_copy, "Error at line %d: assignment must be to an identifier or class attribute\n",
+						(int) $1->lineno);
 				exit (33);
 			}
 			$$ = new Node ("=");
@@ -458,7 +468,6 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 			$$->add_op ($3, $3, MOV_REG);
 	}
 	| test {
-		printf ("line 341\n");
 		if ($1->isLeaf) {
 			if (!top->has($1->production) && $1->token==NAME){
 				dprintf (stderr_copy, "NameError at line %ld: identifier %s has not been declared\n",
@@ -592,6 +601,7 @@ primary: atom {
 		if ($1->production == top->thisname) {
 			$$->isdecl = false;
 		}
+		current_scope = NULL;
 	}
 	| primary "." NAME {
 		$$ = new Node (0, "", $3->typestring);
@@ -603,8 +613,6 @@ primary: atom {
 		}
 
 		string this_ptr = top->thisname;
-		printf ("searching for object %s %s\n", $1->production.c_str(), $3->production.c_str());
-			// ??? first check if primary is a leaf?????
 		// CHECKING PRIMARY
 		if ($1->isLeaf) { // set typestring
 			if (top->get ($1))
@@ -636,16 +644,18 @@ primary: atom {
 			exit(68);
 		}
 		if (current_scope->find_member_fn ($3->production)) {
-			$$->typestring = "def";
+			$$->typestring = "def"; $$->islval = false;
+			current_scope = current_scope->find_member_fn($3->production); // the only case in which current_scope is truly global
 		}
 		else
 			$$->typestring = current_scope->gettype($3->production);
 		$$->production = $3->production;
-		if (!$$->isdecl && current_scope->get($3->production) == NULL) {
+		if (!$$->isdecl && $$->typestring == "") {
 			dprintf (stderr_copy, "Error at line %d: Class %s does not have attribute %s\n",
 					(int) $3->lineno, $1->typestring.c_str(), $3->production.c_str());
 			exit (84);
 		}
+		$$->lineno = $1->lineno;
 	}
 
 	| primary "[" test "]"
@@ -674,6 +684,8 @@ primary: atom {
 						yylineno, $3->typestring);
 				exit (74);
 			}
+		current_scope = NULL;
+		$$->lineno = $1->lineno;
 		}
 	| primary "(" testlist ")" {
 		/*
@@ -716,9 +728,11 @@ primary: atom {
 				dprintf (stderr_copy, "TypeError at line %ld: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
 			} else { // valid function call
-				printf ("valid function call to function whose name isn't maintained line 689\n");
+				printf ("valid function call to function %s\n",
+						current_scope ? current_scope->name.c_str() : "" );
 			}
 		}
+		$$->lineno = $1->lineno;
 	}
 	| primary "(" ")" {
 		/*
@@ -749,11 +763,14 @@ primary: atom {
 				dprintf (stderr_copy, "TypeError at line %ld: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
 			} else { // valid function call
-				printf ("valid function call to function whose name isn't maintained line 689\n");
+				printf ("valid function call to function %s\n",
+						current_scope ? current_scope->name.c_str() : "" );
 			}
 		}
 		$$->islval = false;
 		$$->isdecl = false;
+		current_scope = NULL;
+		$$->lineno = $1->lineno;
 	}
 
 

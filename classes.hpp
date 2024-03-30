@@ -306,6 +306,10 @@ class Symbol {
 		}
 		Symbol (string , string , int , int , SymbolTable* );
 
+		void print_row (FILE* st) {
+			fprintf (st, "%s\t%s\t%s\t%d\n", this->name.c_str(), this->typestring.c_str(), "Identifier", (int) this->lineno);
+		}
+
 };
 
 class SymbolTable {
@@ -486,6 +490,49 @@ class SymbolTable {
 				return s->typestring;
 			}
 			return "";
+		}
+
+		void print_st (FILE* st) {
+			// print functions first, then classes, then identifiers
+			auto itrc = this->children.begin();
+			for (; itrc!= this->children.end(); itrc++) {
+				if (itrc->second->parent == NULL)
+					continue;
+				if (this->isGlobal)
+					fprintf (st, "%s\t%s\t%s\t%d\t%s\n", itrc->first.c_str(), 
+							itrc->second->isClass? "NA" : itrc->second->return_type.c_str(),
+							itrc->second->isClass? "Class\t" : "Function",
+							itrc->second->lineno,
+							"GLOBAL NAMESPACE"
+					);
+				else if (this->isClass) 
+					fprintf (st, "%s\t%s\t%s\t%d\tCLASS %s\n", itrc->first.c_str(), 
+							itrc->second->isClass? "NA" : itrc->second->return_type.c_str(),
+							itrc->second->isClass? "Class\t" : "Class Method",
+							itrc->second->lineno,
+							this->name.c_str()
+					);
+			}
+			auto itrs = this->symbols.begin();
+			for (; itrs != this->symbols.end(); itrs++) {
+					fprintf (st, "%s\t%s%s\t%s\t%d\t%s\n", itrs->first.c_str(), 
+							itrs->second->typestring.c_str(),
+							itrs->second->dimension ? "[]" : "",
+							"Identifier",
+							itrs->second->lineno,
+							this->isGlobal? "GLOBAL NAMESPACE" : 
+								((this->isClass? "CLASS ": "FUNCTION ") + this->name).c_str()
+					);
+			}
+			itrc = this->children.begin();
+			for (; itrc!= this->children.end(); itrc++) {
+				if (itrc->second->parent == NULL)
+					continue;
+				itrc->second->print_st (st);
+			}
+			for (itrc = this->ctor.begin(); itrc != this->ctor.end(); itrc++) {
+				itrc->second->print_st (st);
+			}
 		}
 };
 class instruction {

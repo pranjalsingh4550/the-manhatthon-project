@@ -6,6 +6,7 @@ class mm :
 		self.val1 = num
 		self.val1 -= self.val1
 		self.val2:str = "aa"
+		self.ar:list[int] 
 	
 	def show(self):
 		temp:float = self.val1
@@ -14,8 +15,11 @@ class mm :
 k:mm = mm()
 k.show() + 55
 
-def gfn():
+def gfn(u:float):
 	t = 9.4
+	u
 
 gfn()
+
+a:list[float]
 

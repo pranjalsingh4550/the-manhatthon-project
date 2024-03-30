@@ -89,7 +89,7 @@
 		}
 	}
 	void endscope(){
-		top = top->parent;
+		top = globalSymTable;
 	}
 	int gbl_decl =0; // not sure if these 2 will be used
 	int decl=0;
@@ -343,11 +343,8 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 	| primary[id] ":" declare typeclass[type] "=" test[value] {
 		if ($id->isLeaf) {
 			if (is_not_name ($id)) {
-				dprintf (stderr_copy, "Error: assignment to non-identifier at line *\n");
+				dprintf (stderr_copy, "Error: assignment to non-identifier at line %d\n", $id->lineno);
 				exit(97);
-			} else if (is_not_name($type)) {
-				dprintf (stderr_copy, "Error: Invalid type hint\n");
-				exit(98);
 			}
 			if ($value->typestring == "") {
 				dprintf (stderr_copy, "Error at line %ld: Invalid value on RHS of unknown type\n",
@@ -485,7 +482,7 @@ typeclass: NAME {
 		$$ = $1;
 	}
 	| "list" "[" NAME "]" {
-		$$ = $1;
+		$$ = $3;
 		$$->dimension = 1;
 		verify_typestring ($3);
 	}
@@ -918,6 +915,7 @@ functionstart:  {
 					currently_defining_class? currently_defining_class : top,
 					Classsuite?MEMBER_FN_ST:FUNCTION_ST,
 					$<node>0->production);
+		top->lineno = $<node>0->lineno;
 	}
 ;
 classdef: "class" NAME classstart ":"  suite[last] {
@@ -958,6 +956,7 @@ classstart:	{
 	Classsuite = 1;
 	currently_defining_class = new SymbolTable (top, CLASS_ST, $<node>0->production);
 	// top = top->parent;
+	currently_defining_class->lineno = $<node>0->lineno;
 }
 
 compound_stmt: 
@@ -1095,6 +1094,10 @@ int main(int argc, char** argv){
 		unlink (".debuglog");
 		fclose (logs);
 	}
+	FILE* stdump = fopen ("symbol_table.csv", "w+");
+	fprintf (stdump, "LEXEME\tTYPE\tTOKEN\t\tLINE\tPARENT SCOPE\n");
+	globalSymTable->print_st(stdump);
+	fclose (stdump);
     return 0;
 }
 

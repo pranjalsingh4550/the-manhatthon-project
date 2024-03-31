@@ -7,6 +7,7 @@ using namespace std;
 
 extern int nodecount;
 extern int tempcount;
+extern bool inside_init;
 extern FILE *graph;
 extern int yylineno;
 static FILE* tac = NULL;
@@ -29,7 +30,7 @@ enum ir_operation {
 	SUB,
 	MUL,
 	DIV,
-	
+
 	ATTR,
 	//
 	ANDBW,	// bitwise and
@@ -464,7 +465,9 @@ class SymbolTable {
 			this->size = this->size + 1;
 			s->dimension = type->dimension;
 			s->node= node;
-			s->node->addr+="_"+name;
+			if(node->isLeaf){
+				s->node->addr+="_"+name;
+			}
 			return 1;
 		}
 		int put (Node* node, string type) {

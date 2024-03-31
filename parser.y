@@ -42,7 +42,7 @@
 	vector <Node*> list_init_inputs;
 	stack <string> jump_labels, jump_labels_upper;
 	int label_count;
-#define TEMPDEBUG 0
+#define TEMPDEBUG 1
 	bool is_not_name (Node*);
 	string static_section;
 	string concatenating_string_plus;
@@ -146,9 +146,10 @@
 				// t_1 = symtable($1->typestring, $3->production)
 				s+= offset + " = symtable(" + leftop->typestring + ", " + rightop->production + ")\n"; 
 				// t_2 = $1->addr + offset
-				string addr = newtemp();
-				s+= addr + " = " + left + " + " + offset + "\n";
-				result->addr = addr;
+				string ult = newtemp();
+				s+=ult +" = (" + left + " + " + offset + ")\n";
+				result->addr = "*"+ult;
+				// cout<<"nice "<<addr<<endl;
 				fprintf(tac, "%s", s.c_str());
 				return;
 			}
@@ -353,7 +354,6 @@ global_stmt: "global" NAME[id] {
 			exit(87);
 		}
 		$id->nodeid= globalSymTable->get($id)->node->nodeid;
-		$$=$id;
 	} 
 	| global_stmt "," NAME[id]  { $$ = new Node ("Multiple Global"); $$->addchild($1); $$->addchild($3);
 
@@ -475,6 +475,8 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			$$->addchild($id, "Name");
 			$$->addchild($type, "Type");
 			$$->typestring = $type->typestring;
+
+			gen ($$,$id, $value, ASSIGN);
 		}
 	} 
 	| primary augassign test { 
@@ -1004,11 +1006,12 @@ primary: atom {
 		}
 		if (current_scope->find_member_fn ($3->production)) {
 			$$->typestring = "def"; $$->islval = false;
-			current_scope = current_scope->find_member_fn($3->production); // the only case in which current_scope is truly global
+			current_scope = current_scope->find_member_fn($3->production);
+			$$->addr = $1->typestring +"_" + $3->production;
+			 // the only case in which current_scope is truly global
 		}
 		else{
 			$$->typestring = current_scope->gettype($3->production);
-
 			gen($$,$1,$3,ATTR);
 		}
 		$$->production = $3->production;
@@ -1080,15 +1083,16 @@ primary: atom {
 		if ($1->isLeaf) {
 			if (top->find_member_fn ($1->production)) {
 				current_scope = top->find_member_fn($1->production);
-				$1->typestring = current_scope->return_type;
+				$$->typestring = current_scope->return_type;
+				$$->addr = "call "+ $1->addr + ", "+ to_string(current_scope->arg_types.size());
 #if TEMPDEBUG
-				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
+				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 #endif
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
 				current_scope = globalSymTable->ctor.find ($1->production)->second;
 #if TEMPDEBUG
-				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 #endif
 				$$->typestring = $1->production;
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
@@ -1109,6 +1113,7 @@ primary: atom {
 #endif
 			}
 		}
+		printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
 	}
 	| primary "(" ")" {
@@ -1126,17 +1131,20 @@ primary: atom {
 				exit(1);
 			}
 			if (top->find_member_fn ($1->production)) {
-				$1->typestring = "def";
+				// $1->typestring = "def";
+				$$->typestring = top->find_member_fn($1->production)->return_type;
+				$$->addr = "call "+ $1->addr;
+
 #if TEMPDEBUG
-				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
+				printf("typestring = %s\n", $$->typestring.c_str());
+				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 #endif
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
 #if TEMPDEBUG
-				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 #endif
 				$$->typestring = $1->production;
-				cout<<"return type of constructor "<<$$->typestring<<endl;
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
 				$$->typestring = current_scope->return_type;
@@ -1148,15 +1156,16 @@ primary: atom {
 			if ($1->typestring != "def") {
 				dprintf (stderr_copy, "TypeError at line %d: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
-			} else { // valid function call
+			} // valid function call
 #if TEMPDEBUG
-				printf ("valid function call to function %s\n",
-						current_scope ? current_scope->name.c_str() : "" );
+			printf ("valid function call to function %s\n",
+			current_scope ? current_scope->name.c_str() : "" );
 #endif
-			}
 		}
 		$$->islval = false;
 		$$->isdecl = false;
+		$$->typestring = ($$->typestring != "" ?  $$->typestring: current_scope->return_type);
+		// printf("typestring = %s\n", $$->typestring.c_str());
 		current_scope = NULL;
 		$$->lineno = $1->lineno;
 	}
@@ -1316,7 +1325,9 @@ suite:  simple_stmt[first]
 /* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */
 
 
-funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" typeclass[ret] ":" suite[last] {
+funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" typeclass[ret] {
+	top->return_type = $ret->production;
+}":" suite[last] {
 		Funcsuite=0;
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
@@ -1325,14 +1336,19 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$->addchild($ret, "Return type");
 		$$->addchild($last, "Body");
 	}
-	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] ":" suite[last] {
+	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] {
+		top->return_type = $returntype->production;
+	} ":" suite[last] {
 	       	Funcsuite=0;
 		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn"); $$->addchild($id, "Name");
 	       	$$->addchild($returntype, "Return type");
 	       	$$->addchild($last, "Body");
 	}
-	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" suite[last] {
+	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" {
+			top->return_type = "None";
+		}
+		suite[last] {
 	       	Funcsuite=0;
 		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn");
@@ -1340,7 +1356,9 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	$$->addchild($param,"Parameters");
 	       	$$->addchild($last, "Body");
 	}
-	| "def" NAME[id] functionstart "(" ")" ":" suite[last] {
+	| "def" NAME[id] functionstart "(" ")" ":" {
+			top->return_type = "None";
+	}suite[last] {
 	       	Funcsuite=0;
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");

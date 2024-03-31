@@ -78,6 +78,7 @@
 		return ;
 	}
 	extern void check (Node* n) ;
+	extern int check_number(Node* n) ;
 	bool check(Node* n1, Node* n2){
 		if(n1->typestring != n2->typestring){
 			return false;
@@ -169,31 +170,32 @@
 	void gen(Node*leftop, Node* rightop, enum ir_operation op){
 		
 	}
-	const char* get_next_label (string description) {
+	string get_next_label (string description) {
 		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
 		if (description != "") tmp += "_" + description;
 		jump_labels.push (tmp);
-		return tmp.c_str();
+		return tmp;
 	}
-	const char* get_current_label () {
+	string get_current_label () {
 		string tmp = jump_labels.top();
 		jump_labels.pop();
-		return tmp.c_str();
+		return tmp;
 	}
-	const char* get_next_label_upper (string description) {
+	string get_next_label_upper (string description) {
 		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
 		if (description != "") tmp += "_" + description;
 		jump_labels_upper.push (tmp);
-		return tmp.c_str();
+		return tmp;
 	}
-	const char* get_current_label_upper () {
+	string get_current_label_upper () {
 		string tmp = jump_labels_upper.top();
 		jump_labels_upper.pop();
-		return tmp.c_str();
+		return tmp;
 	}
-	const char * dev_helper(Node* n) {
-			return "";
+	string dev_helper(Node* n) {
+		return top->getaddr (n);
 	}
+	
 %}
 
 %union {
@@ -626,25 +628,295 @@ ans_expr: shift_expr
 shift_expr: sum 
 	| shift_expr "<<" sum	{ $$ = new Node ("Left Shift\n<<"); $$->addchild ($1); $$->addchild ($3);}
 	| shift_expr ">>" sum	{ $$ = new Node ("Right Shift\n>>"); $$->addchild ($1); $$->addchild ($3);}
+
 sum : sum "+" term  { 
 		$$ = new Node ("+"); 
 		$$->addchild ($1); $$->addchild($3);
-		$$->typestring = $1->typestring; 
-		gen($$,$1, $3, ADD);
+		// $$->typestring = $1->typestring;
+		if ($1->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+			exit(1);
 		}
-	| sum "-" term	{ $$ = new Node ("-"); $$->addchild ($1); $$->addchild($3); }
-	| term
-term: term "*" factor	{ $$ = new Node ("*"); $$->addchild ($1); $$->addchild($3); }
-	| term "/" factor	{ $$ = new Node ("/"); $$->addchild ($1); $$->addchild($3); }
-	| term "%" factor	{ $$ = new Node ("%"); $$->addchild ($1); $$->addchild($3); }
-	| term DOUBLESLASH factor { $$ = new Node ("//"); $$->addchild ($1); $$->addchild($3); }
-	|factor	
-factor: "+" factor	{ $$ = new Node ("+"); $$->addchild($2);}
-	| "-" factor	{ $$ = new Node ("-"); $$->addchild($2);}
-	| "~" factor	{ $$ = new Node ("~"); $$->addchild($2);}
-	| power
-power: primary { current_scope = NULL; $$ = $1; }
-	| primary "**" factor	{ $$ = new Node ("**"); $$->addchild($1); $$->addchild($3); current_scope = NULL;}
+		if ($3->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+			exit(1);
+		}
+		
+		if (!check_number($1)) {
+			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first summand for addition, type is %s\n",$2->lineno, $1->typestring.c_str());
+			 exit(69);
+		}
+		if (!check_number($3)) {
+			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second summand for addition, type is %s\n",$2->lineno, $3->typestring.c_str());
+			 exit(69);
+		}
+		if ($1->typestring == "complex" || $3->typestring == "complex") {
+			$$->typestring = "complex";
+		} else if ($1->typestring == "float" || $3->typestring == "float"){
+			$$->typestring = "float";
+		} else { //i.e. ints/bools + ints/bools => always int
+			$$->typestring = "int";
+		}
+		gen($$,$1, $3, ADD);
+}
+	| sum "-" term	{
+		$$ = new Node ("-"); 
+		$$->addchild ($1); 
+		$$->addchild($3);
+		
+		if ($1->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+			exit(1);
+		}
+		if ($3->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+			exit(1);
+		}
+		
+		if (!check_number($1)) {
+			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first summand for addition, type is %s\n",$2->lineno, $1->typestring.c_str());
+			 exit(69);
+		}
+		if (!check_number($3)) {
+			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second summand for addition, type is %s\n",$2->lineno, $3->typestring.c_str());
+			 exit(69);
+		}
+		if ($1->typestring == "complex" || $3->typestring == "complex") {
+			$$->typestring = "complex";
+		} else if ($1->typestring == "float" || $3->typestring == "float"){
+			$$->typestring = "float";
+		} else { //i.e. ints/bools + ints/bools => always int
+			$$->typestring = "int";
+		}
+		gen($$, $1, $3, SUB);
+}
+	| term {
+	if ($1->typestring == "")	{
+		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at sum: term production\n", $1->lineno);
+		exit(1);
+	}
+	$$ = $1;
+}
+
+term: term "*" factor	{
+	$$ = new Node ("*");
+	$$->addchild ($1);
+	$$->addchild($3);
+	
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	
+	if (!check_number($1)) {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first summand for addition, type is %s\n",$2->lineno, $1->typestring.c_str());
+		 exit(69);
+	}
+	if (!check_number($3)) {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second summand for addition, type is %s\n",$2->lineno, $3->typestring.c_str());
+		 exit(69);
+	}
+	if ($1->typestring == "complex" || $3->typestring == "complex") {
+		$$->typestring = "complex";
+	} else if ($1->typestring == "float" || $3->typestring == "float"){
+		$$->typestring = "float";
+	} else { //i.e. ints/bools + ints/bools => always int
+		$$->typestring = "int";
+	}
+	gen($$,$1, $3, MUL);
+}
+	| term "/" factor	{
+	$$ = new Node ("/");
+	$$->addchild ($1);
+	$$->addchild($3);
+	
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	
+	if (!check_number($1)) {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of dividend for division, type is %s\n",$2->lineno, $1->typestring.c_str());
+		 exit(69);
+	}
+	if (!check_number($3)) {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of divisor for division, type is %s\n",$2->lineno, $3->typestring.c_str());
+		 exit(69);
+	}
+	if ($1->typestring == "complex" || $3->typestring == "complex") {
+		$$->typestring = "complex";
+	} else { //all other cases: float
+		$$->typestring = "float";
+	}
+	gen($$,$1, $3, DIV);
+}
+	| term "%" factor	{
+		//modulo not defined for complex num
+	$$ = new Node ("%");
+	$$->addchild ($1);
+	$$->addchild($3);
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	
+	if (!check_number($1) || $1->typestring == "complex") {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first argument for modulo, type is %s\n",$2->lineno, $1->typestring.c_str());
+		 exit(69);
+	}
+	if (!check_number($3) || $3->typestring == "complex") {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second argument for modulo, type is %s\n",$2->lineno, $3->typestring.c_str());
+		 exit(69);
+	}
+	
+	if ($1->typestring == "float" || $3->typestring == "float") {
+		$$->typestring = "float";
+	} else {
+		$$->typestring = "int";
+	}
+	
+	//to add: gen
+}
+	| term DOUBLESLASH factor {
+	$$ = new Node ("//");
+	$$->addchild ($1);
+	$$->addchild($3);
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	
+	if (!check_number($1) || $1->typestring == "complex") {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first argument for floor division, type is %s\n",$2->lineno, $1->typestring.c_str());
+		 exit(69);
+	}
+	if (!check_number($3) || $3->typestring == "complex") {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second argument for floor division, type is %s\n",$2->lineno, $3->typestring.c_str());
+		 exit(69);
+	}
+	
+	if ($1->typestring == "float" || $3->typestring == "float") {
+		$$->typestring = "float";
+	} else {
+		$$->typestring = "int";
+	}
+	
+	//to add: gen
+}
+	| factor {
+	if ($1->typestring == "")	{
+		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at term: factor production\n", $1->lineno);
+		exit(1);
+	}
+	$$ = $1;
+}
+factor: "+" factor	{
+	$$ = new Node ("+");
+	$$->addchild($2);
+	if ($2->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $2->lineno);
+		exit(1);
+	}
+	if (!check_number($2)) {
+		dprintf(stderr_copy, "TypeError at line %d: Invalid type for setting positive, type is %s\n",$2->lineno, $2->typestring.c_str());
+		exit(1);
+	}
+	
+	$$->typestring = $2->typestring;
+	//to add: gen
+}
+	| "-" factor	{
+	$$ = new Node ("-");
+	$$->addchild($2);
+	if ($2->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $2->lineno);
+		exit(1);
+	}
+	if (!check_number($2)) {
+		dprintf(stderr_copy, "TypeError at line %d: Invalid type for setting negative, type is %s\n",$2->lineno, $2->typestring.c_str());
+		exit(1);
+	}
+	
+	$$->typestring = $2->typestring;
+	//to add: gen
+}
+	| "~" factor	{
+	$$ = new Node ("~");
+	$$->addchild($2);
+	if ($2->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $2->lineno);
+		exit(1);
+	}
+	if ($2->typestring != "int" && $2->typestring != "bool") {
+		dprintf(stderr_copy, "TypeError at line %d: Invalid type for unary not, type is %s\n",$2->lineno, $2->typestring.c_str());
+		exit(1);
+	}
+	
+	$$->typestring = "int"; //always
+}
+	| power {
+	if ($1->typestring == "")	{
+		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at factor: power production\n", $1->lineno);
+		exit(1);
+	}
+	$$ = $1;
+}
+power: primary {
+	current_scope = NULL;
+	$$ = $1;
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at power: primary production\n", $1->lineno);
+		exit(1);
+	}
+}
+	| primary "**" factor	{
+	$$ = new Node ("**");
+	$$->addchild($1);
+	$$->addchild($3);
+	current_scope = NULL;
+	if ($1->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+			exit(1);
+		}
+		if ($3->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+			exit(1);
+		}
+		
+		if (!check_number($1)) {
+			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first summand for addition, type is %s\n",$2->lineno, $1->typestring.c_str());
+			 exit(69);
+		}
+		if (!check_number($3)) {
+			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second summand for addition, type is %s\n",$2->lineno, $3->typestring.c_str());
+			 exit(69);
+		}
+		if ($1->typestring == "complex" || $3->typestring == "complex") {
+			$$->typestring = "complex";
+		} else if ($1->typestring == "float" || $3->typestring == "float"){
+			$$->typestring = "float";
+		} else { //i.e. ints/bools + ints/bools => always int
+			$$->typestring = "int";
+		}
+		
+		//to add: gen
+}
 
 /* TO DO 
 	Complete typechecking and attribute scope checking for each primary symbol expansion
@@ -947,28 +1219,45 @@ STRING_plus: STRING {
 		concatenating_string_plus = concatenating_string_plus + $2->production;
 		 $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
-if_stmt: "if" test insert_jump_to_end insert_jump_if_false ":" suite[ifsuite] { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then");
-		 	fprintf (tac, "LABEL: %s\n", get_current_label());
-		 	fprintf (tac, "LABEL: %s\n", get_current_label_upper());
+if_stmt: "if" test new_jump_to_end insert_jump_if_false ":" suite[ifsuite] insert_end_jump_label jump_target_false_lower upper_jump_target_reached { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then");
 		 }
-	|  "if" test insert_jump_to_end insert_jump_if_false ":" suite[ifsuite] elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then"); $$->addchild($6, "Else"); }
+	|  "if" test new_jump_to_end insert_jump_if_false ":" suite[ifsuite] insert_end_jump_label jump_target_false_lower elif_block[elifsuite] {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then"); $$->addchild($elifsuite, "Else"); }
 
 elif_block:
-	"else" ":" suite	{ $$ = $3;}
-	| "elif" test ":" suite	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($4, "Then"); } /* ok????? fine */ 
-	| "elif" test ":" suite elif_block	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($4, "Then"); $$->addchild ($5, "Else"); }
+	"else" ":" suite upper_jump_target_reached 	{ $$ = $3;}
+	| "elif" test ":" insert_jump_if_false suite[elifsuite]	jump_target_false_lower upper_jump_target_reached 
+	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($elifsuite, "Then"); } /* ok????? fine */ 
+	| "elif" test ":" insert_jump_if_false suite[elifsuite] insert_end_jump_label jump_target_false_lower elif_block[nextblock]	
+	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($elifsuite, "Then"); $$->addchild ($nextblock, "Else"); }
 
-while_stmt: "while" test ":" suite {$$ = new Node ("While"); $$->addchild($2, "Condition"); $$->addchild($4, "Do");}
+while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false suite[action] loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
+
+begin_loop_condition : {
+		fprintf (tac, "\nLABEL: %s\n", get_next_label_upper("loop").c_str());
+	}
+
+loop_end_jump_back : {
+		fprintf (tac, "\tUJUMP %s\n", get_current_label_upper().c_str());
+	}
 
 insert_jump_if_false : {
-				fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper($<node>0), get_next_label(""));
+				fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper($<node>-1).c_str(), get_next_label("").c_str());
 	}
-insert_jump_to_end : {
+jump_target_false_lower : {
+		fprintf (tac, "\nLABEL: %s\n", get_current_label().c_str());
+	}
+
+new_jump_to_end : {
 			// jump to the end of the if-elif-else sequence
 			// insert at the end of every suite, to jump to the end.
 			get_next_label_upper("end_of_control_flow");
 	}
-
+insert_end_jump_label : {
+		fprintf (tac, "\tUJUMP\t%s\n", jump_labels_upper.top().c_str());
+	}
+upper_jump_target_reached : {
+		fprintf (tac, "\nLABEL:\t%s\n", get_current_label_upper().c_str());
+	}
 
 arglist: test[obj]
 	{
@@ -1268,7 +1557,10 @@ int main(int argc, char** argv){
 	fprintf (stdump, "LEXEME\tTYPE\tTOKEN\t\tLINE\tPARENT SCOPE\n");
 	globalSymTable->print_st(stdump);
 	fclose (stdump);
-	cout << static_section << endl;
+	if (static_section != "Static section:\n")
+		cout << static_section << endl;
+	if (jump_labels_upper.size() != 0 || jump_labels.size() != 0)
+		printf ("Error stacks not empty\n");
     return 0;
 }
 
@@ -1299,4 +1591,15 @@ void check(Node* n){
 		fprintf(stderr, "NameError: name %s is not defined\n", n->production.c_str());
 		exit(1);
 	}
+}
+
+int check_number(Node* n) {
+	//return 1 if number, 0 if not
+	if (n->typestring != "bool"
+	 && n->typestring != "int"
+	 && n->typestring != "float"
+	 && n->typestring != "complex") {
+	 	return 0;
+	}
+	return 1;
 }

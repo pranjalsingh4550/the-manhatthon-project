@@ -32,6 +32,7 @@ enum ir_operation {
 	DIV,
 
 	ATTR,
+	SUBSCRIPT,
 	//
 	ANDBW,	// bitwise and
 	ORBW,	// BITWISE OR
@@ -482,7 +483,7 @@ class SymbolTable {
 			s->name = node->production;
 			this->symbols[node->production] = s;
 			this->size = this->size + 1;
-			s->dimension = node->dimension;
+			s->dimension = 0;
 			s->node= node;
 			s->node->addr+="_"+name;
 			return 1;
@@ -535,6 +536,7 @@ class SymbolTable {
 			children["complex"] = new SymbolTable ("class", CLASS_ST, "complex", 16);
 			children["bool"] = new SymbolTable ("class", CLASS_ST, "bool", 8);
 			children["str"] = new SymbolTable ("class", CLASS_ST, "str", sizeof(struct str_struct));
+			symbols["__name__"] = new Symbol ("__name__", "str", 0, 0, this);
 			size = 0;
 #if TEMPDEBUG
 			printf ("Call to st ctor. now parent's size is %ld, number of children in parent is %ld\n", this->symbols.size(), this->children.size());

@@ -369,24 +369,24 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			$$->typestring = $type->typestring;
 			put ($id, $type);
 		} else { // mind the indent
-		if (!Classsuite	|| !currently_defining_class) {
-			dprintf (stderr_copy, "Error at line %d: self object cannot be used outside class scope\n",
-					$id->lineno);
-			exit (57);
-		} else if (!inside_init) {
-			dprintf (stderr_copy, "Error at line %d: class attributes cannot be declard outside the constructor\n",
-					$id->lineno);
-			exit (57);
-		} else if (currently_defining_class->symbols.find($id->production) != currently_defining_class->symbols.end()) {
-			dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
-					$id->lineno, $id->production.c_str());
-			exit(87);
-		}
-		currently_defining_class->put ($id, $type);
-		$$ = new Node ("Declaration");
-		$$->addchild($id, "Name");
-		$$->addchild($type, "Type");
-		$$->typestring = $type->typestring;
+			if (!Classsuite	|| !currently_defining_class) {
+				dprintf (stderr_copy, "Error at line %d: self object cannot be used outside class scope\n",
+						$id->lineno);
+				exit (57);
+			} else if (!inside_init) {
+				dprintf (stderr_copy, "Error at line %d: class attributes cannot be declard outside the constructor\n",
+						$id->lineno);
+				exit (57);
+			} else if (currently_defining_class->symbols.find($id->production) != currently_defining_class->symbols.end()) {
+				dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
+						$id->lineno, $id->production.c_str());
+				exit(87);
+			}
+			currently_defining_class->put ($id, $type);
+			$$ = new Node ("Declaration");
+			$$->addchild($id, "Name");
+			$$->addchild($type, "Type");
+			$$->typestring = $type->typestring;
 		}
 	}
 	| primary[id] ":" typeclass[type] "=" test[value] {
@@ -576,26 +576,358 @@ and_test : not_test
 not_test : comparison
 	| "not" not_test	{ $$ = new Node ("not"); $$->addchild ($2);}
 
-comparison: expr  
-	| expr "==" comparison	{ $$ = new Node ("=="); $$->addchild ($1); $$->addchild ($3);}
-	| expr "!=" comparison	{ $$ = new Node ("!="); $$->addchild ($1); $$->addchild ($3);}
-	| expr "<" comparison	{ $$ = new Node ("<"); $$->addchild ($1); $$->addchild ($3);}
-	| expr "<=" comparison	{ $$ = new Node ("<="); $$->addchild ($1); $$->addchild ($3);}
-	| expr ">" comparison	{ $$ = new Node (">"); $$->addchild ($1); $$->addchild ($3);}
-	| expr ">=" comparison	{ $$ = new Node (">="); $$->addchild ($1); $$->addchild ($3);}
+comparison: expr {
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	$$ = $1;
+}
+	| expr "==" comparison	{
+		$$ = new Node ("==");
+		$$->addchild ($1);
+		$$->addchild ($3);
+		if ($1->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+			exit(1);
+		}
+		if ($3->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+			exit(1);
+		}
+		if (($1->typestring == "str" && $3->typestring != "str")
+		||  ($1->typestring != "str" && $3->typestring == "str")) {
+			dprintf(stderr_copy, "TypeError at line %d: incompatible types for == comparison: %s and %s\n", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+			exit(1);
+		}
+		if (!check_number($1)) {
+			dprintf(stderr_copy, "TypeError at line %d: first operand for == comparison has type %s\n", $2->lineno, $1->typestring.c_str());
+			exit(1);
+		}
+		if (!check_number($3)) {
+			dprintf(stderr_copy, "TypeError at line %d: first operand for == comparison has type %s\n", $2->lineno, $3->typestring.c_str());
+			exit(1);
+		}
+		$$->typestring = "bool";
+		
+		//to do: gen
+}
+	| expr "!=" comparison	{
+	$$ = new Node ("!=");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	if (($1->typestring == "str" && $3->typestring != "str")
+	||  ($1->typestring != "str" && $3->typestring == "str")) {
+		dprintf(stderr_copy, "TypeError at line %d: incompatible types for != comparison: %s and %s\n", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+		exit(1);
+	}
+	if (!check_number($1)) {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for != comparison has type %s\n", $2->lineno, $1->typestring.c_str());
+		exit(1);
+	}
+	if (!check_number($3)) {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for != comparison has type %s\n", $2->lineno, $3->typestring.c_str());
+		exit(1);
+	}
+	$$->typestring = "bool";
+	
+	//to do: gen
+}
+	| expr "<" comparison	{
+	$$ = new Node ("<");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	if (($1->typestring == "str" && $3->typestring != "str")
+	||  ($1->typestring != "str" && $3->typestring == "str")) {
+		dprintf(stderr_copy, "TypeError at line %d: incompatible types for < comparison: %s and %s\n", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+		exit(1);
+	}
+	if (!check_number($1)) {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for < comparison has type %s\n", $2->lineno, $1->typestring.c_str());
+		exit(1);
+	}
+	if (!check_number($3)) {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for < comparison has type %s\n", $2->lineno, $3->typestring.c_str());
+		exit(1);
+	}
+	$$->typestring = "bool";
+	
+	//to do: gen
+}
+	| expr "<=" comparison	{
+	$$ = new Node ("<=");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	if (($1->typestring == "str" && $3->typestring != "str")
+	||  ($1->typestring != "str" && $3->typestring == "str")) {
+		dprintf(stderr_copy, "TypeError at line %d: incompatible types for <= comparison: %s and %s\n", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+		exit(1);
+	}
+	if (!check_number($1)) {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for <= comparison has type %s\n", $2->lineno, $1->typestring.c_str());
+		exit(1);
+	}
+	if (!check_number($3)) {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for <= comparison has type %s\n", $2->lineno, $3->typestring.c_str());
+		exit(1);
+	}
+	$$->typestring = "bool";
+	
+	//to do: gen
+}
+	| expr ">" comparison	{
+	$$ = new Node (">");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	if (($1->typestring == "str" && $3->typestring != "str")
+	||  ($1->typestring != "str" && $3->typestring == "str")) {
+		dprintf(stderr_copy, "TypeError at line %d: incompatible types for > comparison: %s and %s\n", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+		exit(1);
+	}
+	if (!check_number($1)) {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for > comparison has type %s\n", $2->lineno, $1->typestring.c_str());
+		exit(1);
+	}
+	if (!check_number($3)) {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for > comparison has type %s\n", $2->lineno, $3->typestring.c_str());
+		exit(1);
+	}
+	$$->typestring = "bool";
+	
+	//to do: gen
+}
+	| expr ">=" comparison	{
+	$$ = new Node (">=");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	if (($1->typestring == "str" && $3->typestring != "str")
+	||  ($1->typestring != "str" && $3->typestring == "str")) {
+		dprintf(stderr_copy, "TypeError at line %d: incompatible types for >= comparison: %s and %s\n", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+		exit(1);
+	}
+	if (!check_number($1)) {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for >= comparison has type %s\n", $2->lineno, $1->typestring.c_str());
+		exit(1);
+	}
+	if (!check_number($3)) {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for >=T comparison has type %s\n", $2->lineno, $3->typestring.c_str());
+		exit(1);
+	}
+	$$->typestring = "bool";
+	
+	//to do: gen
+}
 
 
-expr: xor_expr 
-	| expr "|" xor_expr { $$ = new Node ("Bitwise OR\n|"); $$->addchild ($1); $$->addchild ($3);}
+expr: xor_expr {
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	$$ = $1;
+}
+	| expr "|" xor_expr {
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	if ($1->typestring != "int"
+	&&  $1->typestring != "bool") {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for | has type %s\n", $2->lineno, $1->typestring.c_str());
+		exit(1);
+	}
+	if ($3->typestring != "int"
+	&&  $3->typestring != "bool") {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for | has type %s\n", $2->lineno, $3->typestring.c_str());
+		exit(1);
+	}
+	$$ = new Node ("Bitwise OR\n|");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	if ($1->typestring == "int"
+	||  $3->typestring == "int" ) {
+		$$->typestring = "int";
+	} else {
+		$$->typestring = "bool";
+	}
+	//to do: gen
+}
+xor_expr: ans_expr {
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	$$ = $1;
+}
+	| xor_expr "^" ans_expr	{
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	if ($1->typestring != "int"
+	&&  $1->typestring != "bool") {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for ^ has type %s\n", $2->lineno, $1->typestring.c_str());
+		exit(1);
+	}
+	if ($3->typestring != "int"
+	&&  $3->typestring != "bool") {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for ^ has type %s\n", $2->lineno, $3->typestring.c_str());
+		exit(1);
+	}
+	$$ = new Node ("Bitwise XOR\n^");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	if ($1->typestring == "int"
+	||  $3->typestring == "int" ) {
+		$$->typestring = "int";
+	} else {
+		$$->typestring = "bool";
+	}
+	//to do: gen
+}
 
-xor_expr: ans_expr
-	| xor_expr "^" ans_expr	{ $$ = new Node ("Bitwise XOR\n^"); $$->addchild ($1); $$->addchild ($3);}
-
-ans_expr: shift_expr 
-	| ans_expr "&" shift_expr	{ $$ = new Node ("Bitwise AND\n&"); $$->addchild ($1); $$->addchild ($3);}
-shift_expr: sum 
-	| shift_expr "<<" sum	{ $$ = new Node ("Left Shift\n<<"); $$->addchild ($1); $$->addchild ($3);}
-	| shift_expr ">>" sum	{ $$ = new Node ("Right Shift\n>>"); $$->addchild ($1); $$->addchild ($3);}
+ans_expr: shift_expr {
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	$$ = $1;
+}
+	| ans_expr "&" shift_expr	{
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	if ($1->typestring != "int"
+	&&  $1->typestring != "bool") {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $1->typestring.c_str());
+		exit(1);
+	}
+	if ($3->typestring != "int"
+	&&  $3->typestring != "bool") {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $3->typestring.c_str());
+		exit(1);
+	}
+	$$ = new Node("Bitwise AND\n&");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	if ($1->typestring == "int"
+	||  $3->typestring == "int" ) {
+		$$->typestring = "int";
+	} else {
+		$$->typestring = "bool";
+	}
+	//to do: gen
+}
+shift_expr: sum {
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	$$ = $1;
+} 
+	| shift_expr "<<" sum	{
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	if ($1->typestring != "int"
+	&&  $1->typestring != "bool") {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $1->typestring.c_str());
+		exit(1);
+	}
+	if ($3->typestring != "int"
+	&&  $3->typestring != "bool") {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $3->typestring.c_str());
+		exit(1);
+	}
+	$$ = new Node ("Left Shift\n<<");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	$$->typestring = "int"; //always
+	//to do: gen
+}
+	| shift_expr ">>" sum	{
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	if ($1->typestring != "int"
+	&&  $1->typestring != "bool") {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $1->typestring.c_str());
+		exit(1);
+	}
+	if ($3->typestring != "int"
+	&&  $3->typestring != "bool") {
+		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $3->typestring.c_str());
+		exit(1);
+	}
+	$$ = new Node ("Right Shift\n>>");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	$$->typestring = "int"; //always
+	//to do: gen
+}
 
 sum : sum "+" term  { 
 		$$ = new Node ("+"); 

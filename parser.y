@@ -97,7 +97,7 @@
 	string return_type="None";
 	static Node* params;
 	void newscope(string name){
-	cout << "New scope " << name << endl;
+	// cout << "New scope " << name << endl;
 		if(Funcsuite){
 			if(Classsuite){
 				top = new SymbolTable (top, MEMBER_FN_ST, name);
@@ -157,7 +157,7 @@
 				string ult = newtemp();
 				s+=ult +" = (" + left + " + " + offset + ")\n";
 				result->addr = "*"+ult;
-				// cout<<"nice "<<addr<<endl;
+				// // cout<<"nice "<<addr<<endl;
 				fprintf(tac, "\t%s", s.c_str());
 				return;
 			}
@@ -475,9 +475,9 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			$1->typestring = $type->typestring;
 			$1->dimension = $type->dimension;
 			put ($id, $type);
-			// cout<<"Dimension of type" <<$type->dimension<<endl;
+			// // cout<<"Dimension of type" <<$type->dimension<<endl;
 			gen ($$,$id, $value, ASSIGN);
-			// cout<<"Dimension "<<$id->dimension<<endl;
+			// // cout<<"Dimension "<<$id->dimension<<endl;
 
 		} else { // mind the indent
 			if (!$id->isdecl) {
@@ -591,7 +591,7 @@ decl_set_curr_id: {
 		currently_defining_identifier_typestring = $<node>0->production;
 		if ($<node>0->dimension == 0) currently_defining_identifier_typestring = "";
 #if TEMPDEBUG
-		cout << "line 541 set currently definining list type to " << currently_defining_identifier_typestring << endl;
+		// cout << "line 541 set currently definining list type to " << currently_defining_identifier_typestring << endl;
 #endif
 	}
 
@@ -676,7 +676,7 @@ comparison: expr {
 			if ($1->isLeaf && $3->isLeaf && $1->production == "__name__" && $3->strVal == "\\\"__main__\\\"") {
 				// pass
 			} else {
-				cout <<  $1->production << $3->strVal << endl;
+				// cout <<  $1->production << $3->strVal << endl;
 				dprintf (1, "havent implemented\n");
 				exit(77);
 			}
@@ -1343,8 +1343,8 @@ on entry to primary "." NAME: if primary is a leaf, nothing is set.
 
 
 primary: atom {
-		// set typestring if available, so we know if it's a declaration or a use
-		Node * handle;
+		// // set typestring if available, so we know if it's a declaration or a use
+		// cout<<$1->isLeaf<<endl;
 		$$ = $1;
 		$$->islval = true;
 		$$->isdecl = true;
@@ -1524,8 +1524,8 @@ primary: atom {
 		(function_call_args[iter]->typestring == type1 && current_scope->arg_types[iter] == type2)
 
 		for (iter = 0; iter< current_scope->arg_types.size(); iter ++) { 
-			cout << "twdfdvwfere\n";
-			cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
+			// cout << "twdfdvwfere\n";
+			// cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
 			if (function_call_args[iter]->typestring == (current_scope->arg_types)[iter]
 					&& function_call_args_dim[iter] == (current_scope->arg_dimensions)[iter])
 				continue;
@@ -1577,7 +1577,7 @@ primary: atom {
 #endif
 				$$->typestring = $1->production;
 #if TEMPDEBUG
-				cout<<"return type of constructor "<<$$->typestring<<endl;
+				// cout<<"return type of constructor "<<$$->typestring<<endl;
 #endif
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
@@ -1604,7 +1604,8 @@ primary: atom {
 		$$->typestring = ($$->typestring != "" ?  $$->typestring: current_scope->return_type);
 		// printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
-		if (0 != current_scope->arg_types.size()) {
+		
+		if (current_scope->arg_types.size()) {
 			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
 					(int)$1->lineno,(int) current_scope->arg_types.size(), 0);
 			exit (60);
@@ -1990,7 +1991,7 @@ int main(int argc, char** argv){
 			}
 			close(0);
 			dup (input_fd);
-			cout << "input file: " << argv[i+1] << endl;
+			// cout << "input file: " << argv[i+1] << endl;
 		}
 		else if (strcmp(argv[i], "-output") == 0) { // outpur file name, default ast.dot
 			if (argv[i+1] == NULL) {
@@ -2081,7 +2082,7 @@ int main(int argc, char** argv){
 	globalSymTable->print_st(stdump);
 	fclose (stdump);
 	if (static_section != "Static section:\n")
-		cout << static_section << endl;
+		// cout << static_section << endl;
 	if (jump_labels_upper.size() != 0 || jump_labels.size() != 0)
 		printf ("Error stacks not empty\n");
     return 0;

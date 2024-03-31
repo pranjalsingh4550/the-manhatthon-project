@@ -29,6 +29,8 @@ enum ir_operation {
 	SUB,
 	MUL,
 	DIV,
+	
+	ATTR,
 	//
 	ANDBW,	// bitwise and
 	ORBW,	// BITWISE OR

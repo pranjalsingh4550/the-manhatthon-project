@@ -11,6 +11,7 @@
     using namespace std; 
 	int nodecount=0;
 	int tempcount=0;
+	int forcount=0;
 	FILE* graph = NULL;
 	FILE* inputfile = NULL;
     extern int yylex();
@@ -33,6 +34,9 @@
 		temp += to_string(tempcount);
 		tempcount++;
 		return temp;
+	}
+	void resettemp(){
+		tempcount=forcount;
 	}
 	SymbolTable *currently_defining_list;
 	vector <Node*> list_init_inputs;
@@ -84,6 +88,7 @@
 	int Classsuite=0;
 	int inLoop=0;
 	static Node* name;
+	enum ir_operation current_op;
 	string return_type="None";
 	static Node* params;
 	void newscope(string name){
@@ -129,6 +134,23 @@
 		string right= top->getaddr(rightop);
 		switch(op){
 			case ASSIGN: fprintf(tac, "%s = %s\n", left.c_str(), right.c_str()); return;
+			case ATTR: {
+				string s;
+				if(leftop->isLeaf){
+					string obj= newtemp();
+					s+=obj +" = &(" + left +")\n";
+					left = obj;
+				}
+				string offset = newtemp();
+				// t_1 = symtable($1->typestring, $3->production)
+				s+= offset + " = symtable(" + leftop->typestring + ", " + rightop->production + ")\n"; 
+				// t_2 = $1->addr + offset
+				string addr = newtemp();
+				s+= addr + " = " + left + " + " + offset + "\n";
+				result->addr = addr;
+				fprintf(tac, "%s", s.c_str());
+				return;
+			}
 			default: break;
 		}
 		result->addr = newtemp();
@@ -138,6 +160,7 @@
 			case SUB: fprintf(tac, "%s = %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case MUL: fprintf(tac, "%s = %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case DIV: fprintf(tac, "%s = %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			
 			default: break;
 		}
 		return;
@@ -266,7 +289,7 @@ start :{$$=new Node("Empty file");} | stmts[first] {$$= new Node("Start"); $$->a
 
 stmts : 
 	stmt
-	| stmt stmts { $$ = new Node ("Statements"); $$->addchild($1); $$->addchild($2);}
+	| stmts[first] {resettemp();} stmt[last] { resettemp();$$ = new Node ("Statements"); $$->addchild($first); $$->addchild($last);}
 
 ;
 
@@ -274,9 +297,9 @@ stmt:  simple_stmt
 	| compound_stmt 
 ;
 
-simple_stmt: small_stmt ";" NEWLINE
-	| small_stmt NEWLINE
-	| small_stmt ";" simple_stmt {$$ = new Node ("Inline Statement"); $$->addchild($1);$$->addchild($3);}
+simple_stmt: small_stmt ";" NEWLINE {$$=$1;resettemp();}
+	| small_stmt NEWLINE {$$=$1;resettemp();}
+	| small_stmt[first]";" {resettemp();} simple_stmt[last] {$$ = new Node ("Inline Statement"); $$->addchild($first);$$->addchild($last);}
 ;
 
 
@@ -346,8 +369,7 @@ global_stmt: "global" NAME[id] {
 			dprintf (stderr_copy, "Error at line %d: %s is not declared in global scope\n", (int) $id->lineno, $id->production.c_str());
 			exit(87);
 		}
-		$id->nodeid= globalSymTable->get($id)->node->nodeid;
-		$$=$id;
+		$id->addr= globalSymTable->getaddr($id);
 	}
 	
 expr_stmt: primary[id] ":" typeclass[type] {
@@ -400,6 +422,8 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			}
 			if($value->typestring !=$type->production){
 				dprintf(stderr_copy, "TypeError at line %d: Types on both side do not match\n",$id->lineno);
+				cout<< $value->typestring << " " << $type->production << endl;
+				exit(88);
 			}
 			if ($value->typestring == "") {
 				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n",
@@ -419,13 +443,6 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				add $id to curent scope with type $type and node $id (put($id,$type));
 			*/
 			$$ = new Node ("Declaration");
-			$$->op= ASSIGN;
-			// if($value->isConstant){
-			// 	$$->op = LI;
-			// }
-			// else{
-			// 	$$->op = MOV_REG;
-			// }
 			$$->addchild($id, "Name");
 			$$->addchild($type, "Type");
 			$$->addchild($value, "Value");
@@ -490,6 +507,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			$$ = new Node ($2->production);
 			$$->addchild($1);
 			$$->addchild($3);
+			gen($1,$1,$3,$2->op);
 	}
 	| primary "=" test{
 			/*
@@ -528,11 +546,14 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				dprintf (stderr_copy, "NameError at line %d: identifier %s has not been declared\n",
 						$1->lineno, $1->production.c_str()); exit(42);
 			}
-			else printf ("valid identifier %s\n", $1->production.c_str());
+#if TEMPDEBUG
+			else{
+			 printf ("valid identifier %s\n", $1->production.c_str());
+			}
+#endif	
 		}
 		$$ = $1;
 	}
-
 
 typeclass: NAME {
 		verify_typestring ($1);
@@ -544,7 +565,18 @@ typeclass: NAME {
 		verify_typestring ($3);
 	}
 
-augassign: "+=" | "-=" | "*=" | "/=" | DOUBLESLASHEQUAL | "%=" | "&=" | "|=" | "^=" | ">>=" | "<<=" | "**="
+augassign: "+=" {$$ = new Node ("+="); $$->op = ADD;}
+		| "-=" {$$ = new Node ("-="); $$->op = SUB;}
+		| "*=" {$$ = new Node ("*="); $$->op = MUL;}
+		| "/=" {$$ = new Node ("/="); $$->op = DIV;}
+		| DOUBLESLASHEQUAL {$$ = new Node ("//="); $$->op = DIV;}
+		| "%=" {$$ = new Node ("%="); ;}
+		| "&=" {$$ = new Node ("&="); }
+		| "|=" {$$ = new Node ("|="); }
+		| "^=" {$$ = new Node ("^="); }
+		| ">>=" {$$ = new Node (">>=");}
+		| "<<=" {$$ = new Node ("<<="); }
+		| "**=" {$$ = new Node ("**="); }
 
 return_stmt: "return" test {
 		/*
@@ -686,7 +718,7 @@ primary: atom {
 			}
 		}
 		if ($1->typestring == "") {
-			dprintf (stderr_copy, "Error at line %d: object of unknown type referenced\n", (int)$3->lineno);
+			dprintf (stderr_copy, "Error at line %d: %s is undefined\n", (int)$3->lineno,$1->production.c_str());
 			exit(55);
 		}
 		current_scope = find_class($1->typestring);
@@ -702,8 +734,11 @@ primary: atom {
 			$$->typestring = "def"; $$->islval = false;
 			current_scope = current_scope->find_member_fn($3->production); // the only case in which current_scope is truly global
 		}
-		else
+		else{
 			$$->typestring = current_scope->gettype($3->production);
+
+			gen($$,$1,$3,ATTR);
+		}
 		$$->production = $3->production;
 		if (!$$->isdecl && $$->typestring == "") {
 			dprintf (stderr_copy, "Error at line %d: Class %s does not have attribute %s\n",
@@ -711,6 +746,15 @@ primary: atom {
 			exit (84);
 		}
 		$$->lineno = $1->lineno;
+
+		/*
+			$ new temp 
+			$$->addr = newtemp();
+			$1->addr = top->getaddr($1);
+			$3->addr = current_scope->getaddr($3);
+		*/
+
+
 	}
 
 	| primary "[" test "]"
@@ -764,7 +808,7 @@ primary: atom {
 		if ($1->isLeaf) {
 			if (top->find_member_fn ($1->production)) {
 				current_scope = top->find_member_fn($1->production);
-				$1->typestring = "def";
+				$1->typestring = current_scope->return_type;
 #if TEMPDEBUG
 				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
 #endif
@@ -805,6 +849,10 @@ primary: atom {
 		*/
 		$$ = new Node (0, "", "");
 		if ($1->isLeaf) {
+			if(is_not_name($1)){
+				dprintf (stderr_copy, "Error at line %d: invalid function call\n", $1->lineno);
+				exit(1);
+			}
 			if (top->find_member_fn ($1->production)) {
 				$1->typestring = "def";
 #if TEMPDEBUG
@@ -814,8 +862,9 @@ primary: atom {
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
 #if TEMPDEBUG
 				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
-				$$->typestring = $1->production;
 #endif
+				$$->typestring = $1->production;
+				cout<<"return type of constructor "<<$$->typestring<<endl;
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
 				$$->typestring = current_scope->return_type;
@@ -857,6 +906,7 @@ atom: NAME
 
 		static_section += "\t<string literal> l_" + to_string ($$->nodeid) + "\t: \"" + $$->production + "\"\n" ;
 	}
+	|"(" test ")"{$$=$2;}
     | "True"
     | "False" 
     | "None" 

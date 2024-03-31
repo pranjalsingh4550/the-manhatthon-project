@@ -10,3 +10,9 @@ def main():
     obj: myClass = myClass(32)
     obj.num=5
     g:int =obj.hello()
+a: myClass = myClass()
+def main():
+    a:int=10
+
+n:list[int] = [4,4,4,4,]
+

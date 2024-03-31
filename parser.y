@@ -135,7 +135,7 @@
 	string return_type="None";
 	static Node* params;
 	void newscope(string name){
-	cout << "New scope " << name << endl;
+	// cout << "New scope " << name << endl;
 		if(Funcsuite){
 			if(Classsuite){
 				top = new SymbolTable (top, MEMBER_FN_ST, name);
@@ -171,41 +171,57 @@
 			exit(56);
 		}
 	}
+	int getwidth(Node*n){
+		return find_class(n->typestring)->table_size;
+	}
 	void gen(Node*result, Node* leftop, Node* rightop,enum ir_operation op){
 		if (tac == NULL) tac = stdout;
 		string left= leftop ? top->getaddr(leftop) : "";
 		string right= rightop ? top->getaddr(rightop) : "";
+		string resultaddr = result ? top->getaddr(result) : "";
 		switch(op){
-			case ASSIGN: fprintf(tac, "%s = %s\n", left.c_str(), right.c_str()); return;
+			case ASSIGN: fprintf(tac, "\t%s = %s\n", left.c_str(), right.c_str()); return;
 			case ATTR: {
-				string s;
+				string s="\t";
 				if(leftop->isLeaf){
 					string obj= newtemp();
-					s+=obj +" = &(" + left +")\n";
+					s+=obj +" = &(" + left +")\n\t";
 					left = obj;
 				}
 				string offset = newtemp();
 				// t_1 = symtable($1->typestring, $3->production)
-				s+= offset + " = symtable(" + leftop->typestring + ", " + rightop->production + ")\n"; 
+				s+= offset + " = symtable(" + leftop->typestring + ", " + rightop->production + ")\n\t"; 
 				// t_2 = $1->addr + offset
 				string ult = newtemp();
 				s+=ult +" = (" + left + " + " + offset + ")\n";
 				result->addr = "*"+ult;
-				// cout<<"nice "<<addr<<endl;
-				fprintf(tac, "%s", s.c_str());
+				// // cout<<"nice "<<addr<<endl;
+				fprintf(tac, "\t%s", s.c_str());
 				return;
 			}
-			case SW:	fprintf (tac, "\t*%s = %s\n", left.c_str(), right.c_str()); return;
+			case SW:	{
+				fprintf (tac, "\t*%s = %s\n", resultaddr.c_str(), left.c_str()); return;
+			}
+			case SUBSCRIPT: {
+				string s="\t";
+				string offset = newtemp();
+				
+				s += offset + " =  "  +right + "*"+ to_string(getwidth(leftop)) + "\n\t";
+				string ult = newtemp();
+				s+=ult +" = (" + left + " + " + offset + ")\n";
+				result->addr = "*"+ult;
+				fprintf(tac, "%s", s.c_str()); 
+				return;
+			}
 			default: break;
 		}
 		result->addr = newtemp();
-		string resultaddr = result->addr;
+		resultaddr = result->addr;
 		switch(op){
 			case ADD: fprintf(tac, "\t%s = %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case SUB: fprintf(tac, "\t%s = %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case MUL: fprintf(tac, "\t%s = %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case DIV: fprintf(tac, "\t%s = %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			
 			default: break;
 		}
 		return;
@@ -433,7 +449,8 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			$$ = new Node ("Declaration");
 			$$->addchild($id, "Name");
 			$$->addchild($type, "Type");
-			$$->typestring = $type->typestring;
+			$1->typestring = $type->typestring;
+			$1->dimension = $type->dimension;
 			put ($id, $type);
 		} else { // mind the indent
 			if (!Classsuite	|| !currently_defining_class) {
@@ -453,7 +470,8 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			$$ = new Node ("Declaration");
 			$$->addchild($id, "Name");
 			$$->addchild($type, "Type");
-			$$->typestring = $type->typestring;
+			$1->typestring = $type->typestring;
+			$1->dimension = $type->dimension;
 		}
 	}
 	| primary[id] ":" typeclass[type] decl_set_curr_id "=" test[value] {
@@ -493,9 +511,12 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			$$->addchild($id, "Name");
 			$$->addchild($type, "Type");
 			$$->addchild($value, "Value");
-			$$->typestring = $type->typestring;
+			$1->typestring = $type->typestring;
+			$1->dimension = $type->dimension;
 			put ($id, $type);
+			// // cout<<"Dimension of type" <<$type->dimension<<endl;
 			gen ($$,$id, $value, ASSIGN);
+			// // cout<<"Dimension "<<$id->dimension<<endl;
 
 		} else { // mind the indent
 			if (!$id->isdecl) {
@@ -519,7 +540,8 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			$$ = new Node ("Declaration");
 			$$->addchild($id, "Name");
 			$$->addchild($type, "Type");
-			$$->typestring = $type->typestring;
+			$1->typestring = $type->typestring;
+			$1->dimension = $type->dimension;
 
 			gen ($$,$id, $value, ASSIGN);
 		}
@@ -607,7 +629,7 @@ decl_set_curr_id: {
 		currently_defining_identifier_typestring = $<node>0->production;
 		if ($<node>0->dimension == 0) currently_defining_identifier_typestring = "";
 #if TEMPDEBUG
-		cout << "line 541 set currently definining list type to " << currently_defining_identifier_typestring << endl;
+		// cout << "line 541 set currently definining list type to " << currently_defining_identifier_typestring << endl;
 #endif
 	}
 
@@ -733,12 +755,23 @@ comparison: expr {
 			dprintf(stderr_copy, "TypeError at line %d: incompatible types for == comparison: %s and %s\n", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
 			exit(1);
 		}
-		if (!check_number($1)) {
+		if ($1->typestring == "str" && $3->typestring == "str") {
+			// call strcmp
+			if ($1->isLeaf && $3->isLeaf && $1->production == "__name__" && $3->strVal == "\\\"__main__\\\"") {
+				// pass
+			} else {
+				// cout <<  $1->production << $3->strVal << endl;
+				dprintf (1, "havent implemented\n");
+				exit(77);
+			}
+		}
+
+		else if (!check_number($1)) {
 			dprintf(stderr_copy, "TypeError at line %d: first operand for == comparison has type %s\n", $2->lineno, $1->typestring.c_str());
 			exit(1);
 		}
-		if (!check_number($3)) {
-			dprintf(stderr_copy, "TypeError at line %d: first operand for == comparison has type %s\n", $2->lineno, $3->typestring.c_str());
+		else if (!check_number($3)) {
+			dprintf(stderr_copy, "TypeError at line %d: second operand for == comparison has type %s\n", $2->lineno, $3->typestring.c_str());
 			exit(1);
 		}
 		$$->typestring = "bool";
@@ -1394,17 +1427,19 @@ on entry to primary "." NAME: if primary is a leaf, nothing is set.
 
 
 primary: atom {
-		// set typestring if available, so we know if it's a declaration or a use
+		// // set typestring if available, so we know if it's a declaration or a use
+		// cout<<$1->isLeaf<<endl;
 		$$ = $1;
 		$$->islval = true;
 		$$->isdecl = true;
-		if (top->has($1->production))
+		if (top->has($1->production)){
 			$$->typestring = top->get($1)->typestring;
 			$$->dimension = top->get($1)->dimension;
 		if ($1->production == top->thisname) {
 			$$->isdecl = false;
 		}
 		current_scope = NULL;
+		}
 	}
 	| primary "." NAME {
 		$$ = new Node (0, "", $3->typestring);
@@ -1492,6 +1527,13 @@ primary: atom {
 						yylineno);
 				exit (1);
 			}
+			if($3->isConstant){
+				if($3->intVal > $1->dimension){
+					dprintf (stderr_copy, "Error at line %d: index out of bounds\n",
+						yylineno);
+					exit (1);
+				}
+			}
 			// if primary is out of bounds: run time error right?
 			// reminder: in 3ac, check bounds
 			$$ = new Node (0, $1->typestring, "");
@@ -1502,6 +1544,13 @@ primary: atom {
 			}
 		current_scope = NULL;
 		$$->lineno = $1->lineno;
+		$$->typestring = $1->typestring;
+		$$->islval = true;
+		$$->isdecl = false;
+		$$->dimension = $1->dimension - 1;
+
+		gen($$, $1, $3, SUBSCRIPT);
+
 		}
 	| primary "(" testlist ")" {
 		/*
@@ -1552,15 +1601,15 @@ primary: atom {
 		int iter;
 		if (function_call_args.size() != current_scope->arg_types.size()) {
 			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
-					(int)$1->lineno, current_scope->arg_types.size(), function_call_args.size());
+					(int)$1->lineno, (int)current_scope->arg_types.size(),(int) function_call_args.size());
 			exit (60);
 		}
 #define VALID_PAIR(type1, type2)	\
 		(function_call_args[iter]->typestring == type1 && current_scope->arg_types[iter] == type2)
 
 		for (iter = 0; iter< current_scope->arg_types.size(); iter ++) { 
-			cout << "twdfdvwfere\n";
-			cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
+			// cout << "twdfdvwfere\n";
+			// cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
 			if (function_call_args[iter]->typestring == (current_scope->arg_types)[iter]
 					&& function_call_args_dim[iter] == (current_scope->arg_dimensions)[iter])
 				continue;
@@ -1572,7 +1621,7 @@ primary: atom {
 						(int) $1->lineno, iter, current_scope->arg_types[iter].c_str(), function_call_args[iter]->typestring.c_str());
 			else
 				dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be of type %s, received incompatible type %s\n",
-						(int) $1->lineno,
+						(int) $1->lineno, iter,
 						(current_scope->arg_types[iter] +(current_scope->arg_dimensions[iter] ? "[]" : "")).c_str(),
 						(current_scope->arg_types[iter] +(function_call_args_dim[iter]? "[]" : "")).c_str()
 						);
@@ -1611,8 +1660,9 @@ primary: atom {
 				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 #endif
 				$$->typestring = $1->production;
+				current_scope = globalSymTable->ctor.find($1->production)->second;
 #if TEMPDEBUG
-				cout<<"return type of constructor "<<$$->typestring<<endl;
+				// cout<<"return type of constructor "<<$$->typestring<<endl;
 #endif
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
@@ -1639,16 +1689,16 @@ primary: atom {
 		$$->typestring = ($$->typestring != "" ?  $$->typestring: current_scope->return_type);
 		// printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
-		if (0 != current_scope->arg_types.size()) {
+		
+		if (current_scope->arg_types.size()) {
 			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
-					(int)$1->lineno, current_scope->arg_types.size(), 0);
+					(int)$1->lineno,(int) current_scope->arg_types.size(), 0);
 			exit (60);
 		}
 		function_call_args.clear();
 		function_call_args_dim.clear();
 		current_scope = NULL;
 	}
-
 
 
 
@@ -1682,20 +1732,24 @@ atom: NAME
 			{ dprintf (stderr_copy, "HAVENT IMPLEMENTED LISTS OF NON-PRIMITIVES\n"); exit (55); }
 		// Node* $$ = new Node (0, "", "");
 		$$->addr= newtemp();
-		int thissize = globalSymTable->find_class(currently_defining_identifier_typestring)->table_size ;
-		fprintf (tac, "\t%s = ALLOC_HEAP (%d)\n", dev_helper($$).c_str(), list_init_inputs.size() * thissize);
+		int thissize = find_class (currently_defining_identifier_typestring)->table_size;
+		fprintf (tac, "\t%s = ALLOC_HEAP (%lu)\n", dev_helper($$).c_str(), list_init_inputs.size() * thissize);
 		for(auto itrv:list_init_inputs){
 			// 3ac to copy list to temp
-			if (ISPRIMITIVE (itrv)) 
+			if (ISPRIMITIVE (itrv)) {
 				gen ($$, itrv, (Node*) NULL, SW);
-			else 
-				;
+				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
+			}
+			else{}
 		}
-		list_init_inputs.clear();
+		fprintf(tac, "\t%s = %s - %lu\n", dev_helper($$).c_str(), dev_helper($$).c_str(), list_init_inputs.size() * thissize);
 		$$->typestring = currently_defining_identifier_typestring;
+		$$->isLeaf = false;
+		$$->dimension = list_init_inputs.size();
+		list_init_inputs.clear();
 		function_call_args.clear();
 		function_call_args_dim.clear();
-	 }
+	}
 	/* Empty list not needed */
 list_start :
 	{	list_init = true;
@@ -1833,6 +1887,8 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$->addchild($param,"Parameters");
 		$$->addchild($ret, "Return type");
 		$$->addchild($last, "Body");
+		function_call_args_dim.clear();
+		function_call_args.clear();
 	}
 	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] {
 		top->return_type = $returntype->production;
@@ -1842,6 +1898,9 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	$$ = new Node ("Function Defn"); $$->addchild($id, "Name");
 	       	$$->addchild($returntype, "Return type");
 	       	$$->addchild($last, "Body");
+			function_call_args_dim.clear();
+			function_call_args.clear();
+			
 	}
 	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" {
 			top->return_type = "None";
@@ -1862,6 +1921,8 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$ = new Node ("Function Defn");
 		$$->addchild($id, "Name");
 		$$->addchild($last, "Body");
+		function_call_args_dim.clear();
+		function_call_args.clear();
 	}
 
 functionstart:  {
@@ -1890,7 +1951,9 @@ functionstart:  {
 		function_call_args_dim.clear();
 	}
 ;
-classdef: "class" NAME classstart ":"  suite[last] {
+classdef: "class" NAME classstart ":"{
+		function_call_args_dim.clear();
+		function_call_args.clear();}  suite[last] {
 	Classsuite=0;
 	$$ = new Node ("Class");
 	$$->addchild($2, "Name");
@@ -2013,7 +2076,7 @@ int main(int argc, char** argv){
 			}
 			close(0);
 			dup (input_fd);
-			cout << "input file: " << argv[i+1] << endl;
+			// cout << "input file: " << argv[i+1] << endl;
 		}
 		else if (strcmp(argv[i], "-output") == 0) { // outpur file name, default ast.dot
 			if (argv[i+1] == NULL) {
@@ -2104,7 +2167,7 @@ int main(int argc, char** argv){
 	globalSymTable->print_st(stdump);
 	fclose (stdump);
 	if (static_section != "Static section:\n")
-		cout << static_section << endl;
+		// cout << static_section << endl;
 	if (jump_labels_upper.size() != 0 || jump_labels.size() != 0)
 		printf ("Error stacks not empty\n");
     return 0;

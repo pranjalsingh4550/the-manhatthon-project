@@ -7,6 +7,7 @@
     #include<stdlib.h>
     #include "parser.tab.h"
     #include "classes.hpp"
+    extern SymbolTable* globalSymTable;
     stack<string> indent_stack;
     int ded=0;
     int newline=0;
@@ -377,7 +378,14 @@ True	{yylval.node=new Node(TRUE, true); return TRUE;}
 False	{yylval.node=new Node(FALSE, false); return FALSE;}
 None	{yylval.node=new Node(0);return NONE;}
 list    {yylval.node=new Node(LIST,"",yytext);return LIST;}
-{NAME}	{yylval.node=new Node(NAME, "", yytext);return NAME;}
+{NAME}	{yylval.node=new Node(NAME, "str", yytext);
+        if(strcmp (yytext, "__name__")==0){
+            yylval.node->production="__name__";
+            yylval.node->isConstant=true;
+            yylval.node->strVal="__main__";
+            globalSymTable->put(yylval.node, "str");
+        }
+        return NAME;}
 {ignore}
 <parOpen,squareOpen><<EOF>>	{
 	dprintf (stderr_dup, "Unopened bracket %c at line no: %d\n", brackettype, bracketline);

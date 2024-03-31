@@ -41,6 +41,8 @@
 	SymbolTable *currently_defining_list;
 	string currently_defining_identifier_typestring;
 	vector <Node*> list_init_inputs;
+	vector <Node *> function_call_args;
+	vector <bool> function_call_args_dim;
 	stack <string> jump_labels, jump_labels_upper;
 	int label_count;
 #define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
@@ -855,13 +857,15 @@ expr: xor_expr {
 		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
 		exit(1);
 	}
-	if ($1->typestring != "int"
-	&&  $1->typestring != "bool") {
+	if (!check_number($1)
+	||  ($1->typestring != "int"
+	 &&  $1->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for | has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if ($3->typestring != "int"
-	&&  $3->typestring != "bool") {
+	if (!check_number($3)
+	||  ($3->typestring != "int"
+	 &&  $3->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for | has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
@@ -892,13 +896,15 @@ xor_expr: ans_expr {
 		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
 		exit(1);
 	}
-	if ($1->typestring != "int"
-	&&  $1->typestring != "bool") {
+	if (!check_number($1)
+	||  ($1->typestring != "int"
+	 &&  $1->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for ^ has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if ($3->typestring != "int"
-	&&  $3->typestring != "bool") {
+	if (!check_number($3)
+	||  ($3->typestring != "int"
+	 &&  $3->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for ^ has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
@@ -930,13 +936,15 @@ ans_expr: shift_expr {
 		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
 		exit(1);
 	}
-	if ($1->typestring != "int"
-	&&  $1->typestring != "bool") {
+	if (!check_number($1)
+	||  ($1->typestring != "int"
+	 &&  $1->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if ($3->typestring != "int"
-	&&  $3->typestring != "bool") {
+	if (!check_number($3)
+	||  ($3->typestring != "int"
+	 &&  $3->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
@@ -967,13 +975,15 @@ shift_expr: sum {
 		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
 		exit(1);
 	}
-	if ($1->typestring != "int"
-	&&  $1->typestring != "bool") {
+	if (!check_number($1)
+	||  ($1->typestring != "int"
+	 &&  $1->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if ($3->typestring != "int"
-	&&  $3->typestring != "bool") {
+	if (!check_number($3)
+	||  ($3->typestring != "int"
+	 &&  $3->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
@@ -992,13 +1002,15 @@ shift_expr: sum {
 		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
 		exit(1);
 	}
-	if ($1->typestring != "int"
-	&&  $1->typestring != "bool") {
+	if (!check_number($1)
+	||  ($1->typestring != "int"
+	 &&  $1->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if ($3->typestring != "int"
-	&&  $3->typestring != "bool") {
+	if (!check_number($3)
+	||	($3->typestring != "int"
+	 &&  $3->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
@@ -1243,7 +1255,7 @@ factor: "+" factor	{
 		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $2->lineno);
 		exit(1);
 	}
-	if ($2->typestring != "int" && $2->typestring != "bool") {
+	if (!check_number($2) || $2->typestring != "int" && $2->typestring != "bool") {
 		dprintf(stderr_copy, "TypeError at line %d: Invalid type for unary not, type is %s\n",$2->lineno, $2->typestring.c_str());
 		exit(1);
 	}
@@ -1339,7 +1351,6 @@ primary: atom {
 		if (top->has($1->production)){
 			$$->typestring = top->get($1)->typestring;
 			$$->dimension = top->get($1)->dimension;
-		}
 		if ($1->production == top->thisname) {
 			$$->isdecl = false;
 		}
@@ -1458,19 +1469,9 @@ primary: atom {
 		}
 	| primary "(" testlist ")" {
 		/*
-			if primary is leaf and primary is not in symboltable)error
-			if(primary is not a function) error
-			if(primary->arg_types.size() != testlist->children.size()) error
 			for i in range(primary->arg_types.size())
 				if(primary->arg_types[i] != testlist->children[i]->typestring) error
 			update $$->typestring as return type of function
-			if primary is constant then error
-			if primary is not in current scope then error
-			if primary is not a function then error
-
-			check if testlist is compatible with function parameters or not
-
-			update $result type as the return type of function
 		*/
 		$$ = new Node (0, "", "");
 		$$->islval = false;
@@ -1510,6 +1511,39 @@ primary: atom {
 		}
 		printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
+		
+		// check function_call_args
+		int iter;
+		if (function_call_args.size() != current_scope->arg_types.size()) {
+			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
+					(int)$1->lineno, current_scope->arg_types.size(), function_call_args.size());
+			exit (60);
+		}
+#define VALID_PAIR(type1, type2)	\
+		(function_call_args[iter]->typestring == type1 && current_scope->arg_types[iter] == type2)
+
+		for (iter = 0; iter< current_scope->arg_types.size(); iter ++) { 
+			cout << "twdfdvwfere\n";
+			cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
+			if (function_call_args[iter]->typestring == (current_scope->arg_types)[iter]
+					&& function_call_args_dim[iter] == (current_scope->arg_dimensions)[iter])
+				continue;
+			if (VALID_PAIR( "int", "bool") || VALID_PAIR( "int", "float") ||VALID_PAIR( "bool", "int") || VALID_PAIR( "int", "bool")
+					&& function_call_args_dim[iter] == current_scope->arg_dimensions[iter])
+				continue;
+			if (function_call_args[iter]->typestring != current_scope->arg_types[iter])
+				dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be %s, received incompatible type %s\n",
+						(int) $1->lineno, iter, current_scope->arg_types[iter].c_str(), function_call_args[iter]->typestring.c_str());
+			else
+				dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be of type %s, received incompatible type %s\n",
+						(int) $1->lineno,
+						(current_scope->arg_types[iter] +(current_scope->arg_dimensions[iter] ? "[]" : "")).c_str(),
+						(current_scope->arg_types[iter] +(function_call_args_dim[iter]? "[]" : "")).c_str()
+						);
+			exit(80);
+		}
+		function_call_args.clear();
+		function_call_args_dim.clear();
 	}
 	| primary "(" ")" {
 		/*
@@ -1529,6 +1563,7 @@ primary: atom {
 				// $1->typestring = "def";
 				$$->typestring = top->find_member_fn($1->production)->return_type;
 				$$->addr = "call "+ $1->addr;
+				current_scope = top->find_member_fn($1->production);
 
 #if TEMPDEBUG
 				printf("typestring = %s\n", $$->typestring.c_str());
@@ -1545,6 +1580,9 @@ primary: atom {
 #endif
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
+				$$->typestring = current_scope->return_type;
+			} else if (globalSymTable->find_member_fn ($1->production)) {
+				current_scope = globalSymTable->find_member_fn($1->production);
 				$$->typestring = current_scope->return_type;
 			} else {
 				dprintf (stderr_copy, "Error at line %d: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
@@ -1564,8 +1602,15 @@ primary: atom {
 		$$->isdecl = false;
 		$$->typestring = ($$->typestring != "" ?  $$->typestring: current_scope->return_type);
 		// printf("typestring = %s\n", $$->typestring.c_str());
-		current_scope = NULL;
 		$$->lineno = $1->lineno;
+		if (0 != current_scope->arg_types.size()) {
+			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
+					(int)$1->lineno, current_scope->arg_types.size(), 0);
+			exit (60);
+		}
+		function_call_args.clear();
+		function_call_args_dim.clear();
+		current_scope = NULL;
 	}
 
 
@@ -1605,7 +1650,7 @@ atom: NAME
 		fprintf (tac, "\t%s = ALLOC_HEAP (%lu)\n", dev_helper($$).c_str(), list_init_inputs.size() * thissize);
 		for(auto itrv:list_init_inputs){
 			// 3ac to copy list to temp
-			if (ISPRIMITIVE (itrv)) {
+			if (ISPRIMITIVE (itrv)) 
 				gen ($$, itrv, (Node*) NULL, SW);
 				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
 			}
@@ -1616,6 +1661,8 @@ atom: NAME
 		$$->isLeaf = false;
 		$$->dimension = list_init_inputs.size();
 		list_init_inputs.clear();
+		function_call_args.clear();
+		function_call_args_dim.clear();
 	}
 	/* Empty list not needed */
 list_start :
@@ -1687,10 +1734,14 @@ arglist: test[obj]
 			// base of the list is a static region in memory but we don't know the length yet. so store in a vector for now
 			list_init_inputs.push_back ($obj);
 		}
+		function_call_args.push_back ($obj);
+		function_call_args_dim.push_back ((bool) $obj->dimension);
 	}
 	| arglist "," test[obj] { $$ = new Node ("Multiple terms"); $$->addchild($1); $$->addchild($3);
 		if (list_init)
 			list_init_inputs.push_back ($obj);
+		function_call_args.push_back ($obj);
+		function_call_args_dim.push_back ((bool) $obj->dimension);
 	}
 
 
@@ -1730,6 +1781,8 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 			exit(49);
 		}
 		put ($1, $3);
+		top->arg_types.push_back ($3->production);
+		top->arg_dimensions.push_back ((bool) $3->dimension);
 	}
 
 suite:  simple_stmt[first] 
@@ -1748,6 +1801,8 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$->addchild($param,"Parameters");
 		$$->addchild($ret, "Return type");
 		$$->addchild($last, "Body");
+		function_call_args_dim.clear();
+		function_call_args.clear();
 	}
 	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] {
 		top->return_type = $returntype->production;
@@ -1757,6 +1812,9 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	$$ = new Node ("Function Defn"); $$->addchild($id, "Name");
 	       	$$->addchild($returntype, "Return type");
 	       	$$->addchild($last, "Body");
+			function_call_args_dim.clear();
+			function_call_args.clear();
+			
 	}
 	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" {
 			top->return_type = "None";
@@ -1777,6 +1835,8 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$ = new Node ("Function Defn");
 		$$->addchild($id, "Name");
 		$$->addchild($last, "Body");
+		function_call_args_dim.clear();
+		function_call_args.clear();
 	}
 
 functionstart:  {
@@ -1801,35 +1861,35 @@ functionstart:  {
 					Classsuite?MEMBER_FN_ST:FUNCTION_ST,
 					$<node>0->production);
 		top->lineno = $<node>0->lineno;
+		function_call_args.clear();
+		function_call_args_dim.clear();
 	}
 ;
-classdef: "class" NAME classstart ":"  suite[last] {
-		  Classsuite=0;
-		  $$ = new Node ("Class");
-		  $$->addchild($2, "Name");
-		  $$->addchild($last, "Contains");
-		  inside_init = 0; // endscope();
-		currently_defining_class = NULL;
-	 }
-	| "class" NAME classstart "(" NAME[parent] ")" ":" suite[last] {
-	       	Classsuite=0;
-	       	$$ = new Node ("Class");
-	       	$$->addchild($2, "Name");
-	       	$$->addchild($parent, "Inherits");
-	       	$$->addchild($last,"Contains");
-		inside_init = 0; // endscope();
-		currently_defining_class = NULL;
-	}
-	| "class" NAME classstart "(" ")" ":" suite[last] {
-	       	Classsuite=0;
-	       	$$ = new Node ("Class");
-	       	$$->addchild($2, "Name");
-	       	$$->addchild($last, "Contains");
-		inside_init = 0; // endscope();
-		currently_defining_class = NULL;
-	}
+classdef: "class" NAME classstart ":"{
+		function_call_args_dim.clear();
+		function_call_args.clear();}  suite[last] {
+	Classsuite=0;
+	$$ = new Node ("Class");
+	$$->addchild($2, "Name");
+	$$->addchild($last, "Contains");
+	inside_init = 0; // endscope();
+	currently_defining_class = NULL;
+}
 
-classstart:	{
+classstart: /*empty*/ {
+#if TEMPDEBUG
+	printf ("start class scope");
+	printf ("scope name %s\n", $<node>0->production.c_str()); //$0: the NAME before it on the stack (see classdef)
+#endif
+	if (currently_defining_class || Classsuite) {
+		dprintf (stderr_copy, "Error: Nested declaration of classes\n");
+		exit(43);
+	}
+	Classsuite = 1;
+	currently_defining_class = new SymbolTable (top, CLASS_ST, $<node>0->production);
+	// top = top->parent;
+	currently_defining_class->lineno = $<node>0->lineno;
+} | "(" ")" {
 #if TEMPDEBUG
 	printf ("start class scope");
 	printf ("scope name %s\n", $<node>0->production.c_str());
@@ -1841,6 +1901,38 @@ classstart:	{
 	Classsuite = 1;
 	currently_defining_class = new SymbolTable (top, CLASS_ST, $<node>0->production);
 	// top = top->parent;
+	currently_defining_class->lineno = $<node>0->lineno;
+}| "(" NAME[parent] ")"	{
+#if TEMPDEBUG
+	printf ("start class scope");
+	printf ("scope name %s\n", $<node>0->production.c_str());
+#endif
+	if (currently_defining_class || Classsuite) {
+		dprintf (stderr_copy, "Error: Nested declaration of classes\n");
+		exit(43);
+	}
+	printf("Checking parent class %s\n", $parent->production.c_str());
+	//check if parent class exists/is a class
+	SymbolTable *parent = find_class($parent->production);
+	if (!parent) {
+		dprintf(stderr_copy, "NameError: %s is not a class\n", $parent->production.c_str());
+		exit(1);
+	}
+	Classsuite = 1;
+	currently_defining_class = new SymbolTable (top, CLASS_ST, $<node>0->production);
+	//just copy all members of parent class symbol table to new symbol table
+	for (const auto &entry : parent->symbols) {
+		currently_defining_class->symbols[entry.first] = entry.second;
+	}
+	
+	for (const auto &entry : parent->children) {
+		currently_defining_class->children[entry.first] = entry.second;
+	}
+	
+	for (const auto &entry : parent->ctor) {
+		currently_defining_class->ctor[entry.first] = entry.second;
+	}
+	currently_defining_class->table_size = parent->table_size;
 	currently_defining_class->lineno = $<node>0->lineno;
 }
 
@@ -2026,6 +2118,10 @@ void check(Node* n){
 
 int check_number(Node* n) {
 	//return 1 if number, 0 if not
+	if (n->dimension != 0) {
+		dprintf(stderr_copy, "Error: found array where expected single type (see following message)\n");
+		return 0;
+	}
 	if (n->typestring != "bool"
 	 && n->typestring != "int"
 	 && n->typestring != "float"

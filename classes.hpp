@@ -386,6 +386,7 @@ class SymbolTable {
 		string thisname = "";
 		string return_type="None";
 		vector<string> arg_types; // for function, but class also ig
+		vector<bool> arg_dimensions;
 		bool fn_inside_class;
 		// not using atm // map <string, SymbolTable*> classes; // if global
 		// not using atm // map <string, SymbolTable*> member_functions; // for a class

@@ -13,7 +13,8 @@ static FILE* tac = NULL;
 
 enum ir_operation {
 	UJUMP,
-	CJUMP,	// CONDITIONAL JUMP
+	CJUMP_IF_FALSE,	// CONDITIONAL JUMP
+	CJUMP_IF_TRUE,	// CONDITIONAL JUMP
 	LW,
 	SW,
 	RETQ,	// RETURN
@@ -58,7 +59,12 @@ enum ir_operation {
 
 	// function/stack stuff
 	FUNCTION_CALL, //x86's callq: push rbp, mov rsp to rbp, etc
-	FUNCTION_RETURN
+	FUNCTION_RETURN,
+
+	ALLOC_HEAP,
+
+	MARK_FALSE
+	
 };
 
 enum datatypes {
@@ -230,7 +236,7 @@ class Node {
 				switch (op) {
 
 					case UJUMP	:
-					case CJUMP	:
+					case CJUMP_IF_TRUE	:
 					case LW		: UNARY_OP(LW, leftoperand, rightoperand);
 					case SW		: UNARY_OP(SW, leftoperand, rightoperand);
 					case RETQ	:
@@ -487,7 +493,7 @@ class SymbolTable {
 			}
 			parent = NULL;
 			this->name = name;
-			this->size = size;
+			this->table_size = size;
 			isFunction= 0;
 			isClass = (flags == CLASS_ST);
 			isGlobal = true;

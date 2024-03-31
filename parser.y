@@ -74,6 +74,7 @@
 		return ;
 	}
 	extern void check (Node* n) ;
+	extern int check_number(Node* n) ;
 	bool check(Node* n1, Node* n2){
 		if(n1->typestring != n2->typestring){
 			return false;
@@ -594,25 +595,295 @@ ans_expr: shift_expr
 shift_expr: sum 
 	| shift_expr "<<" sum	{ $$ = new Node ("Left Shift\n<<"); $$->addchild ($1); $$->addchild ($3);}
 	| shift_expr ">>" sum	{ $$ = new Node ("Right Shift\n>>"); $$->addchild ($1); $$->addchild ($3);}
+
 sum : sum "+" term  { 
 		$$ = new Node ("+"); 
 		$$->addchild ($1); $$->addchild($3);
-		$$->typestring = $1->typestring; 
-		gen($$,$1, $3, ADD);
+		// $$->typestring = $1->typestring;
+		if ($1->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+			exit(1);
 		}
-	| sum "-" term	{ $$ = new Node ("-"); $$->addchild ($1); $$->addchild($3); }
-	| term
-term: term "*" factor	{ $$ = new Node ("*"); $$->addchild ($1); $$->addchild($3); }
-	| term "/" factor	{ $$ = new Node ("/"); $$->addchild ($1); $$->addchild($3); }
-	| term "%" factor	{ $$ = new Node ("%"); $$->addchild ($1); $$->addchild($3); }
-	| term DOUBLESLASH factor { $$ = new Node ("//"); $$->addchild ($1); $$->addchild($3); }
-	|factor	
-factor: "+" factor	{ $$ = new Node ("+"); $$->addchild($2);}
-	| "-" factor	{ $$ = new Node ("-"); $$->addchild($2);}
-	| "~" factor	{ $$ = new Node ("~"); $$->addchild($2);}
-	| power
-power: primary { current_scope = NULL; $$ = $1; }
-	| primary "**" factor	{ $$ = new Node ("**"); $$->addchild($1); $$->addchild($3); current_scope = NULL;}
+		if ($3->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+			exit(1);
+		}
+		
+		if (!check_number($1)) {
+			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first summand for addition, type is %s\n",$2->lineno, $1->typestring.c_str());
+			 exit(69);
+		}
+		if (!check_number($3)) {
+			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second summand for addition, type is %s\n",$2->lineno, $3->typestring.c_str());
+			 exit(69);
+		}
+		if ($1->typestring == "complex" || $3->typestring == "complex") {
+			$$->typestring = "complex";
+		} else if ($1->typestring == "float" || $3->typestring == "float"){
+			$$->typestring = "float";
+		} else { //i.e. ints/bools + ints/bools => always int
+			$$->typestring = "int";
+		}
+		gen($$,$1, $3, ADD);
+}
+	| sum "-" term	{
+		$$ = new Node ("-"); 
+		$$->addchild ($1); 
+		$$->addchild($3);
+		
+		if ($1->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+			exit(1);
+		}
+		if ($3->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+			exit(1);
+		}
+		
+		if (!check_number($1)) {
+			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first summand for addition, type is %s\n",$2->lineno, $1->typestring.c_str());
+			 exit(69);
+		}
+		if (!check_number($3)) {
+			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second summand for addition, type is %s\n",$2->lineno, $3->typestring.c_str());
+			 exit(69);
+		}
+		if ($1->typestring == "complex" || $3->typestring == "complex") {
+			$$->typestring = "complex";
+		} else if ($1->typestring == "float" || $3->typestring == "float"){
+			$$->typestring = "float";
+		} else { //i.e. ints/bools + ints/bools => always int
+			$$->typestring = "int";
+		}
+		gen($$, $1, $3, SUB);
+}
+	| term {
+	if ($1->typestring == "")	{
+		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at sum: term production\n", $1->lineno);
+		exit(1);
+	}
+	$$ = $1;
+}
+
+term: term "*" factor	{
+	$$ = new Node ("*");
+	$$->addchild ($1);
+	$$->addchild($3);
+	
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	
+	if (!check_number($1)) {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first summand for addition, type is %s\n",$2->lineno, $1->typestring.c_str());
+		 exit(69);
+	}
+	if (!check_number($3)) {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second summand for addition, type is %s\n",$2->lineno, $3->typestring.c_str());
+		 exit(69);
+	}
+	if ($1->typestring == "complex" || $3->typestring == "complex") {
+		$$->typestring = "complex";
+	} else if ($1->typestring == "float" || $3->typestring == "float"){
+		$$->typestring = "float";
+	} else { //i.e. ints/bools + ints/bools => always int
+		$$->typestring = "int";
+	}
+	gen($$,$1, $3, MUL);
+}
+	| term "/" factor	{
+	$$ = new Node ("/");
+	$$->addchild ($1);
+	$$->addchild($3);
+	
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	
+	if (!check_number($1)) {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of dividend for division, type is %s\n",$2->lineno, $1->typestring.c_str());
+		 exit(69);
+	}
+	if (!check_number($3)) {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of divisor for division, type is %s\n",$2->lineno, $3->typestring.c_str());
+		 exit(69);
+	}
+	if ($1->typestring == "complex" || $3->typestring == "complex") {
+		$$->typestring = "complex";
+	} else { //all other cases: float
+		$$->typestring = "float";
+	}
+	gen($$,$1, $3, DIV);
+}
+	| term "%" factor	{
+		//modulo not defined for complex num
+	$$ = new Node ("%");
+	$$->addchild ($1);
+	$$->addchild($3);
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	
+	if (!check_number($1) || $1->typestring == "complex") {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first argument for modulo, type is %s\n",$2->lineno, $1->typestring.c_str());
+		 exit(69);
+	}
+	if (!check_number($3) || $3->typestring == "complex") {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second argument for modulo, type is %s\n",$2->lineno, $3->typestring.c_str());
+		 exit(69);
+	}
+	
+	if ($1->typestring == "float" || $3->typestring == "float") {
+		$$->typestring = "float";
+	} else {
+		$$->typestring = "int";
+	}
+	
+	//to add: gen
+}
+	| term DOUBLESLASH factor {
+	$$ = new Node ("//");
+	$$->addchild ($1);
+	$$->addchild($3);
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		exit(1);
+	}
+	
+	if (!check_number($1) || $1->typestring == "complex") {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first argument for floor division, type is %s\n",$2->lineno, $1->typestring.c_str());
+		 exit(69);
+	}
+	if (!check_number($3) || $3->typestring == "complex") {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second argument for floor division, type is %s\n",$2->lineno, $3->typestring.c_str());
+		 exit(69);
+	}
+	
+	if ($1->typestring == "float" || $3->typestring == "float") {
+		$$->typestring = "float";
+	} else {
+		$$->typestring = "int";
+	}
+	
+	//to add: gen
+}
+	| factor {
+	if ($1->typestring == "")	{
+		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at term: factor production\n", $1->lineno);
+		exit(1);
+	}
+	$$ = $1;
+}
+factor: "+" factor	{
+	$$ = new Node ("+");
+	$$->addchild($2);
+	if ($2->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $2->lineno);
+		exit(1);
+	}
+	if (!check_number($2)) {
+		dprintf(stderr_copy, "TypeError at line %d: Invalid type for setting positive, type is %s\n",$2->lineno, $2->typestring.c_str());
+		exit(1);
+	}
+	
+	$$->typestring = $2->typestring;
+	//to add: gen
+}
+	| "-" factor	{
+	$$ = new Node ("-");
+	$$->addchild($2);
+	if ($2->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $2->lineno);
+		exit(1);
+	}
+	if (!check_number($2)) {
+		dprintf(stderr_copy, "TypeError at line %d: Invalid type for setting negative, type is %s\n",$2->lineno, $2->typestring.c_str());
+		exit(1);
+	}
+	
+	$$->typestring = $2->typestring;
+	//to add: gen
+}
+	| "~" factor	{
+	$$ = new Node ("~");
+	$$->addchild($2);
+	if ($2->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $2->lineno);
+		exit(1);
+	}
+	if ($2->typestring != "int" && $2->typestring != "bool") {
+		dprintf(stderr_copy, "TypeError at line %d: Invalid type for unary not, type is %s\n",$2->lineno, $2->typestring.c_str());
+		exit(1);
+	}
+	
+	$$->typestring = "int"; //always
+}
+	| power {
+	if ($1->typestring == "")	{
+		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at factor: power production\n", $1->lineno);
+		exit(1);
+	}
+	$$ = $1;
+}
+power: primary {
+	current_scope = NULL;
+	$$ = $1;
+	if ($1->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at power: primary production\n", $1->lineno);
+		exit(1);
+	}
+}
+	| primary "**" factor	{
+	$$ = new Node ("**");
+	$$->addchild($1);
+	$$->addchild($3);
+	current_scope = NULL;
+	if ($1->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+			exit(1);
+		}
+		if ($3->typestring == "") {
+			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+			exit(1);
+		}
+		
+		if (!check_number($1)) {
+			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first summand for addition, type is %s\n",$2->lineno, $1->typestring.c_str());
+			 exit(69);
+		}
+		if (!check_number($3)) {
+			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second summand for addition, type is %s\n",$2->lineno, $3->typestring.c_str());
+			 exit(69);
+		}
+		if ($1->typestring == "complex" || $3->typestring == "complex") {
+			$$->typestring = "complex";
+		} else if ($1->typestring == "float" || $3->typestring == "float"){
+			$$->typestring = "float";
+		} else { //i.e. ints/bools + ints/bools => always int
+			$$->typestring = "int";
+		}
+		
+		//to add: gen
+}
 
 /* TO DO 
 	Complete typechecking and attribute scope checking for each primary symbol expansion
@@ -1249,4 +1520,15 @@ void check(Node* n){
 		fprintf(stderr, "NameError: name %s is not defined\n", n->production.c_str());
 		exit(1);
 	}
+}
+
+int check_number(Node* n) {
+	//return 1 if number, 0 if not
+	if (n->typestring != "bool"
+	 && n->typestring != "int"
+	 && n->typestring != "float"
+	 && n->typestring != "complex") {
+	 	return 0;
+	}
+	return 1;
 }

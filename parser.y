@@ -85,7 +85,45 @@
 	extern void check (Node* n) ;
 	extern int check_number(Node* n) ;
 	bool check(Node* n1, Node* n2){
-		if(n1->typestring != n2->typestring){
+		if (n1->typestring == "int") {
+			if (n2->typestring != "bool"
+			&&  n2->typestring != "float"
+			&&  n2->typestring != "int") {
+				return false;
+			}
+		} else if (n1->typestring == "float") {
+			if (n2->typestring != "float"
+			&&  n2->typestring != "int") {
+				return false;
+			}
+		} else if (n1->typestring == "bool") {
+			if (n2->typestring != "int"
+			&&  n2->typestring != "bool") {
+				return false;
+			}
+		} else if (n1->typestring != n2->typestring) {
+			return false;
+		}
+		return true;
+	}
+	bool check_typestring(Node *n, string typestring) {
+		if (n->typestring == "int") {
+			if (typestring != "bool"
+			&&  typestring != "float"
+			&&  typestring != "int") {
+				return false;
+			}
+		} else if (n->typestring == "float") {
+			if (typestring != "float"
+			&&  typestring != "int") {
+				return false;
+			}
+		} else if (n->typestring == "bool") {
+			if (typestring != "int"
+			&&  typestring != "bool") {
+				return false;
+			}
+		} else if (n->typestring != typestring) {
 			return false;
 		}
 		return true;
@@ -98,7 +136,7 @@
 	string return_type="None";
 	static Node* params;
 	void newscope(string name){
-	cout << "New scope " << name << endl;
+	// cout << "New scope " << name << endl;
 		if(Funcsuite){
 			if(Classsuite){
 				top = new SymbolTable (top, MEMBER_FN_ST, name);
@@ -158,7 +196,7 @@
 				string ult = newtemp();
 				s+=ult +" = (" + left + " + " + offset + ")\n";
 				result->addr = "*"+ult;
-				// cout<<"nice "<<addr<<endl;
+				// // cout<<"nice "<<addr<<endl;
 				fprintf(tac, "\t%s", s.c_str());
 				return;
 			}
@@ -448,17 +486,18 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
-			if($value->typestring !=$type->production){
-				dprintf(stderr_copy, "TypeError at line %d: Types on both side do not match\n",$id->lineno);
-				exit(88);
-			}
 			if ($value->typestring == "") {
 				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n",
 						$id->lineno);
+			
 #if TEMPDEBUG
 				printf ("empty typestring: production is %s token %d\n", $value->production.c_str(), $value->token);
 #endif
 				exit (96);
+			}
+			if (!check_typestring($value, $type->production)) {
+				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $operation->lineno, $id->typestring.c_str(), $type->production.c_str());
+				exit(1);
 			}
 			/*
 				if($id is not lvalue) error
@@ -476,9 +515,9 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			$1->typestring = $type->typestring;
 			$1->dimension = $type->dimension;
 			put ($id, $type);
-			// cout<<"Dimension of type" <<$type->dimension<<endl;
+			// // cout<<"Dimension of type" <<$type->dimension<<endl;
 			gen ($$,$id, $value, ASSIGN);
-			// cout<<"Dimension "<<$id->dimension<<endl;
+			// // cout<<"Dimension "<<$id->dimension<<endl;
 
 		} else { // mind the indent
 			if (!$id->isdecl) {
@@ -533,8 +572,8 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				$value->typestring = top->get($value->production)->typestring;
 			check($id);
 			check($value);
-			if(!check($id,$value)){
-				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $id->production.c_str(), $value->production.c_str());
+			if (!check($id, $value)) {
+				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $operation->lineno, $id->typestring.c_str(), $value->typestring.c_str());
 				exit(1);
 			}
 			$$ = new Node ($operation->production);
@@ -566,9 +605,8 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			// these 3 lines copied during merging: check consistency
 			check ($id);
 			check($value);
-
-			if(!check($id,$value)){
-				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $id->production.c_str(), $value->production.c_str());
+			if (!check($id, $value)) {
+				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $operation->lineno, $id->typestring.c_str(), $value->typestring.c_str());
 				exit(1);
 			}
 			gen($$,$id,$value,ASSIGN);
@@ -592,7 +630,7 @@ decl_set_curr_id: {
 		currently_defining_identifier_typestring = $<node>0->production;
 		if ($<node>0->dimension == 0) currently_defining_identifier_typestring = "";
 #if TEMPDEBUG
-		cout << "line 541 set currently definining list type to " << currently_defining_identifier_typestring << endl;
+		// cout << "line 541 set currently definining list type to " << currently_defining_identifier_typestring << endl;
 #endif
 	}
 
@@ -621,32 +659,85 @@ augassign: "+=" {$$ = new Node ("+="); $$->op = ADD;}
 		| "**=" {$$ = new Node ("**="); }
 
 return_stmt: "return" test {
-		/*
-			if(Funcsuite==0) error
-			if($2 is not in current scope) error
-			if ($2 is not type compatible with return type) error
-		*/
+			if($2->isConstant && $2->typestring != top->return_type){
+				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
+				exit(57);
+			}
+			if(!top->has($2)){
+				dprintf (stderr_copy, "Error at line %d: return value not declared\n", (int) $2->lineno);
+				exit(57);
+			}
+			if($2->typestring != top->return_type){
+				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
+				exit(57);
+			}
 			$1->addchild($2,"Data"); $$=$1;	
 	}
 	| "return" {
-		/*
-			if(Funcsuitex==0) error
-			if(return type is not None) error
-		*/
+			if(top->return_type != "None"){
+				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $1->lineno);
+				exit(57);
+			}
 		string temp = "Keyword\n"; temp += "( return )"; $$ = new Node(temp);}
 
 // for each operation check if the operands are in current scope or not
 // check type compatibility
 //udate type of result
 
-test : and_test {
+test : and_test
+	| test "or" and_test {
+	//assuming: only ints/bools in test
+	if (!check_number($1) 
+	||  !check_number($3)
+	||  ($1->typestring == "float")
+	||  ($1->typestring == "complex")
+	||  ($3->typestring == "float")
+	||  ($3->typestring == "complex")) {
+		dprintf(stderr_copy, "TypeError on line %d: logical operator and doesn't support types %s and %s", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+		exit(1);
 	}
-	| test "or" and_test { $$ = new Node ("or"); $$->addchild ($1); $$->addchild ($3);}
+	$$ = new Node ("or");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	$$->typestring = "bool";
+	
+	//to do: gen
+}
 
 and_test : not_test
-	| and_test "and" not_test { $$ = new Node ("and"); $$->addchild ($1); $$->addchild ($3);}
+	| and_test "and" not_test {
+	//assuming: only ints/bools in test
+	if (!check_number($1) 
+	||  !check_number($3)
+	||  ($1->typestring == "float")
+	||  ($1->typestring == "complex")
+	||  ($3->typestring == "float")
+	||  ($3->typestring == "complex")) {
+		dprintf(stderr_copy, "TypeError on line %d: logical operator and doesn't support types %s and %s", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+		exit(1);
+	}
+	$$ = new Node ("and");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	$$->typestring = "bool";
+	
+	//to do: gen
+}
+}
 not_test : comparison
-	| "not" not_test	{ $$ = new Node ("not"); $$->addchild ($2);}
+	| "not" not_test	{
+	if (!check_number($2)
+	||  ($1->typestring == "float")
+	||  ($1->typestring == "complex")) {
+		dprintf(stderr_copy, "TypeError on line %d: logical operator and doesn't support types %s and %s", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+		exit(1);
+	}
+	$$ = new Node ("not");
+	$$->addchild ($2);
+	$$->typestring = "bool";
+	
+	//to do: gen
+}
 
 comparison: expr {
 	if ($1->typestring == "") {
@@ -677,7 +768,7 @@ comparison: expr {
 			if ($1->isLeaf && $3->isLeaf && $1->production == "__name__" && $3->strVal == "\\\"__main__\\\"") {
 				// pass
 			} else {
-				cout <<  $1->production << $3->strVal << endl;
+				// cout <<  $1->production << $3->strVal << endl;
 				dprintf (1, "havent implemented\n");
 				exit(77);
 			}
@@ -1344,8 +1435,8 @@ on entry to primary "." NAME: if primary is a leaf, nothing is set.
 
 
 primary: atom {
-		// set typestring if available, so we know if it's a declaration or a use
-		Node * handle;
+		// // set typestring if available, so we know if it's a declaration or a use
+		// cout<<$1->isLeaf<<endl;
 		$$ = $1;
 		$$->islval = true;
 		$$->isdecl = true;
@@ -1525,8 +1616,8 @@ primary: atom {
 		(function_call_args[iter]->typestring == type1 && current_scope->arg_types[iter] == type2)
 
 		for (iter = 0; iter< current_scope->arg_types.size(); iter ++) { 
-			cout << "twdfdvwfere\n";
-			cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
+			// cout << "twdfdvwfere\n";
+			// cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
 			if (function_call_args[iter]->typestring == (current_scope->arg_types)[iter]
 					&& function_call_args_dim[iter] == (current_scope->arg_dimensions)[iter])
 				continue;
@@ -1579,7 +1670,7 @@ primary: atom {
 				$$->typestring = $1->production;
 				current_scope = globalSymTable->ctor.find($1->production)->second;
 #if TEMPDEBUG
-				cout<<"return type of constructor "<<$$->typestring<<endl;
+				// cout<<"return type of constructor "<<$$->typestring<<endl;
 #endif
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
@@ -1606,7 +1697,8 @@ primary: atom {
 		$$->typestring = ($$->typestring != "" ?  $$->typestring: current_scope->return_type);
 		// printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
-		if (0 != current_scope->arg_types.size()) {
+		
+		if (current_scope->arg_types.size()) {
 			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
 					(int)$1->lineno,(int) current_scope->arg_types.size(), 0);
 			exit (60);
@@ -1748,7 +1840,7 @@ arglist: test[obj]
 
 
 
-typedarglist:  typedargument {/*top->arguments push*/}
+typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 	| NAME {/*this pointer in case inClass==1 otherwise error*/
 		if (!Classsuite) {
 			dprintf (stderr_copy, "Error in line %d: Argument %s to function does not have a type hint\n", $1->lineno, $1->production.c_str());
@@ -1760,8 +1852,14 @@ typedarglist:  typedargument {/*top->arguments push*/}
 		}
 		top->thisname=$1->production;
 		top->put($1, currently_defining_class->name);
+		$$=$1;
 	}
-	| typedarglist "," typedargument { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
+	| typedarglist "," {fprintf(tac,"\tparam %s\n",$1->production.c_str());} typedargument[last] { 
+		$$ = new Node ("Multiple Terms"); 
+		$$->addchild($1); 
+		$$->addchild($last);
+		fprintf(tac,"\tparam %s\n", $last->production.c_str());
+	}
 
 typedarglist_comma: typedarglist | typedarglist ","
 
@@ -1785,6 +1883,8 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 		put ($1, $3);
 		top->arg_types.push_back ($3->production);
 		top->arg_dimensions.push_back ((bool) $3->dimension);
+
+		fprintf(tac,"\tparam %s\n", $1->production.c_str());
 	}
 
 suite:  simple_stmt[first] 
@@ -2014,7 +2114,7 @@ int main(int argc, char** argv){
 			}
 			close(0);
 			dup (input_fd);
-			cout << "input file: " << argv[i+1] << endl;
+			// cout << "input file: " << argv[i+1] << endl;
 		}
 		else if (strcmp(argv[i], "-output") == 0) { // outpur file name, default ast.dot
 			if (argv[i+1] == NULL) {
@@ -2105,7 +2205,7 @@ int main(int argc, char** argv){
 	globalSymTable->print_st(stdump);
 	fclose (stdump);
 	if (static_section != "Static section:\n")
-		cout << static_section << endl;
+		// cout << static_section << endl;
 	if (jump_labels_upper.size() != 0 || jump_labels.size() != 0)
 		printf ("Error stacks not empty\n");
     return 0;

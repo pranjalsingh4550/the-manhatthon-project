@@ -1355,6 +1355,7 @@ primary: atom {
 			$$->isdecl = false;
 		}
 		current_scope = NULL;
+		}
 	}
 	| primary "." NAME {
 		$$ = new Node (0, "", $3->typestring);
@@ -1516,7 +1517,7 @@ primary: atom {
 		int iter;
 		if (function_call_args.size() != current_scope->arg_types.size()) {
 			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
-					(int)$1->lineno, current_scope->arg_types.size(), function_call_args.size());
+					(int)$1->lineno, (int)current_scope->arg_types.size(),(int) function_call_args.size());
 			exit (60);
 		}
 #define VALID_PAIR(type1, type2)	\
@@ -1536,7 +1537,7 @@ primary: atom {
 						(int) $1->lineno, iter, current_scope->arg_types[iter].c_str(), function_call_args[iter]->typestring.c_str());
 			else
 				dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be of type %s, received incompatible type %s\n",
-						(int) $1->lineno,
+						(int) $1->lineno, iter,
 						(current_scope->arg_types[iter] +(current_scope->arg_dimensions[iter] ? "[]" : "")).c_str(),
 						(current_scope->arg_types[iter] +(function_call_args_dim[iter]? "[]" : "")).c_str()
 						);
@@ -1605,14 +1606,13 @@ primary: atom {
 		$$->lineno = $1->lineno;
 		if (0 != current_scope->arg_types.size()) {
 			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
-					(int)$1->lineno, current_scope->arg_types.size(), 0);
+					(int)$1->lineno,(int) current_scope->arg_types.size(), 0);
 			exit (60);
 		}
 		function_call_args.clear();
 		function_call_args_dim.clear();
 		current_scope = NULL;
 	}
-
 
 
 
@@ -1650,7 +1650,7 @@ atom: NAME
 		fprintf (tac, "\t%s = ALLOC_HEAP (%lu)\n", dev_helper($$).c_str(), list_init_inputs.size() * thissize);
 		for(auto itrv:list_init_inputs){
 			// 3ac to copy list to temp
-			if (ISPRIMITIVE (itrv)) 
+			if (ISPRIMITIVE (itrv)) {
 				gen ($$, itrv, (Node*) NULL, SW);
 				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
 			}

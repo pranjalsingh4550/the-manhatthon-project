@@ -10,12 +10,13 @@
 	#include<sys/types.h>
     using namespace std; 
 	int nodecount=0;
+	int tempcount=0;
 	FILE* graph = NULL;
 	FILE* inputfile = NULL;
     extern int yylex();
     extern int yyparse();
     extern void debugprintf (const char *) ;
-	extern FILE *tac;
+	// extern FILE *tac;
     extern int yylineno;
 	extern char *yytext;
     int yyerror(const char *s);
@@ -26,8 +27,16 @@
 	bool inside_init = false;
 	string class_name_saved_for_init;
 	SymbolTable* top, *globalSymTable, *current_scope, *currently_defining_class;
+	string newtemp(){
+		string temp = "t";
+		temp += to_string(tempcount);
+		tempcount++;
+		return temp;
+	}
 #define TEMPDEBUG 1
 	bool is_not_name (Node*);
+
+	
 	Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
 		//
 		name = name;
@@ -109,6 +118,29 @@
 			exit(56);
 		}
 	}
+	void gen(Node*result, Node* leftop, Node* rightop,enum ir_operation op){
+		if (tac == NULL) tac = stdout;
+		string left= top->getaddr(leftop);
+		string right= top->getaddr(rightop);
+		switch(op){
+			case ASSIGN: fprintf(tac, "%s = %s\n", left.c_str(), right.c_str()); return;
+			default: break;
+		}
+		result->addr = newtemp();
+		string resultaddr = result->addr;
+		switch(op){
+			case ADD: fprintf(tac, "%s = %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case SUB: fprintf(tac, "%s = %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case MUL: fprintf(tac, "%s = %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case DIV: fprintf(tac, "%s = %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			default: break;
+		}
+		return;
+			
+	}
+	void gen(Node*leftop, Node* rightop, enum ir_operation op){
+		
+	}
 %}
 
 %union {
@@ -148,7 +180,6 @@
 %token <node> LESSEQUAL "<="
 %token <node> GREATER ">"
 %token <node> GREATEREQUAL ">="
-%token <node> IS "is"
 %token <node> IN "in"
 %token <node> VBAR "|"
 %token <node> CIRCUMFLEX "^"
@@ -289,53 +320,14 @@ global_stmt: "global" NAME[id] {
 		$$=$id;
 	}
 	
-expr_stmt: /* NAME[id] ":" declare typeclass[type] {
-			/*
-				if($id is already in current scope)error
-				if($type is not declared in GlobalSymTable->classes)error
-
-				add $id to curent scope with type $type and node $id (put($id,$type));
-			*
-			// if (top->symbols.find($id->production) != top->symbols.end()) {
-			// 	dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
-			// 			$id->lineno, $id->production.c_str());
-			// 	exit(87);
-			// }
-			// decl=0; //reseting list[int]
-			// $$ = new Node ("Declaration");
-			// $$->addchild($id, "Name");
-			// $$->addchild($type, "Type");
-			// $$->typestring = $type->typestring;
-			// put ($id, $type);
-	}
-*/
-/*
-	|"self" "." NAME[id] ":" declare typeclass[type] {
-		if (!Classsuite	|| !currently_defining_class) {
-			dprintf (stderr_copy, "Error at line %d: self object cannot be used outside class scope\n",
-					(int) $id->lineno);
-			exit (57);
-		} else if (!inside_init) {
-			dprintf (stderr_copy, "Error at line %d: class attributes cannot be declard outside the constructor\n",
-					(int) $id->lineno);
-			exit (57);
-		} else if (currently_defining_class->symbols.find($id->production) != currently_defining_class->symbols.end()) {
-			dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
-					$id->lineno, $id->production.c_str());
-			exit(87);
+expr_stmt: primary[id] ":" typeclass[type] {
+		if (!$id->isdecl) {
+			dprintf (stderr_copy, "Error at line %d: invalid L-value in declaration\n", yylineno);
+			exit (34);
 		}
-		currently_defining_class->put ($id, $type);
-		$$ = new Node ("Declaration");
-		$$->addchild($id, "Name");
-		$$->addchild($type, "Type");
-		$$->typestring = $type->typestring;
-	}
-	*/
-	 primary[id] ":" typeclass[type] {
 		if ($id->isLeaf) {
-
 			if (top->symbols.find($id->production) != top->symbols.end()) {
-				dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
+				dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
@@ -345,20 +337,16 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 			$$->typestring = $type->typestring;
 			put ($id, $type);
 		} else { // mind the indent
-		if (!$id->isdecl) {
-			dprintf (stderr_copy, "Error at line %d: invalid L-value in declaration\n", (int) yylineno);
-			exit (34);
-		}
 		if (!Classsuite	|| !currently_defining_class) {
 			dprintf (stderr_copy, "Error at line %d: self object cannot be used outside class scope\n",
-					(int) $id->lineno);
+					$id->lineno);
 			exit (57);
 		} else if (!inside_init) {
 			dprintf (stderr_copy, "Error at line %d: class attributes cannot be declard outside the constructor\n",
-					(int) $id->lineno);
+					$id->lineno);
 			exit (57);
 		} else if (currently_defining_class->symbols.find($id->production) != currently_defining_class->symbols.end()) {
-			dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
+			dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
 					$id->lineno, $id->production.c_str());
 			exit(87);
 		}
@@ -375,35 +363,46 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 				dprintf (stderr_copy, "Error: assignment to non-identifier at line %d\n", $id->lineno);
 				exit(97);
 			}
+			if (top->local($id)) {
+				dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
+						$id->lineno, $id->production.c_str());
+				exit(87);
+			}
+			if($value->typestring !=$type->production){
+				dprintf(stderr_copy, "TypeError at line %d: Types on both side do not match\n",$id->lineno);
+			}
 			if ($value->typestring == "") {
-				dprintf (stderr_copy, "Error at line %ld: Invalid value on RHS of unknown type\n",
+				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n",
 						$id->lineno);
 #if TEMPDEBUG
 				printf ("empty typestring: production is %s token %d\n", $value->production.c_str(), $value->token);
 #endif
 				exit (96);
 			}
-			if (top->has($id)) {
-				dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
-						$id->lineno, $id->production.c_str());
-				exit(87);
-			}
 			/*
 				if($id is not lvalue) error
 				if($id is already in current scope)error
 				if($type is not declared in GlobalSymTable->classes)error
-				if($type and $value are not type compatible) error ( only int<->float and int <-> bool type mismatch are allowed give error otherwise)
 				if($value is a leaf && $value is not a constant ) check if $value is in scope or not
+				if($type and $value are not type compatible) error ( only int<->float and int <-> bool type mismatch are allowed give error otherwise)
 				
 				add $id to curent scope with type $type and node $id (put($id,$type));
 			*/
 			$$ = new Node ("Declaration");
-			$$->op = MOV_REG;
+			$$->op= ASSIGN;
+			// if($value->isConstant){
+			// 	$$->op = LI;
+			// }
+			// else{
+			// 	$$->op = MOV_REG;
+			// }
 			$$->addchild($id, "Name");
 			$$->addchild($type, "Type");
-			$$->addchild($value, "Value", $id);
+			$$->addchild($value, "Value");
 			$$->typestring = $type->typestring;
 			put ($id, $type);
+			gen ($$,$id, $value, ASSIGN);
+
 		} else { // mind the indent
 			if (!$id->isdecl) {
 				dprintf (stderr_copy, "Error at line %d: invalid L-value in declaration\n", (int) yylineno);
@@ -418,7 +417,7 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 						(int) $id->lineno);
 				exit (57);
 			} else if (currently_defining_class->symbols.find($id->production) != currently_defining_class->symbols.end()) {
-				dprintf (stderr_copy, "Redeclaration error at line %ld: identifier %s redeclared\n",
+				dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
@@ -448,7 +447,7 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 				exit (33);
 			}
 			if (!top->has($3) && ($3->typestring == "")) {
-				dprintf (stderr_copy, "Error at line %ld: Invalid value on RHS of unknown type\n", $3->lineno);
+				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n", $3->lineno);
 				exit (94);
 			} else if (top->has($3))
 				$3->typestring = top->get($3->production)->typestring;
@@ -458,7 +457,6 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $1->production.c_str(), $3->production.c_str());
 				exit(1);
 			}
-
 			$$ = new Node ($2->production);
 			$$->addchild($1);
 			$$->addchild($3);
@@ -487,14 +485,17 @@ expr_stmt: /* NAME[id] ":" declare typeclass[type] {
 			// these 3 lines copied during merging: check consistency
 			check ($1);
 			check($3);
-			if ($1->isLeaf)
-				top->get($1)->typestring= $3->typestring;
-			$$->add_op ($3, $3, MOV_REG);
+
+			if(!check($1,$3)){
+				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $1->production.c_str(), $3->production.c_str());
+				exit(1);
+			}
+			gen($$,$1,$3,ASSIGN);
 	}
 	| test {
 		if ($1->isLeaf) {
 			if (!top->has($1->production) && $1->token==NAME){
-				dprintf (stderr_copy, "NameError at line %ld: identifier %s has not been declared\n",
+				dprintf (stderr_copy, "NameError at line %d: identifier %s has not been declared\n",
 						$1->lineno, $1->production.c_str()); exit(42);
 			}
 			else printf ("valid identifier %s\n", $1->production.c_str());
@@ -550,10 +551,6 @@ comparison: expr
 	| expr "<=" comparison	{ $$ = new Node ("<="); $$->addchild ($1); $$->addchild ($3);}
 	| expr ">" comparison	{ $$ = new Node (">"); $$->addchild ($1); $$->addchild ($3);}
 	| expr ">=" comparison	{ $$ = new Node (">="); $$->addchild ($1); $$->addchild ($3);}
-	| expr "is" comparison	{ $$ = new Node ("is"); $$->addchild ($1); $$->addchild ($3);}
-	| expr "in" comparison	{ $$ = new Node ("in"); $$->addchild ($1); $$->addchild ($3);}
-	| expr "not" "in" comparison	{ $$ = new Node ("not in"); $$->addchild ($1); $$->addchild ($4);}
-	| expr "is" "not" comparison	{ $$ = new Node ("is not"); $$->addchild ($1); $$->addchild ($4);}
 
 
 expr: xor_expr 
@@ -567,7 +564,12 @@ ans_expr: shift_expr
 shift_expr: sum 
 	| shift_expr "<<" sum	{ $$ = new Node ("Left Shift\n<<"); $$->addchild ($1); $$->addchild ($3);}
 	| shift_expr ">>" sum	{ $$ = new Node ("Right Shift\n>>"); $$->addchild ($1); $$->addchild ($3);}
-sum : sum "+" term  { $$ = new Node ("+"); $$->addchild ($1); $$->addchild($3); }
+sum : sum "+" term  { 
+		$$ = new Node ("+"); 
+		$$->addchild ($1); $$->addchild($3);
+		$$->typestring = $1->typestring; 
+		gen($$,$1, $3, ADD);
+		}
 	| sum "-" term	{ $$ = new Node ("-"); $$->addchild ($1); $$->addchild($3); }
 	| term
 term: term "*" factor	{ $$ = new Node ("*"); $$->addchild ($1); $$->addchild($3); }
@@ -686,7 +688,7 @@ primary: atom {
 			$$->isdecl = false;
 			$$->islval = true;
 			if ($1->isLeaf && !top->has($1)) {
-				dprintf (stderr_copy, "Error undeclared object %s at line %ld", $1->production.c_str(), $3->lineno);
+				dprintf (stderr_copy, "Error undeclared object %s at line %d", $1->production.c_str(), $3->lineno);
 				exit (1);
 			}
 			if ($1->dimension == 0) {
@@ -733,22 +735,22 @@ primary: atom {
 			if (top->find_member_fn ($1->production)) {
 				current_scope = top->find_member_fn($1->production);
 				$1->typestring = "def";
-				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
+				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
 				current_scope = globalSymTable->ctor.find ($1->production)->second;
-				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 				$$->typestring = $1->production;
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
 				$$->typestring = current_scope->return_type;
 			} else {
-				dprintf (stderr_copy, "Error at line %ld: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
+				dprintf (stderr_copy, "Error at line %d: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
 				exit(44);
 			}
 		} else { // now we expect typestring to be set to def, symboltable to be available in current_scope
 			if ($1->typestring != "def") {
-				dprintf (stderr_copy, "TypeError at line %ld: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
+				dprintf (stderr_copy, "TypeError at line %d: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
 			} else { // valid function call
 				printf ("valid function call to function %s\n",
@@ -769,21 +771,21 @@ primary: atom {
 		if ($1->isLeaf) {
 			if (top->find_member_fn ($1->production)) {
 				$1->typestring = "def";
-				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
+				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
-				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 				$$->typestring = $1->production;
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
 				$$->typestring = current_scope->return_type;
 			} else {
-				dprintf (stderr_copy, "Error at line %ld: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
+				dprintf (stderr_copy, "Error at line %d: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
 				exit(44);
 			}
 		} else { // now we expect typestring to be set to def, symboltable to be available in current_scope
 			if ($1->typestring != "def") {
-				dprintf (stderr_copy, "TypeError at line %ld: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
+				dprintf (stderr_copy, "TypeError at line %d: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
 			} else { // valid function call
 				printf ("valid function call to function %s\n",
@@ -844,11 +846,11 @@ arglist: test
 typedarglist:  typedargument {/*top->arguments push*/}
 	| NAME {/*this pointer in case inClass==1 otherwise error*/
 		if (!Classsuite) {
-			dprintf (stderr_copy, "Error in line %ld: Argument %s to function does not have a type hint\n", $1->lineno, $1->production.c_str());
+			dprintf (stderr_copy, "Error in line %d: Argument %s to function does not have a type hint\n", $1->lineno, $1->production.c_str());
 			exit (77);
 		}
 		if (top->thisname != "") {
-			dprintf (stderr_copy, "Error in line %ld: Argument %s to function does not have a type hint. \"this\" pointer has been declared.\n", $1->lineno, $1->production.c_str());
+			dprintf (stderr_copy, "Error in line %d: Argument %s to function does not have a type hint. \"this\" pointer has been declared.\n", $1->lineno, $1->production.c_str());
 			exit (76);
 		}
 		top->thisname=$1->production;
@@ -868,11 +870,11 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 			exit(45);
 		}
 		if (find_class ($3->production) == NULL) {
-			dprintf (stderr_copy, "Error at line %ld: Unknown type hint %s to function parameters\n", $1->lineno, $3->production.c_str());
+			dprintf (stderr_copy, "Error at line %d: Unknown type hint %s to function parameters\n", $1->lineno, $3->production.c_str());
 			exit (42);
 		}
 		if (top->symbols.find($1->production) != top->symbols.end()) {
-			dprintf (stderr_copy, "Error at line %ld: identifier %s redeclared in function scope\n", $1->lineno, $1->production.c_str());
+			dprintf (stderr_copy, "Error at line %d: identifier %s redeclared in function scope\n", $1->lineno, $1->production.c_str());
 			exit(49);
 		}
 		put ($1, $3);

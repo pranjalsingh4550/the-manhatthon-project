@@ -9,9 +9,14 @@ parser: clean
 	flex lexer.l
 	g++ -g -o parser lex.yy.c parser.tab.c -fmax-errors=6 
 
+exe: 
+	echo "\n\n\n"
+	./parser -input input.py
+	echo "\n\n\n"
+	make clean
+
 test: parser
-	./parser  -output ast.dot < input.py 2>output.txt
-	sed -i 's/Shifting/=======================================+\nShifting/; s/^->/\t\t->/' output.txt
+	make exe
 
 temp:
 	./parser < input.py 2>output.txt

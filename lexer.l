@@ -3,12 +3,10 @@
 %option stack
 %{
     #include<bits/stdc++.h> 
+    using namespace std;
     #include<stdlib.h>
     #include "parser.tab.h"
     #include "classes.hpp"
-    extern int nodecount;
-    extern FILE* graph;
-    using namespace std;
     stack<string> indent_stack;
     int ded=0;
     int newline=0;
@@ -136,7 +134,6 @@ ignore2	\n[ \f\t]*{comments}?
 ">"		{return GREATER;}
 "<=" 	{return LESSEQUAL;}
 ">=" 	{return GREATEREQUAL;}
-"is" 	{return IS;}
 "in" 	{return IN;}
 
 "|"	{return VBAR;}
@@ -216,7 +213,7 @@ ignore2	\n[ \f\t]*{comments}?
 		dprintf(stderr_dup, "Error at line %d:\nMagnitude of integer %s is too big\n", yylineno, yytext);
 		exit(1);
 	}
-    printf("\t\tLI t_%d, %ld\n", nodecount,val);
+    // printf("\t\tLI t_%d, %ld\n",nodecount,val);
 	yylval.node = new Node(NUMBER, val);
 	yylval.node->production = strdup (yytext);
 	return NUMBER;

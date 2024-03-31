@@ -6,19 +6,29 @@
 using namespace std;
 
 extern int nodecount;
+extern int tempcount;
 extern FILE *graph;
 extern int yylineno;
 static FILE* tac = NULL;
-
+class SymbolTable;
+extern SymbolTable* top;
 
 enum ir_operation {
 	UJUMP,
 	CJUMP,	// CONDITIONAL JUMP
 	LW,
 	SW,
+	LI,
 	RETQ,	// RETURN
 	MOV_REG,
 
+	//only for 3AC
+	ASSIGN,
+	ADD,
+	SUB,
+	MUL,
+	DIV,
+	//
 	ANDBW,	// bitwise and
 	ORBW,	// BITWISE OR
 	NOTBW,	// BITWISE NOT
@@ -90,25 +100,30 @@ typedef struct {
 } complexLiteral;
 
 
+
 class Node {
 		public:
 		int nodeid;
 		int token;
 		string production;
 		string typestring = "";
-		ull lineno;
+		int lineno;
 		vector<Node*> children;
+
+		// for 3AC
+		string addr;
+
 		//children used for lists etc.
 		
 		enum datatypes type;
 		enum ir_operation op;
-		bool isConstant = false;
 		long int intVal;
 		short int dimension = 0;
 		double floatVal;
 		string strVal;
 		complexLiteral complexVal;
 		
+		bool isConstant = false;
 		bool isLeaf = false;
 		bool isdecl = false;	// true if the node can be the body of a production
 		bool islval = true;		// false for fn()
@@ -116,7 +131,7 @@ class Node {
 		Node (int tokenIn) {
 			//none, but let the lexer pass the token value so that I don't have to include parser.tab.h here
 			token = tokenIn;
-			nodeid = nodecount++;
+			// nodeid = nodecount++;
 			typestring = "";
 			lineno = yylineno;
 			isConstant = true;
@@ -129,15 +144,17 @@ class Node {
 			typestring = typestr;
 			production = label;
 			lineno = yylineno;
+			addr = label;
 			isLeaf = true;
 		}
 		
 		Node (int tokenIn, long int value) {
 			token = tokenIn;
-			nodeid = nodecount++;
+			// nodeid = nodecount++;
 			typestring = "int";
 			lineno = yylineno;
 			type = TYPE_INT;
+			addr = to_string(value);
 			isConstant = true;
 			intVal = value;
 			isLeaf = true;
@@ -145,8 +162,9 @@ class Node {
 		
 		Node (int tokenIn, double value) {
 			token = tokenIn;
-			nodeid = nodecount++;
+			// nodeid = nodecount++;
 			typestring = "float";
+			addr=to_string(value);
 			lineno = yylineno;
 			type = TYPE_FLOAT;
 			isConstant = true;
@@ -156,9 +174,10 @@ class Node {
 		
 		Node (int tokenIn, complexLiteral value) {
 			token = tokenIn;
-			nodeid = nodecount++;
+			// nodeid = nodecount++;
 			typestring = "complex";
 			lineno = yylineno;
+			addr=to_string(value.real)+" + "+to_string(value.imag)+"i";
 			type = TYPE_COMPLEX;
 			isConstant = true;
 			complexVal = value;
@@ -168,10 +187,11 @@ class Node {
 		Node (int tokenIn, string value) {
 			//for string literals
 			token = tokenIn;
-			nodeid = nodecount++;
+			// nodeid = nodecount++;
 			typestring = "str";
 			lineno = yylineno;
 			type = TYPE_STR;
+			addr=value;
 			isConstant = true;
 			strVal = value;
 			isLeaf = true;
@@ -179,10 +199,11 @@ class Node {
 		
 		Node (int tokenIn, bool value) {
 			token = tokenIn;
-			nodeid = nodecount++;
+			// nodeid = nodecount++;
 			typestring = "bool";
 			lineno = yylineno;
 			type = TYPE_INT;
+			addr = value ? "1" : "0";
 			isConstant = true;
 			intVal = value;
 			isLeaf = true;
@@ -208,11 +229,11 @@ class Node {
 		// overloaded ops below: add actions of the form leftchild OP child
 		void addchild (Node* child, Node* leftchild) {
 			children.push_back(child);
-			add_op(leftchild, child, this->op);
+			// gen(leftchild, child, this->op);
 		}
 		void addchild (Node *child, const char* label, Node *leftchild) {
 			children.push_back(child);
-			add_op(leftchild, child, this->op);
+			// gen(leftchild, child, this->op);
 		}
 		void printnode () {
 			cout << "Node id: " << nodeid << " Production: " << production << endl;
@@ -220,60 +241,90 @@ class Node {
 				child->printnode();
 			}
 		}
-		void add_op (Node *leftoperand, Node *rightoperand, enum ir_operation op) {
+// 		void gen (Node *leftoperand, Node *rightoperand, enum ir_operation op) {
+// 			// should ir_operations be a map <str, int>? ??????
+// 			char* left= top->getaddr(leftoperand);
+// 			char* right= top->getaddr(rightoperand);
+
+// #define STRING(x) #x
+// #define BINARY_OP(op, in1, in2) {fprintf(tac, "\tt_%d = %s\t(t_%d,\tt_%d)\n", this->nodeid, STRING(op), in1->nodeid, in2->nodeid); break;}
+// #define UNARY_OP(op, in1, in2) {fprintf(tac, "\tt_%d = %s\t(t_%d)\n", this->nodeid, STRING(op), in1->nodeid); break;}
+// 			if (tac == NULL) tac = stdout;
+// 				switch (op) {
+
+// 					case ASSIGN	: fprintf(tac, "%s = %s\n", leftoperand->addr.c_str(), rightoperand->addr.c_str()); break;
+// 					case ADD	: {
+// 							addr = "t_" + to_string(tempcount++);
+// 						fprintf(tac, "%s = %s + %s\n", addr.c_str(), leftoperand->addr.c_str(), rightoperand->addr.c_str()); break;
+// 						}
+// 					case SUB	: {
+// 							addr = "t_" + to_string(tempcount++);
+// 						fprintf(tac, "%s = %s - %s\n", addr.c_str(), leftoperand->addr.c_str(), rightoperand->addr.c_str()); break;
+// 						}
+// 					case MUL	: {
+// 							addr = "t_" + to_string(tempcount++);
+// 						fprintf(tac, "%s = %s * %s\n", addr.c_str(), leftoperand->addr.c_str(), rightoperand->addr.c_str()); break;
+// 						}
+// 					case DIV	: {
+// 							addr = "t_" + to_string(tempcount++);
+// 						fprintf(tac, "%s = %s / %s\n", addr.c_str(), leftoperand->addr.c_str(), rightoperand->addr.c_str()); break;
+// 						}
+// 					case UJUMP	:
+// 					case CJUMP	:
+// 					case LW		: UNARY_OP(LW, leftoperand, rightoperand);
+// 					case LI		: fprintf(tac, "%s = %s\n", leftoperand->addr.c_str(), rightoperand->addr.c_str()); break;
+// 					case SW		: UNARY_OP(SW, leftoperand, rightoperand);
+// 					case RETQ	:
+// 					case MOV_REG: UNARY_OP(MOV_REG, leftoperand, rightoperand);
+// 					case ANDBW	: BINARY_OP(ANDBW, leftoperand, rightoperand);
+// 					case ORBW	: BINARY_OP(ORBW, leftoperand, rightoperand);
+// 					case NOTBW	: UNARY_OP(NOTBW, leftoperand, rightoperand);
+// 					case ORBL	: BINARY_OP(ORBL, leftoperand, rightoperand);
+// 					case ANDBL	: BINARY_OP(ANDBL, leftoperand, rightoperand);
+// 					case NOTBL	: BINARY_OP(NOTBL, leftoperand, rightoperand);
+// 					case XORBW	: BINARY_OP(XORBW, leftoperand, rightoperand);
+// 					case SHRBW	: BINARY_OP(SHRBW, leftoperand, rightoperand);
+// 					case SHLBW	: BINARY_OP(SHLBW, leftoperand, rightoperand);
+// 					case CMPEQ	: BINARY_OP(CMPEQ, leftoperand, rightoperand);
+// 					case CMPNE	: BINARY_OP(CMPNE, leftoperand, rightoperand);
+// 					case CMPGT	: BINARY_OP(CMPGT, leftoperand, rightoperand);
+// 					case CMPGE	: BINARY_OP(CMPGE, leftoperand, rightoperand);
+// 					case CMPLT	: BINARY_OP(CMPLT, leftoperand, rightoperand);
+// 					case CMPLE	: BINARY_OP(CMPLE, leftoperand, rightoperand);
+// 					case ADDI	: BINARY_OP(ADDI, leftoperand, rightoperand);
+// 					case SUBI	: BINARY_OP(SUBI, leftoperand, rightoperand);
+// 					case MULI	: BINARY_OP(MULI, leftoperand, rightoperand);
+// 					case DIVI	: BINARY_OP(DIVI, leftoperand, rightoperand);
+// 					case FLOORI	: UNARY_OP(FLOORI, leftoperand, rightoperand);
+// 					case MODI	: UNARY_OP(MODI, leftoperand, rightoperand);
+// 					case EXPI	: BINARY_OP(EXPI, leftoperand, rightoperand);
+// 					case ADDF	: BINARY_OP(ADDF, leftoperand, rightoperand);
+// 					case SUBF	: BINARY_OP(SUBF, leftoperand, rightoperand);
+// 					case MULF	: BINARY_OP(MULF, leftoperand, rightoperand);
+// 					case DIVF	: BINARY_OP(DIVF, leftoperand, rightoperand);
+// 					case FLOORF	: UNARY_OP(FLOORF, leftoperand, rightoperand);
+// 					case MODF	: UNARY_OP(MODF, leftoperand, rightoperand);
+// 					case EXPF	: BINARY_OP(EXPF, leftoperand, rightoperand);
+// 					case INT2FL	: UNARY_OP(INT2FL, leftoperand, rightoperand);
+// 					case FL2INT	: UNARY_OP(FL2INT, leftoperand, rightoperand);
+// 					case FUNCTION_CALL	:
+// 					case FUNCTION_RETURN: ;
+
+// 				}
+
+// 			return ;
+// 		}
+		void gen (string left, string right, enum ir_operation op) {
 			// should ir_operations be a map <str, int>? ??????
-
-#define STRING(x) #x
-#define BINARY_OP(op, in1, in2) {fprintf(tac, "\tt_%d = %s\t(t_%d,\tt_%d)\n", this->nodeid, STRING(op), in1->nodeid, in2->nodeid); break;}
-#define UNARY_OP(op, in1, in2) {fprintf(tac, "\tt_%d = %s\t(t_%d)\n", this->nodeid, STRING(op), in1->nodeid); break;}
-			if (tac == NULL) tac = stdout;
-				switch (op) {
-
-					case UJUMP	:
-					case CJUMP	:
-					case LW		: UNARY_OP(LW, leftoperand, rightoperand);
-					case SW		: UNARY_OP(SW, leftoperand, rightoperand);
-					case RETQ	:
-					case MOV_REG: UNARY_OP(MOV_REG, leftoperand, rightoperand);
-					case ANDBW	: BINARY_OP(ANDBW, leftoperand, rightoperand);
-					case ORBW	: BINARY_OP(ORBW, leftoperand, rightoperand);
-					case NOTBW	: UNARY_OP(NOTBW, leftoperand, rightoperand);
-					case ORBL	: BINARY_OP(ORBL, leftoperand, rightoperand);
-					case ANDBL	: BINARY_OP(ANDBL, leftoperand, rightoperand);
-					case NOTBL	: BINARY_OP(NOTBL, leftoperand, rightoperand);
-					case XORBW	: BINARY_OP(XORBW, leftoperand, rightoperand);
-					case SHRBW	: BINARY_OP(SHRBW, leftoperand, rightoperand);
-					case SHLBW	: BINARY_OP(SHLBW, leftoperand, rightoperand);
-					case CMPEQ	: BINARY_OP(CMPEQ, leftoperand, rightoperand);
-					case CMPNE	: BINARY_OP(CMPNE, leftoperand, rightoperand);
-					case CMPGT	: BINARY_OP(CMPGT, leftoperand, rightoperand);
-					case CMPGE	: BINARY_OP(CMPGE, leftoperand, rightoperand);
-					case CMPLT	: BINARY_OP(CMPLT, leftoperand, rightoperand);
-					case CMPLE	: BINARY_OP(CMPLE, leftoperand, rightoperand);
-					case ADDI	: BINARY_OP(ADDI, leftoperand, rightoperand);
-					case SUBI	: BINARY_OP(SUBI, leftoperand, rightoperand);
-					case MULI	: BINARY_OP(MULI, leftoperand, rightoperand);
-					case DIVI	: BINARY_OP(DIVI, leftoperand, rightoperand);
-					case FLOORI	: UNARY_OP(FLOORI, leftoperand, rightoperand);
-					case MODI	: UNARY_OP(MODI, leftoperand, rightoperand);
-					case EXPI	: BINARY_OP(EXPI, leftoperand, rightoperand);
-					case ADDF	: BINARY_OP(ADDF, leftoperand, rightoperand);
-					case SUBF	: BINARY_OP(SUBF, leftoperand, rightoperand);
-					case MULF	: BINARY_OP(MULF, leftoperand, rightoperand);
-					case DIVF	: BINARY_OP(DIVF, leftoperand, rightoperand);
-					case FLOORF	: UNARY_OP(FLOORF, leftoperand, rightoperand);
-					case MODF	: UNARY_OP(MODF, leftoperand, rightoperand);
-					case EXPF	: BINARY_OP(EXPF, leftoperand, rightoperand);
-					case INT2FL	: UNARY_OP(INT2FL, leftoperand, rightoperand);
-					case FL2INT	: UNARY_OP(FL2INT, leftoperand, rightoperand);
-					case FUNCTION_CALL	:
-					case FUNCTION_RETURN: ;
-
-				}
-
-			return ;
-		}
+			switch(op){
+				case ASSIGN	: fprintf(tac, "%s = %s\n", left.c_str(), right.c_str()); break;
+				case ADD	: fprintf(tac, "%s = %s + %s\n", addr.c_str(), left.c_str(), right.c_str()); break;
+				case SUB	: fprintf(tac, "%s = %s - %s\n", addr.c_str(), left.c_str(), right.c_str()); break;
+				case MUL	: fprintf(tac, "%s = %s * %s\n", addr.c_str(), left.c_str(), right.c_str()); break;
+				case DIV	: fprintf(tac, "%s = %s / %s\n", addr.c_str(), left.c_str(), right.c_str()); break;
+			}
 	};
+};
 
 struct str_struct {
 	char* beginning;
@@ -292,7 +343,7 @@ class Symbol {
 	public:
 		string name;
 		string typestring;
-		ull lineno;
+		int lineno;
 		bool isFunction = false;
 		bool isClass = false;
 		ull size = 0;
@@ -320,7 +371,7 @@ class SymbolTable {
 		bool isFunction; // we don't need get/set helpers
 		bool isClass;
 		int isGlobal;
-		ull lineno;
+		int lineno;
 		string name;
 		string thisname = "";
 		string return_type="None";
@@ -403,6 +454,7 @@ class SymbolTable {
 			this->size = this->size + 1;
 			s->dimension = type->dimension;
 			s->node= node;
+			s->node->addr+="_"+name;
 			return 1;
 		}
 		int put (Node* node, string type) {
@@ -417,6 +469,7 @@ class SymbolTable {
 			this->size = this->size + 1;
 			s->dimension = node->dimension;
 			s->node= node;
+			s->node->addr+="_"+name;
 			return 1;
 		}
 		Symbol* get (string name) {
@@ -430,6 +483,13 @@ class SymbolTable {
 		}
 		Symbol* get (Node* node) {
 			return get(node->production);
+		}
+		string getaddr(Node* node) {
+			Symbol* s = get(node);
+			if (s != NULL) {
+				return s->node->addr;
+			}
+			return node->addr;
 		}
 		int putFunc(Node* node, Node* type, vector<Node*> args) {
 			if (this->isClass == false) {
@@ -459,7 +519,7 @@ class SymbolTable {
 			children["float"] = new SymbolTable ("class", CLASS_ST, "float", 8);
 			children["complex"] = new SymbolTable ("class", CLASS_ST, "complex", 16);
 			children["bool"] = new SymbolTable ("class", CLASS_ST, "bool", 8);
-			children["str"] = new SymbolTable ("class", CLASS_ST, "str", sizeof(str_struct));
+			children["str"] = new SymbolTable ("class", CLASS_ST, "str", sizeof(struct str_struct));
 			size = 0;
 			printf ("Call to st ctor. now parent's size is %ld, number of children in parent is %ld\n", this->symbols.size(), this->children.size());
 		}

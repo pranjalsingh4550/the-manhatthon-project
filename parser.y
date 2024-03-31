@@ -35,15 +35,14 @@
 		tempcount++;
 		return temp;
 	}
-<<<<<<< HEAD
 	void resettemp(){
 		tempcount=forcount;
 	}
 	SymbolTable *currently_defining_list;
-=======
 	string currently_defining_identifier_typestring;
->>>>>>> a26f97a (Partial support for initializing lists)
 	vector <Node*> list_init_inputs;
+	vector <Node *> function_call_args;
+	vector <bool> function_call_args_dim;
 	stack <string> jump_labels, jump_labels_upper;
 	int label_count;
 #define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
@@ -1411,19 +1410,9 @@ primary: atom {
 		}
 	| primary "(" testlist ")" {
 		/*
-			if primary is leaf and primary is not in symboltable)error
-			if(primary is not a function) error
-			if(primary->arg_types.size() != testlist->children.size()) error
 			for i in range(primary->arg_types.size())
 				if(primary->arg_types[i] != testlist->children[i]->typestring) error
 			update $$->typestring as return type of function
-			if primary is constant then error
-			if primary is not in current scope then error
-			if primary is not a function then error
-
-			check if testlist is compatible with function parameters or not
-
-			update $result type as the return type of function
 		*/
 		$$ = new Node (0, "", "");
 		$$->islval = false;
@@ -1463,6 +1452,39 @@ primary: atom {
 		}
 		printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
+		
+		// check function_call_args
+		int iter;
+		if (function_call_args.size() != current_scope->arg_types.size()) {
+			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
+					(int)$1->lineno, current_scope->arg_types.size(), function_call_args.size());
+			exit (60);
+		}
+#define VALID_PAIR(type1, type2)	\
+		(function_call_args[iter]->typestring == type1 && current_scope->arg_types[iter] == type2)
+
+		for (iter = 0; iter< current_scope->arg_types.size(); iter ++) { 
+			cout << "twdfdvwfere\n";
+			cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
+			if (function_call_args[iter]->typestring == (current_scope->arg_types)[iter]
+					&& function_call_args_dim[iter] == (current_scope->arg_dimensions)[iter])
+				continue;
+			if (VALID_PAIR( "int", "bool") || VALID_PAIR( "int", "float") ||VALID_PAIR( "bool", "int") || VALID_PAIR( "int", "bool")
+					&& function_call_args_dim[iter] == current_scope->arg_dimensions[iter])
+				continue;
+			if (function_call_args[iter]->typestring != current_scope->arg_types[iter])
+				dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be %s, received incompatible type %s\n",
+						(int) $1->lineno, iter, current_scope->arg_types[iter].c_str(), function_call_args[iter]->typestring.c_str());
+			else
+				dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be of type %s, received incompatible type %s\n",
+						(int) $1->lineno,
+						(current_scope->arg_types[iter] +(current_scope->arg_dimensions[iter] ? "[]" : "")).c_str(),
+						(current_scope->arg_types[iter] +(function_call_args_dim[iter]? "[]" : "")).c_str()
+						);
+			exit(80);
+		}
+		function_call_args.clear();
+		function_call_args_dim.clear();
 	}
 	| primary "(" ")" {
 		/*
@@ -1482,6 +1504,7 @@ primary: atom {
 				// $1->typestring = "def";
 				$$->typestring = top->find_member_fn($1->production)->return_type;
 				$$->addr = "call "+ $1->addr;
+				current_scope = top->find_member_fn($1->production);
 
 #if TEMPDEBUG
 				printf("typestring = %s\n", $$->typestring.c_str());
@@ -1498,6 +1521,9 @@ primary: atom {
 #endif
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
+				$$->typestring = current_scope->return_type;
+			} else if (globalSymTable->find_member_fn ($1->production)) {
+				current_scope = globalSymTable->find_member_fn($1->production);
 				$$->typestring = current_scope->return_type;
 			} else {
 				dprintf (stderr_copy, "Error at line %d: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
@@ -1517,8 +1543,15 @@ primary: atom {
 		$$->isdecl = false;
 		$$->typestring = ($$->typestring != "" ?  $$->typestring: current_scope->return_type);
 		// printf("typestring = %s\n", $$->typestring.c_str());
-		current_scope = NULL;
 		$$->lineno = $1->lineno;
+		if (0 != current_scope->arg_types.size()) {
+			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
+					(int)$1->lineno, current_scope->arg_types.size(), 0);
+			exit (60);
+		}
+		function_call_args.clear();
+		function_call_args_dim.clear();
+		current_scope = NULL;
 	}
 
 
@@ -1558,13 +1591,15 @@ atom: NAME
 		fprintf (tac, "\t%s = ALLOC_HEAP (%d)\n", dev_helper($$).c_str(), list_init_inputs.size() * thissize);
 		for(auto itrv:list_init_inputs){
 			// 3ac to copy list to temp
-			if (ISPRIMITIVE (itrv)) {
+			if (ISPRIMITIVE (itrv)) 
 				gen ($$, itrv, (Node*) NULL, SW);
 			else 
 				;
 		}
 		list_init_inputs.clear();
 		$$->typestring = currently_defining_identifier_typestring;
+		function_call_args.clear();
+		function_call_args_dim.clear();
 	 }
 	/* Empty list not needed */
 list_start :
@@ -1636,10 +1671,14 @@ arglist: test[obj]
 			// base of the list is a static region in memory but we don't know the length yet. so store in a vector for now
 			list_init_inputs.push_back ($obj);
 		}
+		function_call_args.push_back ($obj);
+		function_call_args_dim.push_back ((bool) $obj->dimension);
 	}
 	| arglist "," test[obj] { $$ = new Node ("Multiple terms"); $$->addchild($1); $$->addchild($3);
 		if (list_init)
 			list_init_inputs.push_back ($obj);
+		function_call_args.push_back ($obj);
+		function_call_args_dim.push_back ((bool) $obj->dimension);
 	}
 
 
@@ -1679,6 +1718,8 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 			exit(49);
 		}
 		put ($1, $3);
+		top->arg_types.push_back ($3->production);
+		top->arg_dimensions.push_back ((bool) $3->dimension);
 	}
 
 suite:  simple_stmt[first] 
@@ -1750,6 +1791,8 @@ functionstart:  {
 					Classsuite?MEMBER_FN_ST:FUNCTION_ST,
 					$<node>0->production);
 		top->lineno = $<node>0->lineno;
+		function_call_args.clear();
+		function_call_args_dim.clear();
 	}
 ;
 classdef: "class" NAME classstart ":"  suite[last] {
@@ -1791,6 +1834,8 @@ classstart:	{
 	currently_defining_class = new SymbolTable (top, CLASS_ST, $<node>0->production);
 	// top = top->parent;
 	currently_defining_class->lineno = $<node>0->lineno;
+	function_call_args.clear();
+	function_call_args_dim.clear();
 }
 
 compound_stmt: 

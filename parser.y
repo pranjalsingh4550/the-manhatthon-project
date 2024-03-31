@@ -25,6 +25,7 @@
 	const char* edge_string;
 	int stderr_dup, stderr_copy;
 	bool inside_init = false;
+	bool list_init = false;
 	string class_name_saved_for_init;
 	SymbolTable* top, *globalSymTable, *current_scope, *currently_defining_class;
 	string newtemp(){
@@ -33,10 +34,14 @@
 		tempcount++;
 		return temp;
 	}
-#define TEMPDEBUG 1
+	SymbolTable *currently_defining_list;
+	vector <Node*> list_init_inputs;
+	stack <string> jump_labels, jump_labels_upper;
+	int label_count;
+#define TEMPDEBUG 0
 	bool is_not_name (Node*);
-
-	
+	string static_section;
+	string concatenating_string_plus;
 	Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
 		//
 		name = name;
@@ -140,6 +145,31 @@
 	}
 	void gen(Node*leftop, Node* rightop, enum ir_operation op){
 		
+	}
+	const char* get_next_label (string description) {
+		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
+		if (description != "") tmp += "_" + description;
+		jump_labels.push (tmp);
+		return tmp.c_str();
+	}
+	const char* get_current_label () {
+		string tmp = jump_labels.top();
+		jump_labels.pop();
+		return tmp.c_str();
+	}
+	const char* get_next_label_upper (string description) {
+		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
+		if (description != "") tmp += "_" + description;
+		jump_labels_upper.push (tmp);
+		return tmp.c_str();
+	}
+	const char* get_current_label_upper () {
+		string tmp = jump_labels_upper.top();
+		jump_labels_upper.pop();
+		return tmp.c_str();
+	}
+	const char * dev_helper(Node* n) {
+			return "";
 	}
 %}
 
@@ -735,11 +765,15 @@ primary: atom {
 			if (top->find_member_fn ($1->production)) {
 				current_scope = top->find_member_fn($1->production);
 				$1->typestring = "def";
-				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
+#if TEMPDEBUG
+				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
+#endif
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
 				current_scope = globalSymTable->ctor.find ($1->production)->second;
-				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+#if TEMPDEBUG
+				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+#endif
 				$$->typestring = $1->production;
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
@@ -753,8 +787,10 @@ primary: atom {
 				dprintf (stderr_copy, "TypeError at line %d: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
 			} else { // valid function call
+#if TEMPDEBUG
 				printf ("valid function call to function %s\n",
 						current_scope ? current_scope->name.c_str() : "" );
+#endif
 			}
 		}
 		$$->lineno = $1->lineno;
@@ -771,11 +807,15 @@ primary: atom {
 		if ($1->isLeaf) {
 			if (top->find_member_fn ($1->production)) {
 				$1->typestring = "def";
-				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
+#if TEMPDEBUG
+				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
+#endif
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
-				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+#if TEMPDEBUG
+				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 				$$->typestring = $1->production;
+#endif
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
 				$$->typestring = current_scope->return_type;
@@ -788,8 +828,10 @@ primary: atom {
 				dprintf (stderr_copy, "TypeError at line %d: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
 			} else { // valid function call
+#if TEMPDEBUG
 				printf ("valid function call to function %s\n",
 						current_scope ? current_scope->name.c_str() : "" );
+#endif
 			}
 		}
 		$$->islval = false;
@@ -807,27 +849,59 @@ primary: atom {
 */
 atom: NAME 
     | NUMBER
-    | STRING_plus 
+    | STRING_plus {
+		$$ = $1;
+		$$->production = concatenating_string_plus;
+		concatenating_string_plus = "\0";
+		$$->typestring = "str";
+
+		static_section += "\t<string literal> l_" + to_string ($$->nodeid) + "\t: \"" + $$->production + "\"\n" ;
+	}
     | "True"
     | "False" 
     | "None" 
-	| "[" testlist "]" {
-		 $$ = $2;
+	| "[" list_start testlist "]" {
+		 $$ = $3;
 		 string temp;
 		 temp +="[  ] Contained\n";
-		 temp += $2->production;
+		 temp += $3->production;
 	 	$$->rename(temp);
+		list_init = false;
+		// lists are the ONLY way to increase the refcounts of objects, so we cannot store lists of pointers to possibly stack objects. Copy the damn thing.
+		if (currently_defining_list->table_size != 8) { dprintf (stderr_copy, "HAVENT IMPLEMENTED LISTS OF NON-PRIMITIVES\n"); exit (55); }
+		Node* iterator = new Node (0, "", "");
+
+		list_init_inputs.clear();
 	 }
 	/* Empty list not needed */
-STRING_plus: STRING 
+list_start :
+	{	list_init = true;
+	}
+STRING_plus: STRING {
+		string tmp = $1->production;
+		int len_str = tmp.size();
+		if (tmp.substr (0, 3) == "\"\"\"" || tmp.substr (0, 3) == "'''")
+			$1->production = tmp.substr (3, len_str - 6);
+		else
+			$1->production = tmp.substr (1, len_str - 2);
+		if (concatenating_string_plus == "\0")
+			concatenating_string_plus = $1->production;
+	}
 	| STRING_plus STRING {
-		/*
-			update value as signle string
-		*/
+		string tmp2 = $2->production;
+		int len_str2 = tmp2.size();
+		if (tmp2.substr (0, 3) == "\"\"\"" || tmp2.substr (0, 3) == "'''")
+			$2->production = tmp2.substr (3, len_str2 - 6);
+		else
+			$2->production = tmp2.substr (1, len_str2 - 2);
+		concatenating_string_plus = concatenating_string_plus + $2->production;
 		 $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
-if_stmt: "if" test ":" suite { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($4, "Then");}
-	|  "if" test ":" suite elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($4, "Then"); $$->addchild($5, "Else"); }
+if_stmt: "if" test insert_jump_to_end insert_jump_if_false ":" suite[ifsuite] { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then");
+		 	fprintf (tac, "LABEL: %s\n", get_current_label());
+		 	fprintf (tac, "LABEL: %s\n", get_current_label_upper());
+		 }
+	|  "if" test insert_jump_to_end insert_jump_if_false ":" suite[ifsuite] elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then"); $$->addchild($6, "Else"); }
 
 elif_block:
 	"else" ":" suite	{ $$ = $3;}
@@ -836,10 +910,27 @@ elif_block:
 
 while_stmt: "while" test ":" suite {$$ = new Node ("While"); $$->addchild($2, "Condition"); $$->addchild($4, "Do");}
 
+insert_jump_if_false : {
+				fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper($<node>0), get_next_label(""));
+	}
+insert_jump_to_end : {
+			// jump to the end of the if-elif-else sequence
+			// insert at the end of every suite, to jump to the end.
+			get_next_label_upper("end_of_control_flow");
+	}
 
 
-arglist: test
-	| arglist "," test { $$ = new Node ("Multiple terms"); $$->addchild($1); $$->addchild($3);}
+arglist: test[obj]
+	{
+		if (list_init) { // NUMBER, STRING, CLASS, BOOL, NONE
+			// base of the list is a static region in memory but we don't know the length yet. so store in a vector for now
+			list_init_inputs.push_back ($obj);
+		}
+	}
+	| arglist "," test[obj] { $$ = new Node ("Multiple terms"); $$->addchild($1); $$->addchild($3);
+		if (list_init)
+			list_init_inputs.push_back ($obj);
+	}
 
 
 
@@ -1002,6 +1093,8 @@ testlist: arglist
 
 
 int main(int argc, char** argv){
+	tac = stderr;
+	label_count = 0;
 	yydebug = 0;
 	int input_fd = -1;
 	stderr_dup = -1;
@@ -1081,6 +1174,9 @@ int main(int argc, char** argv){
 		stderr_dup = dup (2);
 		stderr_copy = 2;
 	}
+
+	static_section = "Static Section:\n" ;
+	concatenating_string_plus = "\0";
 	
 	graph = fopen (outputfile, "w+");
 	fprintf (graph, "strict digraph ast {\n");
@@ -1122,6 +1218,7 @@ int main(int argc, char** argv){
 	fprintf (stdump, "LEXEME\tTYPE\tTOKEN\t\tLINE\tPARENT SCOPE\n");
 	globalSymTable->print_st(stdump);
 	fclose (stdump);
+	cout << static_section << endl;
     return 0;
 }
 

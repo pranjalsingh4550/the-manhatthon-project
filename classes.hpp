@@ -15,7 +15,8 @@ extern SymbolTable* top;
 
 enum ir_operation {
 	UJUMP,
-	CJUMP,	// CONDITIONAL JUMP
+	CJUMP_IF_FALSE,	// CONDITIONAL JUMP
+	CJUMP_IF_TRUE,	// CONDITIONAL JUMP
 	LW,
 	SW,
 	LI,
@@ -68,7 +69,12 @@ enum ir_operation {
 
 	// function/stack stuff
 	FUNCTION_CALL, //x86's callq: push rbp, mov rsp to rbp, etc
-	FUNCTION_RETURN
+	FUNCTION_RETURN,
+
+	ALLOC_HEAP,
+
+	MARK_FALSE
+	
 };
 
 enum datatypes {
@@ -443,7 +449,9 @@ class SymbolTable {
 
 		  */
 		int put (Node* node, Node* type) {
+#if TEMPDEBUG
 			printf ("call to put source %s destination %s\n", type->production.c_str(), node->typestring.c_str());
+#endif
 			auto s= new Symbol();
 			s->typestring = type->production; node->typestring = type->production;
 			s->lineno = node->lineno;
@@ -458,7 +466,9 @@ class SymbolTable {
 			return 1;
 		}
 		int put (Node* node, string type) {
+#if TEMPDEBUG
 			printf ("call to put source %s destination %s\n", type.c_str(), node->typestring.c_str());
+#endif
 			auto s= new Symbol();
 			s->typestring = type; node->typestring = type;
 			s->lineno = node->lineno;
@@ -521,7 +531,9 @@ class SymbolTable {
 			children["bool"] = new SymbolTable ("class", CLASS_ST, "bool", 8);
 			children["str"] = new SymbolTable ("class", CLASS_ST, "str", sizeof(struct str_struct));
 			size = 0;
+#if TEMPDEBUG
 			printf ("Call to st ctor. now parent's size is %ld, number of children in parent is %ld\n", this->symbols.size(), this->children.size());
+#endif
 		}
 		SymbolTable (SymbolTable* p, int flags, string name) {
 			if (flags > 4 || flags < 1) {
@@ -539,7 +551,9 @@ class SymbolTable {
 			lineno = 0;
 			if (fn_inside_class = (flags == MEMBER_FN_ST))
 				parent->children[name] = this;
+#if TEMPDEBUG
 			printf ("Call to st ctor %s. now parent's size is %ld, number of children in parent is %ld\n", name.c_str(), p->symbols.size(), p->children.size());
+#endif
 		}
 		SymbolTable (string p, int flags, string name, int size) { // for primitives: int, char, bool, etc. may use later for print, range, len
 			if (flags != CLASS_ST) {
@@ -547,7 +561,7 @@ class SymbolTable {
 			}
 			parent = NULL;
 			this->name = name;
-			this->size = size;
+			this->table_size = size;
 			isFunction= 0;
 			isClass = (flags == CLASS_ST);
 			isGlobal = true;

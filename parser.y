@@ -35,13 +35,18 @@
 		tempcount++;
 		return temp;
 	}
+<<<<<<< HEAD
 	void resettemp(){
 		tempcount=forcount;
 	}
 	SymbolTable *currently_defining_list;
+=======
+	string currently_defining_identifier_typestring;
+>>>>>>> a26f97a (Partial support for initializing lists)
 	vector <Node*> list_init_inputs;
 	stack <string> jump_labels, jump_labels_upper;
 	int label_count;
+#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
 #define TEMPDEBUG 0
 	bool is_not_name (Node*);
 	string static_section;
@@ -131,8 +136,8 @@
 	}
 	void gen(Node*result, Node* leftop, Node* rightop,enum ir_operation op){
 		if (tac == NULL) tac = stdout;
-		string left= top->getaddr(leftop);
-		string right= top->getaddr(rightop);
+		string left= leftop ? top->getaddr(leftop) : "";
+		string right= rightop ? top->getaddr(rightop) : "";
 		switch(op){
 			case ASSIGN: fprintf(tac, "%s = %s\n", left.c_str(), right.c_str()); return;
 			case ATTR: {
@@ -146,27 +151,30 @@
 				// t_1 = symtable($1->typestring, $3->production)
 				s+= offset + " = symtable(" + leftop->typestring + ", " + rightop->production + ")\n"; 
 				// t_2 = $1->addr + offset
-				string addr = newtemp();
-				s+= addr + " = " + left + " + " + offset + "\n";
-				result->addr = addr;
+				string ult = newtemp();
+				s+=ult +" = (" + left + " + " + offset + ")\n";
+				result->addr = "*"+ult;
+				// cout<<"nice "<<addr<<endl;
 				fprintf(tac, "%s", s.c_str());
 				return;
 			}
+			case SW:	fprintf (tac, "\t*%s = %s\n", left.c_str(), right.c_str()); return;
 			default: break;
 		}
 		result->addr = newtemp();
 		string resultaddr = result->addr;
 		switch(op){
-			case ADD: fprintf(tac, "%s = %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case SUB: fprintf(tac, "%s = %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case MUL: fprintf(tac, "%s = %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case DIV: fprintf(tac, "%s = %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case ADD: fprintf(tac, "\t%s = %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case SUB: fprintf(tac, "\t%s = %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case MUL: fprintf(tac, "\t%s = %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case DIV: fprintf(tac, "\t%s = %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			
 			default: break;
 		}
 		return;
 			
 	}
+
 	void gen(Node*leftop, Node* rightop, enum ir_operation op){
 		
 	}
@@ -353,7 +361,6 @@ global_stmt: "global" NAME[id] {
 			exit(87);
 		}
 		$id->nodeid= globalSymTable->get($id)->node->nodeid;
-		$$=$id;
 	} 
 	| global_stmt "," NAME[id]  { $$ = new Node ("Multiple Global"); $$->addchild($1); $$->addchild($3);
 
@@ -372,6 +379,7 @@ global_stmt: "global" NAME[id] {
 			exit(87);
 		}
 		$id->addr= globalSymTable->getaddr($id);
+		$$=$id;
 	}
 	
 expr_stmt: primary[id] ":" typeclass[type] {
@@ -411,7 +419,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			$$->typestring = $type->typestring;
 		}
 	}
-	| primary[id] ":" typeclass[type] "=" test[value] {
+	| primary[id] ":" typeclass[type] decl_set_curr_id "=" test[value] {
 		if ($id->isLeaf) {
 			if (is_not_name ($id)) {
 				dprintf (stderr_copy, "Error: assignment to non-identifier at line %d\n", $id->lineno);
@@ -424,7 +432,6 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			}
 			if($value->typestring !=$type->production){
 				dprintf(stderr_copy, "TypeError at line %d: Types on both side do not match\n",$id->lineno);
-				cout<< $value->typestring << " " << $type->production << endl;
 				exit(88);
 			}
 			if ($value->typestring == "") {
@@ -475,72 +482,74 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			$$->addchild($id, "Name");
 			$$->addchild($type, "Type");
 			$$->typestring = $type->typestring;
+
+			gen ($$,$id, $value, ASSIGN);
 		}
 	} 
-	| primary augassign test { 
+	| primary[id] augassign[operation] test[value] { 
 			/*
-				if($1 is not lvalue) error
-				if($1 is not in current scope)error
-				if($1 and $3 are not type compatible)error
-				if($3 is a leaf && $3 is not a constant ) check if $3 is in scope or not
+				if($id is not lvalue) error
+				if($id is not in current scope)error
+				if($id and $value are not type compatible)error
+				if($value is a leaf && $value is not a constant ) check if $value is in scope or not
 			*/
 			// added during merging - check integrity later
-			if ($1->typestring == "" && !$1->isLeaf) {
+			if ($id->typestring == "" && !$id->isLeaf) {
 				dprintf (stderr_copy, "Error at line %d: class attribute %s has not been defined\n",
-						(int)$1->lineno, $1->production.c_str());
+						(int)$id->lineno, $id->production.c_str());
 				exit (40);
 			}
-			if ($1->typestring == "def" || $1->typestring == "class" || $1->islval == false) {
+			if ($id->typestring == "def" || $id->typestring == "class" || $id->islval == false) {
 				dprintf (stderr_copy, "Error at line %d: assignment must be to an identifier or class attribute\n",
-						(int) $1->lineno);
+						(int) $id->lineno);
 				exit (33);
 			}
-			if (!top->has($3) && ($3->typestring == "")) {
-				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n", $3->lineno);
+			if (!top->has($value) && ($value->typestring == "")) {
+				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n", $value->lineno);
 				exit (94);
-			} else if (top->has($3))
-				$3->typestring = top->get($3->production)->typestring;
-			check($1);
-			check($3);
-			if(!check($1,$3)){
-				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $1->production.c_str(), $3->production.c_str());
+			} else if (top->has($value))
+				$value->typestring = top->get($value->production)->typestring;
+			check($id);
+			check($value);
+			if(!check($id,$value)){
+				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $id->production.c_str(), $value->production.c_str());
 				exit(1);
 			}
-			$$ = new Node ($2->production);
-			$$->addchild($1);
-			$$->addchild($3);
-			gen($1,$1,$3,$2->op);
+			$$ = new Node ($operation->production);
+			$$->addchild($id);
+			$$->addchild($value);
+			gen($id,$id,$value,$operation->op);
 	}
-	| primary "=" test{
+	| primary[id] "=" test[value] {
 			/*
-				if($1 is not lvalue) error
-				if($1 is not in current scope)error
-				if($1 and $3 are not type compatible)error
-				if($3 is a leaf && $3 is not a constant ) check if $3 is in scope or not
+				if($id is not lvalue) error
+				if($id is not in current scope)error
+				if($id and $value are not type compatible)error
+				if($value is a leaf && $value is not a constant ) check if $value is in scope or not
 
 			*/
-			if ($1->typestring == "" && !$1->isLeaf) {
+			if ($id->typestring == "" && !$id->isLeaf) {
 				dprintf (stderr_copy, "Error at line %d: class attribute %s has not been defined\n",
-						(int)$1->lineno, $1->production.c_str());
+						(int)$id->lineno, $id->production.c_str());
 				exit (40);
 			}
-			if ($1->typestring == "def" || $1->typestring == "class" || $1->islval == false) {
+			if ($id->typestring == "def" || $id->typestring == "class" || $id->islval == false) {
 				dprintf (stderr_copy, "Error at line %d: assignment must be to an identifier or class attribute\n",
-						(int) $1->lineno);
+						(int) $id->lineno);
 				exit (33);
 			}
 			$$ = new Node ("=");
-			$$->addchild($1);
-			$$->addchild($3);
+			$$->addchild($id);
+			$$->addchild($value);
 			// these 3 lines copied during merging: check consistency
-			check ($1);
-			check($3);
+			check ($id);
+			check($value);
 
-			if(!check($1,$3)){
-				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $1->production.c_str(), $3->production.c_str());
+			if(!check($id,$value)){
+				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $id->production.c_str(), $value->production.c_str());
 				exit(1);
 			}
-			gen($$,$1,$3,ASSIGN);
+			gen($$,$id,$value,ASSIGN);
 	}
 	| test {
 		if ($1->isLeaf) {
@@ -556,6 +565,15 @@ expr_stmt: primary[id] ":" typeclass[type] {
 		}
 		$$ = $1;
 	}
+
+decl_set_curr_id: {
+		currently_defining_identifier_typestring = $<node>0->production;
+		if ($<node>0->dimension == 0) currently_defining_identifier_typestring = "";
+#if TEMPDEBUG
+		cout << "line 541 set currently definining list type to " << currently_defining_identifier_typestring << endl;
+#endif
+	}
+
 
 typeclass: NAME {
 		verify_typestring ($1);
@@ -1337,11 +1355,12 @@ primary: atom {
 		}
 		if (current_scope->find_member_fn ($3->production)) {
 			$$->typestring = "def"; $$->islval = false;
-			current_scope = current_scope->find_member_fn($3->production); // the only case in which current_scope is truly global
+			current_scope = current_scope->find_member_fn($3->production);
+			$$->addr = $1->typestring +"_" + $3->production;
+			 // the only case in which current_scope is truly global
 		}
 		else{
 			$$->typestring = current_scope->gettype($3->production);
-
 			gen($$,$1,$3,ATTR);
 		}
 		$$->production = $3->production;
@@ -1413,15 +1432,16 @@ primary: atom {
 		if ($1->isLeaf) {
 			if (top->find_member_fn ($1->production)) {
 				current_scope = top->find_member_fn($1->production);
-				$1->typestring = current_scope->return_type;
+				$$->typestring = current_scope->return_type;
+				$$->addr = "call "+ $1->addr + ", "+ to_string(current_scope->arg_types.size());
 #if TEMPDEBUG
-				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
+				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 #endif
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
 				current_scope = globalSymTable->ctor.find ($1->production)->second;
 #if TEMPDEBUG
-				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 #endif
 				$$->typestring = $1->production;
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
@@ -1442,6 +1462,7 @@ primary: atom {
 #endif
 			}
 		}
+		printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
 	}
 	| primary "(" ")" {
@@ -1459,17 +1480,23 @@ primary: atom {
 				exit(1);
 			}
 			if (top->find_member_fn ($1->production)) {
-				$1->typestring = "def";
+				// $1->typestring = "def";
+				$$->typestring = top->find_member_fn($1->production)->return_type;
+				$$->addr = "call "+ $1->addr;
+
 #if TEMPDEBUG
-				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
+				printf("typestring = %s\n", $$->typestring.c_str());
+				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 #endif
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
 #if TEMPDEBUG
-				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 #endif
 				$$->typestring = $1->production;
+#if TEMPDEBUG
 				cout<<"return type of constructor "<<$$->typestring<<endl;
+#endif
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
 				$$->typestring = current_scope->return_type;
@@ -1481,15 +1508,16 @@ primary: atom {
 			if ($1->typestring != "def") {
 				dprintf (stderr_copy, "TypeError at line %d: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
-			} else { // valid function call
+			} // valid function call
 #if TEMPDEBUG
-				printf ("valid function call to function %s\n",
-						current_scope ? current_scope->name.c_str() : "" );
+			printf ("valid function call to function %s\n",
+			current_scope ? current_scope->name.c_str() : "" );
 #endif
-			}
 		}
 		$$->islval = false;
 		$$->isdecl = false;
+		$$->typestring = ($$->typestring != "" ?  $$->typestring: current_scope->return_type);
+		// printf("typestring = %s\n", $$->typestring.c_str());
 		current_scope = NULL;
 		$$->lineno = $1->lineno;
 	}
@@ -1523,10 +1551,21 @@ atom: NAME
 	 	$$->rename(temp);
 		list_init = false;
 		// lists are the ONLY way to increase the refcounts of objects, so we cannot store lists of pointers to possibly stack objects. Copy the damn thing.
-		if (currently_defining_list->table_size != 8) { dprintf (stderr_copy, "HAVENT IMPLEMENTED LISTS OF NON-PRIMITIVES\n"); exit (55); }
-		Node* iterator = new Node (0, "", "");
-
+		if (find_class (currently_defining_identifier_typestring) == NULL || find_class(currently_defining_identifier_typestring)->table_size > 8)
+			{ dprintf (stderr_copy, "HAVENT IMPLEMENTED LISTS OF NON-PRIMITIVES\n"); exit (55); }
+		// Node* $$ = new Node (0, "", "");
+		$$->addr= newtemp();
+		int thissize = globalSymTable->find_class(currently_defining_identifier_typestring)->table_size ;
+		fprintf (tac, "\t%s = ALLOC_HEAP (%d)\n", dev_helper($$).c_str(), list_init_inputs.size() * thissize);
+		for(auto itrv:list_init_inputs){
+			// 3ac to copy list to temp
+			if (ISPRIMITIVE (itrv)) {
+				gen ($$, itrv, (Node*) NULL, SW);
+			else 
+				;
+		}
 		list_init_inputs.clear();
+		$$->typestring = currently_defining_identifier_typestring;
 	 }
 	/* Empty list not needed */
 list_start :
@@ -1649,7 +1688,9 @@ suite:  simple_stmt[first]
 /* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */
 
 
-funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" typeclass[ret] ":" suite[last] {
+funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" typeclass[ret] {
+	top->return_type = $ret->production;
+}":" suite[last] {
 		Funcsuite=0;
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
@@ -1658,14 +1699,19 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$->addchild($ret, "Return type");
 		$$->addchild($last, "Body");
 	}
-	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] ":" suite[last] {
+	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] {
+		top->return_type = $returntype->production;
+	} ":" suite[last] {
 	       	Funcsuite=0;
 		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn"); $$->addchild($id, "Name");
 	       	$$->addchild($returntype, "Return type");
 	       	$$->addchild($last, "Body");
 	}
-	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" suite[last] {
+	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" {
+			top->return_type = "None";
+		}
+		suite[last] {
 	       	Funcsuite=0;
 		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn");
@@ -1673,7 +1719,9 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	$$->addchild($param,"Parameters");
 	       	$$->addchild($last, "Body");
 	}
-	| "def" NAME[id] functionstart "(" ")" ":" suite[last] {
+	| "def" NAME[id] functionstart "(" ")" ":" {
+			top->return_type = "None";
+	}suite[last] {
 	       	Funcsuite=0;
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");

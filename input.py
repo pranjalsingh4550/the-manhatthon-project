@@ -1,5 +1,6 @@
-a:int =2
-b:int = a+ 10+ a
+class myClass():
+    def __init__(self):
+        self.name :str = "myClass"
 
-def main():
-    a:int=10
+
+a: myClass = myClass()

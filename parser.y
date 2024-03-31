@@ -825,13 +825,15 @@ expr: xor_expr {
 		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
 		exit(1);
 	}
-	if ($1->typestring != "int"
-	&&  $1->typestring != "bool") {
+	if (!check_number($1)
+	||  ($1->typestring != "int"
+	 &&  $1->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for | has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if ($3->typestring != "int"
-	&&  $3->typestring != "bool") {
+	if (!check_number($3)
+	||  ($3->typestring != "int"
+	 &&  $3->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for | has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
@@ -862,13 +864,15 @@ xor_expr: ans_expr {
 		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
 		exit(1);
 	}
-	if ($1->typestring != "int"
-	&&  $1->typestring != "bool") {
+	if (!check_number($1)
+	||  ($1->typestring != "int"
+	 &&  $1->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for ^ has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if ($3->typestring != "int"
-	&&  $3->typestring != "bool") {
+	if (!check_number($3)
+	||  ($3->typestring != "int"
+	 &&  $3->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for ^ has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
@@ -900,13 +904,15 @@ ans_expr: shift_expr {
 		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
 		exit(1);
 	}
-	if ($1->typestring != "int"
-	&&  $1->typestring != "bool") {
+	if (!check_number($1)
+	||  ($1->typestring != "int"
+	 &&  $1->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if ($3->typestring != "int"
-	&&  $3->typestring != "bool") {
+	if (!check_number($3)
+	||  ($3->typestring != "int"
+	 &&  $3->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
@@ -937,13 +943,15 @@ shift_expr: sum {
 		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
 		exit(1);
 	}
-	if ($1->typestring != "int"
-	&&  $1->typestring != "bool") {
+	if (!check_number($1)
+	||  ($1->typestring != "int"
+	 &&  $1->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if ($3->typestring != "int"
-	&&  $3->typestring != "bool") {
+	if (!check_number($3)
+	||  ($3->typestring != "int"
+	 &&  $3->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
@@ -962,13 +970,15 @@ shift_expr: sum {
 		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
 		exit(1);
 	}
-	if ($1->typestring != "int"
-	&&  $1->typestring != "bool") {
+	if (!check_number($1)
+	||  ($1->typestring != "int"
+	 &&  $1->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if ($3->typestring != "int"
-	&&  $3->typestring != "bool") {
+	if (!check_number($3)
+	||	($3->typestring != "int"
+	 &&  $3->typestring != "bool")) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for & has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
@@ -1213,7 +1223,7 @@ factor: "+" factor	{
 		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $2->lineno);
 		exit(1);
 	}
-	if ($2->typestring != "int" && $2->typestring != "bool") {
+	if (!check_number($2) || $2->typestring != "int" && $2->typestring != "bool") {
 		dprintf(stderr_copy, "TypeError at line %d: Invalid type for unary not, type is %s\n",$2->lineno, $2->typestring.c_str());
 		exit(1);
 	}
@@ -1976,6 +1986,10 @@ void check(Node* n){
 
 int check_number(Node* n) {
 	//return 1 if number, 0 if not
+	if (n->dimension != 0) {
+		dprintf(stderr_copy, "Error: found array where expected single type (see following message)\n");
+		return 0;
+	}
 	if (n->typestring != "bool"
 	 && n->typestring != "int"
 	 && n->typestring != "float"

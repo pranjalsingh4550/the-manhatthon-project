@@ -84,7 +84,45 @@
 	extern void check (Node* n) ;
 	extern int check_number(Node* n) ;
 	bool check(Node* n1, Node* n2){
-		if(n1->typestring != n2->typestring){
+		if (n1->typestring == "int") {
+			if (n2->typestring != "bool"
+			&&  n2->typestring != "float"
+			&&  n2->typestring != "int") {
+				return false;
+			}
+		} else if (n1->typestring == "float") {
+			if (n2->typestring != "float"
+			&&  n2->typestring != "int") {
+				return false;
+			}
+		} else if (n1->typestring == "bool") {
+			if (n2->typestring != "int"
+			&&  n2->typestring != "bool") {
+				return false;
+			}
+		} else if (n1->typestring != n2->typestring) {
+			return false;
+		}
+		return true;
+	}
+	bool check_typestring(Node *n, string typestring) {
+		if (n->typestring == "int") {
+			if (typestring != "bool"
+			&&  typestring != "float"
+			&&  typestring != "int") {
+				return false;
+			}
+		} else if (n->typestring == "float") {
+			if (typestring != "float"
+			&&  typestring != "int") {
+				return false;
+			}
+		} else if (n->typestring == "bool") {
+			if (typestring != "int"
+			&&  typestring != "bool") {
+				return false;
+			}
+		} else if (n->typestring != typestring) {
 			return false;
 		}
 		return true;
@@ -429,17 +467,18 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
-			if($value->typestring !=$type->production){
-				dprintf(stderr_copy, "TypeError at line %d: Types on both side do not match\n",$id->lineno);
-				exit(88);
-			}
 			if ($value->typestring == "") {
 				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n",
 						$id->lineno);
+			
 #if TEMPDEBUG
 				printf ("empty typestring: production is %s token %d\n", $value->production.c_str(), $value->token);
 #endif
 				exit (96);
+			}
+			if (!check_typestring($value, $type->production)) {
+				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $operation->lineno, $id->typestring.c_str(), $type->production.c_str());
+				exit(1);
 			}
 			/*
 				if($id is not lvalue) error
@@ -510,8 +549,8 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				$value->typestring = top->get($value->production)->typestring;
 			check($id);
 			check($value);
-			if(!check($id,$value)){
-				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $id->production.c_str(), $value->production.c_str());
+			if (!check($id, $value)) {
+				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $operation->lineno, $id->typestring.c_str(), $value->typestring.c_str());
 				exit(1);
 			}
 			$$ = new Node ($operation->production);
@@ -543,9 +582,8 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			// these 3 lines copied during merging: check consistency
 			check ($id);
 			check($value);
-
-			if(!check($id,$value)){
-				fprintf(stderr, "Type Error: %s and %s are not of same type\n", $id->production.c_str(), $value->production.c_str());
+			if (!check($id, $value)) {
+				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $operation->lineno, $id->typestring.c_str(), $value->typestring.c_str());
 				exit(1);
 			}
 			gen($$,$id,$value,ASSIGN);
@@ -616,14 +654,60 @@ return_stmt: "return" test {
 // check type compatibility
 //udate type of result
 
-test : and_test {
+test : and_test
+	| test "or" and_test {
+	//assuming: only ints/bools in test
+	if (!check_number($1) 
+	||  !check_number($3)
+	||  ($1->typestring == "float")
+	||  ($1->typestring == "complex")
+	||  ($3->typestring == "float")
+	||  ($3->typestring == "complex")) {
+		dprintf(stderr_copy, "TypeError on line %d: logical operator and doesn't support types %s and %s", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+		exit(1);
 	}
-	| test "or" and_test { $$ = new Node ("or"); $$->addchild ($1); $$->addchild ($3);}
+	$$ = new Node ("or");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	$$->typestring = "bool";
+	
+	//to do: gen
+}
 
 and_test : not_test
-	| and_test "and" not_test { $$ = new Node ("and"); $$->addchild ($1); $$->addchild ($3);}
+	| and_test "and" not_test {
+	//assuming: only ints/bools in test
+	if (!check_number($1) 
+	||  !check_number($3)
+	||  ($1->typestring == "float")
+	||  ($1->typestring == "complex")
+	||  ($3->typestring == "float")
+	||  ($3->typestring == "complex")) {
+		dprintf(stderr_copy, "TypeError on line %d: logical operator and doesn't support types %s and %s", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+		exit(1);
+	}
+	$$ = new Node ("and");
+	$$->addchild ($1);
+	$$->addchild ($3);
+	$$->typestring = "bool";
+	
+	//to do: gen
+}
+}
 not_test : comparison
-	| "not" not_test	{ $$ = new Node ("not"); $$->addchild ($2);}
+	| "not" not_test	{
+	if (!check_number($2)
+	||  ($1->typestring == "float")
+	||  ($1->typestring == "complex")) {
+		dprintf(stderr_copy, "TypeError on line %d: logical operator and doesn't support types %s and %s", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+		exit(1);
+	}
+	$$ = new Node ("not");
+	$$->addchild ($2);
+	$$->typestring = "bool";
+	
+	//to do: gen
+}
 
 comparison: expr {
 	if ($1->typestring == "") {

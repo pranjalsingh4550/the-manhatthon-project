@@ -1576,6 +1576,7 @@ primary: atom {
 				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 #endif
 				$$->typestring = $1->production;
+				current_scope = globalSymTable->ctor.find($1->production)->second;
 #if TEMPDEBUG
 				cout<<"return type of constructor "<<$$->typestring<<endl;
 #endif

@@ -29,9 +29,9 @@
 	SymbolTable* top, *globalSymTable, *current_scope, *currently_defining_class;
 	SymbolTable *currently_defining_list;
 	vector <Node*> list_init_inputs;
-	vector <string> jump_labels;
+	stack <string> jump_labels, jump_labels_upper;
 	int label_count;
-#define TEMPDEBUG 1
+#define TEMPDEBUG 0
 	bool is_not_name (Node*);
 	string static_section;
 	string concatenating_string_plus;
@@ -116,8 +116,30 @@
 			exit(56);
 		}
 	}
-	string get_next_label () {
-		return "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
+	const char* get_next_label (string description) {
+		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
+		if (description != "") tmp += "_" + description;
+		jump_labels.push (tmp);
+		return tmp.c_str();
+	}
+	const char* get_current_label () {
+		string tmp = jump_labels.top();
+		jump_labels.pop();
+		return tmp.c_str();
+	}
+	const char* get_next_label_upper (string description) {
+		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
+		if (description != "") tmp += "_" + description;
+		jump_labels_upper.push (tmp);
+		return tmp.c_str();
+	}
+	const char* get_current_label_upper () {
+		string tmp = jump_labels_upper.top();
+		jump_labels_upper.pop();
+		return tmp.c_str();
+	}
+	const char * dev_helper(Node* n) {
+			return "";
 	}
 %}
 
@@ -743,11 +765,15 @@ primary: atom {
 			if (top->find_member_fn ($1->production)) {
 				current_scope = top->find_member_fn($1->production);
 				$1->typestring = "def";
+#if TEMPDEBUG
 				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
+#endif
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
 				current_scope = globalSymTable->ctor.find ($1->production)->second;
+#if TEMPDEBUG
 				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+#endif
 				$$->typestring = $1->production;
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
@@ -761,8 +787,10 @@ primary: atom {
 				dprintf (stderr_copy, "TypeError at line %ld: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
 			} else { // valid function call
+#if TEMPDEBUG
 				printf ("valid function call to function %s\n",
 						current_scope ? current_scope->name.c_str() : "" );
+#endif
 			}
 		}
 		$$->lineno = $1->lineno;
@@ -779,11 +807,15 @@ primary: atom {
 		if ($1->isLeaf) {
 			if (top->find_member_fn ($1->production)) {
 				$1->typestring = "def";
+#if TEMPDEBUG
 				printf ("valid call to function %s in line %ld\n", $1->production.c_str(), $1->lineno);
+#endif
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
+#if TEMPDEBUG
 				printf ("line %ld valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 				$$->typestring = $1->production;
+#endif
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
 				$$->typestring = current_scope->return_type;
@@ -796,8 +828,10 @@ primary: atom {
 				dprintf (stderr_copy, "TypeError at line %ld: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
 			} else { // valid function call
+#if TEMPDEBUG
 				printf ("valid function call to function %s\n",
 						current_scope ? current_scope->name.c_str() : "" );
+#endif
 			}
 		}
 		$$->islval = false;
@@ -863,8 +897,11 @@ STRING_plus: STRING {
 		concatenating_string_plus = concatenating_string_plus + $2->production;
 		 $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
-if_stmt: "if" test ":" suite { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($4, "Then");}
-	|  "if" test ":" suite elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($4, "Then"); $$->addchild($5, "Else"); }
+if_stmt: "if" test insert_jump_to_end insert_jump_if_false ":" suite[ifsuite] { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then");
+		 	fprintf (tac, "LABEL: %s\n", get_current_label());
+		 	fprintf (tac, "LABEL: %s\n", get_current_label_upper());
+		 }
+	|  "if" test insert_jump_to_end insert_jump_if_false ":" suite[ifsuite] elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then"); $$->addchild($6, "Else"); }
 
 elif_block:
 	"else" ":" suite	{ $$ = $3;}
@@ -873,6 +910,14 @@ elif_block:
 
 while_stmt: "while" test ":" suite {$$ = new Node ("While"); $$->addchild($2, "Condition"); $$->addchild($4, "Do");}
 
+insert_jump_if_false : {
+				fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper($<node>0), get_next_label(""));
+	}
+insert_jump_to_end : {
+			// jump to the end of the if-elif-else sequence
+			// insert at the end of every suite, to jump to the end.
+			get_next_label_upper("end_of_control_flow");
+	}
 
 
 arglist: test[obj]
@@ -1048,6 +1093,7 @@ testlist: arglist
 
 
 int main(int argc, char** argv){
+	tac = stderr;
 	label_count = 0;
 	yydebug = 0;
 	int input_fd = -1;

@@ -9,7 +9,7 @@ class mm :
 		self.ar:list[int] 
 	
 	def show(self):
-		temp:float = self.val1
+		temp:float = 55.3
 
 
 k:mm = mm()

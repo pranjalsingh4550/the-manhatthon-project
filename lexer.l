@@ -216,7 +216,7 @@ ignore2	\n[ \f\t]*{comments}?
 		dprintf(stderr_dup, "Error at line %d:\nMagnitude of integer %s is too big\n", yylineno, yytext);
 		exit(1);
 	}
-    printf("\t\tLI t_%d, %ld\n", nodecount,val);
+    printf("\tLI t_%d, %ld\n", nodecount,val);
 	yylval.node = new Node(NUMBER, val);
 	yylval.node->production = strdup (yytext);
 	return NUMBER;

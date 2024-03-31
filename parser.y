@@ -128,16 +128,16 @@
 		string left= top->getaddr(leftop);
 		string right= top->getaddr(rightop);
 		switch(op){
-			case ASSIGN: fprintf(tac, "%s = %s\n", left.c_str(), right.c_str()); return;
+			case ASSIGN: fprintf(tac, "\t%s = %s\n", left.c_str(), right.c_str()); return;
 			default: break;
 		}
 		result->addr = newtemp();
 		string resultaddr = result->addr;
 		switch(op){
-			case ADD: fprintf(tac, "%s = %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case SUB: fprintf(tac, "%s = %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case MUL: fprintf(tac, "%s = %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case DIV: fprintf(tac, "%s = %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case ADD: fprintf(tac, "\t%s = %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case SUB: fprintf(tac, "\t%s = %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case MUL: fprintf(tac, "\t%s = %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case DIV: fprintf(tac, "\t%s = %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			default: break;
 		}
 		return;
@@ -146,31 +146,32 @@
 	void gen(Node*leftop, Node* rightop, enum ir_operation op){
 		
 	}
-	const char* get_next_label (string description) {
+	string get_next_label (string description) {
 		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
 		if (description != "") tmp += "_" + description;
 		jump_labels.push (tmp);
-		return tmp.c_str();
+		return tmp;
 	}
-	const char* get_current_label () {
+	string get_current_label () {
 		string tmp = jump_labels.top();
 		jump_labels.pop();
-		return tmp.c_str();
+		return tmp;
 	}
-	const char* get_next_label_upper (string description) {
+	string get_next_label_upper (string description) {
 		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
 		if (description != "") tmp += "_" + description;
 		jump_labels_upper.push (tmp);
-		return tmp.c_str();
+		return tmp;
 	}
-	const char* get_current_label_upper () {
+	string get_current_label_upper () {
 		string tmp = jump_labels_upper.top();
 		jump_labels_upper.pop();
-		return tmp.c_str();
+		return tmp;
 	}
-	const char * dev_helper(Node* n) {
-			return "";
+	string dev_helper(Node* n) {
+		return top->getaddr (n);
 	}
+	
 %}
 
 %union {
@@ -897,28 +898,45 @@ STRING_plus: STRING {
 		concatenating_string_plus = concatenating_string_plus + $2->production;
 		 $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
-if_stmt: "if" test insert_jump_to_end insert_jump_if_false ":" suite[ifsuite] { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then");
-		 	fprintf (tac, "LABEL: %s\n", get_current_label());
-		 	fprintf (tac, "LABEL: %s\n", get_current_label_upper());
+if_stmt: "if" test new_jump_to_end insert_jump_if_false ":" suite[ifsuite] insert_end_jump_label jump_target_false_lower upper_jump_target_reached { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then");
 		 }
-	|  "if" test insert_jump_to_end insert_jump_if_false ":" suite[ifsuite] elif_block {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then"); $$->addchild($6, "Else"); }
+	|  "if" test new_jump_to_end insert_jump_if_false ":" suite[ifsuite] insert_end_jump_label jump_target_false_lower elif_block[elifsuite] {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then"); $$->addchild($elifsuite, "Else"); }
 
 elif_block:
-	"else" ":" suite	{ $$ = $3;}
-	| "elif" test ":" suite	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($4, "Then"); } /* ok????? fine */ 
-	| "elif" test ":" suite elif_block	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($4, "Then"); $$->addchild ($5, "Else"); }
+	"else" ":" suite upper_jump_target_reached 	{ $$ = $3;}
+	| "elif" test ":" insert_jump_if_false suite[elifsuite]	jump_target_false_lower upper_jump_target_reached 
+	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($elifsuite, "Then"); } /* ok????? fine */ 
+	| "elif" test ":" insert_jump_if_false suite[elifsuite] insert_end_jump_label jump_target_false_lower elif_block[nextblock]	
+	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($elifsuite, "Then"); $$->addchild ($nextblock, "Else"); }
 
-while_stmt: "while" test ":" suite {$$ = new Node ("While"); $$->addchild($2, "Condition"); $$->addchild($4, "Do");}
+while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false suite[action] loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
+
+begin_loop_condition : {
+		fprintf (tac, "\nLABEL: %s\n", get_next_label_upper("loop").c_str());
+	}
+
+loop_end_jump_back : {
+		fprintf (tac, "\tUJUMP %s\n", get_current_label_upper().c_str());
+	}
 
 insert_jump_if_false : {
-				fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper($<node>0), get_next_label(""));
+				fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper($<node>-1).c_str(), get_next_label("").c_str());
 	}
-insert_jump_to_end : {
+jump_target_false_lower : {
+		fprintf (tac, "\nLABEL: %s\n", get_current_label().c_str());
+	}
+
+new_jump_to_end : {
 			// jump to the end of the if-elif-else sequence
 			// insert at the end of every suite, to jump to the end.
 			get_next_label_upper("end_of_control_flow");
 	}
-
+insert_end_jump_label : {
+		fprintf (tac, "\tUJUMP\t%s\n", jump_labels_upper.top().c_str());
+	}
+upper_jump_target_reached : {
+		fprintf (tac, "\nLABEL:\t%s\n", get_current_label_upper().c_str());
+	}
 
 arglist: test[obj]
 	{
@@ -1218,7 +1236,10 @@ int main(int argc, char** argv){
 	fprintf (stdump, "LEXEME\tTYPE\tTOKEN\t\tLINE\tPARENT SCOPE\n");
 	globalSymTable->print_st(stdump);
 	fclose (stdump);
-	cout << static_section << endl;
+	if (static_section != "Static section:\n")
+		cout << static_section << endl;
+	if (jump_labels_upper.size() != 0 || jump_labels.size() != 0)
+		printf ("Error stacks not empty\n");
     return 0;
 }
 

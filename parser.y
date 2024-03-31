@@ -1807,32 +1807,28 @@ functionstart:  {
 	}
 ;
 classdef: "class" NAME classstart ":"  suite[last] {
-		  Classsuite=0;
-		  $$ = new Node ("Class");
-		  $$->addchild($2, "Name");
-		  $$->addchild($last, "Contains");
-		  inside_init = 0; // endscope();
-		currently_defining_class = NULL;
-	 }
-	| "class" NAME classstart "(" NAME[parent] ")" ":" suite[last] {
-	       	Classsuite=0;
-	       	$$ = new Node ("Class");
-	       	$$->addchild($2, "Name");
-	       	$$->addchild($parent, "Inherits");
-	       	$$->addchild($last,"Contains");
-		inside_init = 0; // endscope();
-		currently_defining_class = NULL;
-	}
-	| "class" NAME classstart "(" ")" ":" suite[last] {
-	       	Classsuite=0;
-	       	$$ = new Node ("Class");
-	       	$$->addchild($2, "Name");
-	       	$$->addchild($last, "Contains");
-		inside_init = 0; // endscope();
-		currently_defining_class = NULL;
-	}
+	Classsuite=0;
+	$$ = new Node ("Class");
+	$$->addchild($2, "Name");
+	$$->addchild($last, "Contains");
+	inside_init = 0; // endscope();
+	currently_defining_class = NULL;
+}
 
-classstart:	{
+classstart: /*empty*/ {
+#if TEMPDEBUG
+	printf ("start class scope");
+	printf ("scope name %s\n", $<node>0->production.c_str()); //$0: the NAME before it on the stack (see classdef)
+#endif
+	if (currently_defining_class || Classsuite) {
+		dprintf (stderr_copy, "Error: Nested declaration of classes\n");
+		exit(43);
+	}
+	Classsuite = 1;
+	currently_defining_class = new SymbolTable (top, CLASS_ST, $<node>0->production);
+	// top = top->parent;
+	currently_defining_class->lineno = $<node>0->lineno;
+} | "(" ")" {
 #if TEMPDEBUG
 	printf ("start class scope");
 	printf ("scope name %s\n", $<node>0->production.c_str());
@@ -1845,8 +1841,38 @@ classstart:	{
 	currently_defining_class = new SymbolTable (top, CLASS_ST, $<node>0->production);
 	// top = top->parent;
 	currently_defining_class->lineno = $<node>0->lineno;
-	function_call_args.clear();
-	function_call_args_dim.clear();
+}| "(" NAME[parent] ")"	{
+#if TEMPDEBUG
+	printf ("start class scope");
+	printf ("scope name %s\n", $<node>0->production.c_str());
+#endif
+	if (currently_defining_class || Classsuite) {
+		dprintf (stderr_copy, "Error: Nested declaration of classes\n");
+		exit(43);
+	}
+	printf("Checking parent class %s\n", $parent->production.c_str());
+	//check if parent class exists/is a class
+	SymbolTable *parent = find_class($parent->production);
+	if (!parent) {
+		dprintf(stderr_copy, "NameError: %s is not a class\n", $parent->production.c_str());
+		exit(1);
+	}
+	Classsuite = 1;
+	currently_defining_class = new SymbolTable (top, CLASS_ST, $<node>0->production);
+	//just copy all members of parent class symbol table to new symbol table
+	for (const auto &entry : parent->symbols) {
+		currently_defining_class->symbols[entry.first] = entry.second;
+	}
+	
+	for (const auto &entry : parent->children) {
+		currently_defining_class->children[entry.first] = entry.second;
+	}
+	
+	for (const auto &entry : parent->ctor) {
+		currently_defining_class->ctor[entry.first] = entry.second;
+	}
+	currently_defining_class->table_size = parent->table_size;
+	currently_defining_class->lineno = $<node>0->lineno;
 }
 
 compound_stmt: 

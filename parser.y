@@ -620,18 +620,25 @@ augassign: "+=" {$$ = new Node ("+="); $$->op = ADD;}
 		| "**=" {$$ = new Node ("**="); }
 
 return_stmt: "return" test {
-		/*
-			if(Funcsuite==0) error
-			if($2 is not in current scope) error
-			if ($2 is not type compatible with return type) error
-		*/
+			if($2->isConstant && $2->typestring != top->return_type){
+				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
+				exit(57);
+			}
+			if(!top->has($2)){
+				dprintf (stderr_copy, "Error at line %d: return value not declared\n", (int) $2->lineno);
+				exit(57);
+			}
+			if($2->typestring != top->return_type){
+				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
+				exit(57);
+			}
 			$1->addchild($2,"Data"); $$=$1;	
 	}
 	| "return" {
-		/*
-			if(Funcsuitex==0) error
-			if(return type is not None) error
-		*/
+			if(top->return_type != "None"){
+				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $1->lineno);
+				exit(57);
+			}
 		string temp = "Keyword\n"; temp += "( return )"; $$ = new Node(temp);}
 
 // for each operation check if the operands are in current scope or not
@@ -1748,7 +1755,7 @@ arglist: test[obj]
 
 
 
-typedarglist:  typedargument {/*top->arguments push*/}
+typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 	| NAME {/*this pointer in case inClass==1 otherwise error*/
 		if (!Classsuite) {
 			dprintf (stderr_copy, "Error in line %d: Argument %s to function does not have a type hint\n", $1->lineno, $1->production.c_str());
@@ -1760,8 +1767,14 @@ typedarglist:  typedargument {/*top->arguments push*/}
 		}
 		top->thisname=$1->production;
 		top->put($1, currently_defining_class->name);
+		$$=$1;
 	}
-	| typedarglist "," typedargument { $$ = new Node ("Multiple Terms"); $$->addchild($1); $$->addchild($3);}
+	| typedarglist "," {fprintf(tac,"\tparam %s\n",$1->production.c_str());} typedargument[last] { 
+		$$ = new Node ("Multiple Terms"); 
+		$$->addchild($1); 
+		$$->addchild($last);
+		fprintf(tac,"\tparam %s\n", $last->production.c_str());
+	}
 
 typedarglist_comma: typedarglist | typedarglist ","
 
@@ -1785,6 +1798,8 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 		put ($1, $3);
 		top->arg_types.push_back ($3->production);
 		top->arg_dimensions.push_back ((bool) $3->dimension);
+
+		fprintf(tac,"\tparam %s\n", $1->production.c_str());
 	}
 
 suite:  simple_stmt[first] 

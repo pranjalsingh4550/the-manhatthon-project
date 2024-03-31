@@ -1289,6 +1289,7 @@ primary: atom {
 		$$->isdecl = true;
 		if (top->has($1->production))
 			$$->typestring = top->get($1)->typestring;
+			$$->dimension = top->get($1)->dimension;
 		if ($1->production == top->thisname) {
 			$$->isdecl = false;
 		}

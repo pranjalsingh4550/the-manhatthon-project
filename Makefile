@@ -9,14 +9,8 @@ parser: clean
 	flex lexer.l
 	g++ -g -o parser lex.yy.c parser.tab.c -fmax-errors=6 
 
-exe: 
-	echo "\n\n\n"
-	./parser -input input.py
-	echo "\n\n\n"
-	make clean
-
 test: parser
-	make exe
+	./parser -input ignore.py
 
 temp:
 	./parser < input.py 2>output.txt

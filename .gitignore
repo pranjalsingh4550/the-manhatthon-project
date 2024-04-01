@@ -1,4 +1,5 @@
 parser.tab.c
+input.py
 .vscode/
 parser.tab.h
 parser.output
@@ -25,3 +26,4 @@ symbol_table.csv
 r.py
 *swp
 
+ignore.py

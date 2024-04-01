@@ -51,7 +51,7 @@
 	vector<Node*> function_params;
 
 #define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-#define TEMPDEBUG 1
+#define TEMPDEBUG 0
 	bool is_not_name (Node*);
 	string static_section;
 	string concatenating_string_plus;
@@ -601,7 +601,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
-			if (!check_types($value->typestring, $type->production)) {
+			if (!check_types($value->typestring, $type->typestring)) {
 				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $type->production.c_str());
 				exit(1);
 			}
@@ -1771,15 +1771,14 @@ primary: atom {
 // 					//TO DO 
 // 					fprintf(tac,"stackpointer -%d\n", top->table_size);
 					string temp = newtemp();
-					fprintf(tac,"stackpointer -%d\n", 8);
-					fprintf(tac,"call allocmem 1\n");
-					fprintf(tac,"stackpointer +%d\n", (int) top->table_size+8);
-					fprintf(tac,"%s = popparam\n",temp.c_str());
-					fprintf(tac,"param %s\n",temp.c_str());
+					fprintf(tac,"\tstackpointer -%d\n", 8);
+					fprintf(tac,"\tcall allocmem 1\n");
+					fprintf(tac,"\tstackpointer +%d\n", (int) top->table_size+8);
+					fprintf(tac,"\t%s = popparam\n",temp.c_str());
+					fprintf(tac,"\tparam %s\n",temp.c_str());
 					
 					// fprintf(tac,"call %s, %s\n", );	
 					// fprintf(tac,"stackpointer -%d\n",)
-				}
 #if TEMPDEBUG
 				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 #endif
@@ -1904,26 +1903,61 @@ primary: atom {
 		reverse(function_call_args.begin(), function_call_args.end());
 		// fill 3ac for function call
 		//we reversed function_call_args -> make sure we are accessing the right arg
-		int len = current_scope->arg_types.size();
-		for (iter = 0; iter< function_call_args.size(); iter ++) {
-			//type cast
-			if ( function_call_args[iter]->typestring == "int"
-		&& current_scope->arg_types[len - iter - 1] == "bool") {
-				
+		int len = (current_scope?  current_scope->arg_types.size(): -1);
+		if (len == -1) {
+			if ($1->production == "print") {
+				len = 1;
+				if (function_call_args[0]->typestring != "str" 
+						&& function_call_args[0]->typestring != "int"
+						&& function_call_args[0]->typestring != "float"
+						&& function_call_args[0]->typestring != "bool"
+				   ) {
+					dprintf (stderr_copy, "Error at line %d: print passed non-primitive type %s\n",
+							(int)$1->lineno, function_call_args[0]->typestring.c_str());
+					exit(83);
+				}
 			}
-			if ( function_call_args[iter]->typestring == "int"
-		&& current_scope->arg_types[len - iter - 1] == "float") {
-				
+			else if ($1->production == "range") {
+				if (function_call_args[0]->typestring != "int" 
+						|| (function_call_args.size() == 2 && function_call_args[1]->typestring != "int")
+				   ) {
+					dprintf (stderr_copy, "Error at line %d: range passed incompatible type %s\n",
+							(int)$1->lineno, function_call_args[0]->typestring.c_str());
+					exit(83);
+				}
 			}
-			if ( function_call_args[iter]->typestring == "bool"
-		&& current_scope->arg_types[len - iter - 1] == "int") {
-				
+			else if ($1->production == "len") {
+				len = 1;
+				if (function_call_args_dim[0] == 0) {
+					dprintf (stderr_copy, "Error at line %d: argument to len() is not a list\n", (int) $1->lineno);
+					exit (54);
+				}
+			} else {
+				dprintf (1, "internal errror - current_scope is NULL inside primary -> primary (...)\n");
+				exit(74);
 			}
-			if ( function_call_args[iter]->typestring == "float"
-		&& current_scope->arg_types[len - iter - 1] == "int") {
-				
+		}
+		else {
+			for (iter = 0; iter< function_call_args.size(); iter ++) {
+				//type cast
+				if ( function_call_args[iter]->typestring == "int"
+			&& current_scope->arg_types[len - iter - 1] == "bool") {
+					
+				}
+				if ( function_call_args[iter]->typestring == "int"
+			&& current_scope->arg_types[len - iter - 1] == "float") {
+					
+				}
+				if ( function_call_args[iter]->typestring == "bool"
+			&& current_scope->arg_types[len - iter - 1] == "int") {
+					
+				}
+				if ( function_call_args[iter]->typestring == "float"
+			&& current_scope->arg_types[len - iter - 1] == "int") {
+					
+				}
+				//push onto stack
 			}
-			//push onto stack
 		}
 		
 		$$->addr= "call "+ $1->addr + ", " + to_string(function_call_args.size());
@@ -2102,7 +2136,7 @@ elif_block:
 new_jump_to_end3: {
 			// jump to the end of the if-elif-else sequence
 			// insert at the end of every suite, to jump to the end.
-			get_next_label_upper3("end_of_control_flow");
+			get_next_label_upper3("");
 	}
 
 insert_jump_if_false3: {
@@ -2115,11 +2149,11 @@ insert_end_jump_label3: {
 	}
 
 jump_target_false_lower3: {
-		fprintf (tac, "\nLABEL: %s\n", get_current_label3().c_str());
+		fprintf (tac, "\n:%s\n", get_current_label3().c_str());
 	}
 
 upper_jump_target_reached3 : {
-		fprintf (tac, "\nLABEL:\t%s\n", get_current_label_upper3().c_str());
+		fprintf (tac, "\n:%s\n", get_current_label_upper3().c_str());
 	}
 
 
@@ -2129,7 +2163,7 @@ upper_jump_target_reached3 : {
 while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false suite[action] loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
 
 begin_loop_condition : {
-		fprintf (tac, "\nLABEL: %s\n", get_next_label_upper("loop").c_str());
+		fprintf (tac, "\n:%s\n", get_next_label_upper("loop").c_str());
 	}
 
 loop_end_jump_back : {
@@ -2140,7 +2174,7 @@ insert_jump_if_false : {
 				fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper($<node>-1).c_str(), get_next_label("").c_str());
 	}
 jump_target_false_lower : {
-		fprintf (tac, "\nLABEL: %s\n", get_current_label().c_str());
+		fprintf (tac, "\n:%s\n", get_current_label().c_str());
 	}
 
 arglist: test[obj]
@@ -2316,6 +2350,7 @@ functionstart:  {
 					top,
 					Classsuite?MEMBER_FN_ST:FUNCTION_ST,
 					$<node>0->production);
+		top->label=top->name;
 		if(currently_defining_class){
 			if(inside_init){
 				top->label=currently_defining_class->name+".ctor";
@@ -2437,7 +2472,7 @@ set_num_range_args_2 : {
 	}
 
 handle_loop_condition : {
-		fprintf (tac, "LABEL: %s\n", get_next_label_upper("for_loop").c_str());
+		fprintf (tac, "%s\n", get_next_label_upper("for_loop").c_str());
 		fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
 		Node* test = $<node>-1;
 		int begin = 0, end = 0;
@@ -2477,7 +2512,7 @@ int main(int argc, char** argv){
 	int pread, pwr;
 	int verbosity = 0; // 1 for shift, 2 for reduce, 1|2 for both
 	char *outputfile = (char *) malloc (128);
-	sprintf (outputfile, "ast.dot");
+	sprintf (outputfile, "tac.txt");
 
 	char verbositym[] = "\t-verbose shift\tList all shift operations\n\t-verbose reduce\tList all reduce operations\n\t-verbose sr\tList shift and reduce operations\n\t-verbose all\tCopy the entire debugger log\n\t-verbose srla\tPrint shift, reduce and lookahead logs\n";
 
@@ -2503,7 +2538,7 @@ int main(int argc, char** argv){
 			dup (input_fd);
 			// cout << "input file: " << argv[i+1] << endl;
 		}
-		else if (strcmp(argv[i], "-output") == 0) { // outpur file name, default ast.dot
+		else if (strcmp(argv[i], "-output") == 0) { // outpur file name, default tac.txt
 			if (argv[i+1] == NULL) {
 				fprintf (stderr, "Missing argument: -output must be followed by output file name\n");
 				return 1;
@@ -2538,7 +2573,7 @@ int main(int argc, char** argv){
 				return 1;
 		}
 		else if (strcmp (argv[i], "-help") == 0) {
-			printf ("This is a basic python compiler made by Dev*\nCommand-line options:\n\t-input:\t\tInput file (default - standart input console. Use Ctrl-D for EOF)\n\t-output:\tOutput file (default: ast.dot; overwritten if exists)\n\t-verbose:\tPrint debugging information to stderr\n\t-help:\t\tPrint this summary\nVerbosity flags: (no default value)\n%s", verbositym );
+			printf ("This is a basic python compiler made by Dev*\nCommand-line options:\n\t-input:\t\tInput file (default - standart input console. Use Ctrl-D for EOF)\n\t-output:\tOutput file (default: tac.txt; overwritten if exists)\n\t-verbose:\tPrint debugging information to stderr\n\t-help:\t\tPrint this summary\nVerbosity flags: (no default value)\n%s", verbositym );
 			return 0;
 		}
 	}
@@ -2551,8 +2586,9 @@ int main(int argc, char** argv){
 	static_section = "Static Section:\n" ;
 	concatenating_string_plus = "\0";
 	
-	graph = fopen (outputfile, "w+");
-	fprintf (graph, "strict digraph ast {\n");
+	tac = fopen (outputfile, "w+");
+	graph = NULL;
+	if (graph) fprintf (graph, "strict digraph ast {\n");
 	yyparse();
 	if (graph) {
 		fprintf (graph, "}\n");

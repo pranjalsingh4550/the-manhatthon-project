@@ -89,51 +89,29 @@
 	}
 	extern void check (Node* n) ;
 	extern int check_number(Node* n) ;
-	bool check(Node* n1, Node* n2){
-		if (n1->typestring == "int") {
-			if (n2->typestring != "bool"
-			&&  n2->typestring != "float"
-			&&  n2->typestring != "int") {
+	bool check_types(string t1, string t2) {
+		if (t1 == "int") {
+			if (t2 != "bool"
+			&&  t2 != "float"
+			&&  t2 != "int") {
 				return false;
 			}
-		} else if (n1->typestring == "float") {
-			if (n2->typestring != "float"
-			&&  n2->typestring != "int") {
+		} else if (t1 == "float") {
+			if (t2 != "float"
+			&&  t2 != "int") {
 				return false;
 			}
-		} else if (n1->typestring == "bool") {
-			if (n2->typestring != "int"
-			&&  n2->typestring != "bool") {
+		} else if (t1 == "bool") {
+			if (t2 != "int"
+			&&  t2 != "bool") {
 				return false;
 			}
-		} else if (n1->typestring != n2->typestring) {
+		} else if (t1 != t2) {
 			return false;
 		}
 		return true;
 	}
-	bool check_typestring(Node *n, string typestring) {
-		if (n->typestring == "int") {
-			if (typestring != "bool"
-			&&  typestring != "float"
-			&&  typestring != "int") {
-				return false;
-			}
-		} else if (n->typestring == "float") {
-			if (typestring != "float"
-			&&  typestring != "int") {
-				return false;
-			}
-		} else if (n->typestring == "bool") {
-			if (typestring != "int"
-			&&  typestring != "bool") {
-				return false;
-			}
-		} else if (n->typestring != typestring) {
-			return false;
-		}
-
-		return true;
-	}
+	
 	int Funcsuite=0;
 	int Classsuite=0;
 	int inLoop=0;
@@ -186,8 +164,68 @@
 		string left= leftop ? top->getaddr(leftop) : "";
 		string right= rightop ? top->getaddr(rightop) : "";
 		string resultaddr = result ? top->getaddr(result) : "";
+		if (op != ASSIGN
+		&&  result == leftop
+		&& 	result->islval
+		&&  leftop->addr[0] == 't' /*fix: addr is a temporary*/) {
+			//augmented assign case
+			//result and leftop is an lval=true case AND is a temporary
+			//-> need to work some pointer stuff out
+			//here, we need to create a temporary that has the deref of 
+			//leftop, use it in the calculation (which goes to the same
+			//temp or a new temp) and then use the result temp in a SW
+			
+			//first, generate the deref:
+			string s = "\t";
+			string deref = newtemp();
+			s += deref + " = *" + left + "\n";
+			fprintf(tac, "%s", s.c_str());
+			
+			//now deref has the temporary, so we use it in the calculation
+			string old_addr = result->addr;
+			leftop->addr = deref;
+			result->islval = false;
+			gen(result, leftop, rightop, op);
+			
+			//gen will have created the augassign and put the temporary in result->addr
+			//so now just restore and create the saveword
+			result->addr = old_addr;
+			result->islval = true;
+			fprintf (tac, "\t*%s = %s\n", old_addr.c_str(), right.c_str());
+			//we're done!
+			return;
+		}
+		if (op == ASSIGN
+		 && leftop->islval 
+		 && leftop->addr[0] == 't' /*fix: addr is a temporary*/) {
+			//assign to left will not work, will need to assign to deref of left i.e. SW
+			//this doesn't work for augmented assign
+			op = SW;
+		}
 		switch(op){
-			case ASSIGN: fprintf(tac, "\t%s = %s\n", left.c_str(), right.c_str()); return;
+			case ASSIGN: {
+				if (leftop->typestring == rightop->typestring) {
+					fprintf(tac, "\t%s = %s\n", left.c_str(), right.c_str());
+					return;
+				}
+				//add typecasting instr if needed
+				if (leftop->typestring == "int") {
+					if (rightop->typestring == "bool") {
+						fprintf(tac, "\t%s = BOOL_TO_INT(%s)\n", left.c_str(), right.c_str());
+					} else if (rightop->typestring == "float") {
+						fprintf(tac, "\t%s = FLOAT_TO_INT(%s)\n", left.c_str(), right.c_str());
+					}
+				} else if (leftop->typestring == "bool") {
+					if (rightop->typestring == "int") {
+						fprintf(tac, "\t%s = INT_TO_BOOL(%s)\n", left.c_str(), right.c_str());
+					}
+				} else if (leftop->typestring == "float") {
+					if (rightop->typestring == "int") {
+						fprintf(tac, "\t%s = INT_TO_FLOAT(%s)\n", left.c_str(), right.c_str());
+					}
+				}
+				return;
+			}
 			case ATTR: {
 				string s="\t";
 				if(leftop->isLeaf&&top->getnode(leftop->production)->isLeaf){
@@ -204,8 +242,11 @@
 				// t_2 = $1->addr + offset
 #endif
 				string ult = newtemp();
-				s+=ult +" = (" + left + " + " + offset + ")";
-				result->addr = "*"+ult;
+				s+=ult +" = (" + left + " + " + offset + ")\n\t";
+// 				string nc = newtemp();
+// 				s+=nc + " = *" + ult + "\n";
+// 				result->addr = nc;
+				result->addr = ult;
 				// // cout<<"nice "<<addr<<endl;
 				fprintf(tac, "%s\n", s.c_str());
 				return;
@@ -220,9 +261,19 @@
 				s += offset + " =  "  +right + "*"+ to_string(getwidth(leftop)) + "\n\t";
 				string ult = newtemp();
 				s+=ult +" = (" + left + " + " + offset + ")\n";
-				string nc = newtemp();
-				result->addr = "*"+ult;
+// 				string nc = newtemp();
+// 				s+=nc + " = *" + ult + "\n";
+// 				result->addr = nc;
+				result->addr = ult;
 				fprintf(tac, "%s", s.c_str()); 
+				return;
+			}
+			case DEREF: {
+				string s = "\t";
+				string deref = newtemp();
+				s += deref + " = *" + left + "\n";
+				result->addr = deref;
+				fprintf(tac, "%s", s.c_str());
 				return;
 			}
 			default: break;
@@ -235,17 +286,17 @@
 			case MUL:		fprintf(tac, "\t%s\t= %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case DIV:		fprintf(tac, "\t%s\t= %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case MOD:		fprintf(tac, "\t%s\t= %s %% %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case AND_log:	fprintf(tac, "\t%s\t= BOOL [%s and %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case OR_log:	fprintf(tac, "\t%s\t= BOOL [%s or %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case NOT_log:	fprintf(tac, "\t%s\t= BOOL [not %s]\n",resultaddr.c_str(), left.c_str()); break;
-			case LT:		fprintf(tac, "\t%s\t= BOOL [%s < %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case GT:		fprintf(tac, "\t%s\t= BOOL [%s > %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case LTE:		fprintf(tac, "\t%s\t= BOOL [%s <= %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case GTE:		fprintf(tac, "\t%s\t= BOOL [%s >= %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case EQ:		fprintf(tac, "\t%s\t= BOOL [%s == %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case NEQ:		fprintf(tac, "\t%s\t= BOOL [%s != %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case OR_bit:	fprintf(tac, "\t%s\t= BOOL [%s | %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case AND_bit:	fprintf(tac, "\t%s\t= BOOL [%s & %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case AND_log:	fprintf(tac, "\t%s\t= %s and %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case OR_log:	fprintf(tac, "\t%s\t= %s or %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NOT_log:	fprintf(tac, "\t%s\t= not %s\n",resultaddr.c_str(), left.c_str()); break;
+			case LT:		fprintf(tac, "\t%s\t= %s < %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case GT:		fprintf(tac, "\t%s\t= %s > %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case LTE:		fprintf(tac, "\t%s\t= %s <= %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case GTE:		fprintf(tac, "\t%s\t= %s >= %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case EQ:		fprintf(tac, "\t%s\t= %s == %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NEQ:		fprintf(tac, "\t%s\t= %s != %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case OR_bit:	fprintf(tac, "\t%s\t= %s | %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case AND_bit:	fprintf(tac, "\t%s\t= %s & %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case NOT_bit:	fprintf(tac, "\t%s\t= ~%s\n",resultaddr.c_str(), left.c_str()); break;
 			case XOR:		fprintf(tac, "\t%s\t= %s ^ %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case SHL:		fprintf(tac, "\t%s\t= %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
@@ -515,7 +566,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
-			if (!check_typestring($value, $type->production)) {
+			if (!check_types($value->typestring, $type->production)) {
 				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $type->production.c_str());
 				exit(1);
 			}
@@ -601,7 +652,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				$value->typestring = top->get($value->production)->typestring;
 			check($id);
 			check($value);
-			if (!check($id, $value)) {
+			if (!check_types($id->typestring, $value->typestring)) {
 				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $operation->lineno, $id->typestring.c_str(), $value->typestring.c_str());
 				exit(1);
 			}
@@ -628,7 +679,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						(int) $id->lineno);
 				exit (33);
 			}
-			if (!check_typestring($id, $value->typestring)) {
+			if (!check_types($id->typestring, $value->typestring)) {
 				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $value->production.c_str());
 				exit(1);
 			}
@@ -638,7 +689,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			// these 3 lines copied during merging: check consistency
 			check ($id);
 			check($value);
-			if (!check($id, $value)) {
+			if (!check_types($id->typestring, $value->typestring)) {
 				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $value->typestring.c_str());
 				exit(1);
 			}
@@ -694,7 +745,7 @@ augassign: "+=" {$$ = new Node ("+="); $$->op = ADD;}
 
 return_stmt: "return" test {
 			if($2->isConstant ){
-				if(!check_typestring($2, top->return_type)){
+				if(!check_types($2->typestring, top->return_type)){
 					dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
 					exit(57);
 				}
@@ -704,7 +755,7 @@ return_stmt: "return" test {
 					dprintf (stderr_copy, "Error at line %d: return value not declared\n", (int) $2->lineno);
 					exit(57);
 				}
-				if(!check_typestring($2, top->return_type)){
+				if(!check_types($2->typestring, top->return_type)){
 					dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
 					exit(57);
 				}
@@ -725,7 +776,7 @@ return_stmt: "return" test {
 // check type compatibility
 //udate type of result
 
-test : and_test
+test: and_test
 	| test "or" and_test {
 	//assuming: only ints/bools in test
 	if (!check_number($1) 
@@ -747,7 +798,7 @@ test : and_test
 	//to do: gen
 }
 
-and_test : not_test
+and_test: not_test
 	| and_test "and" not_test {
 	//assuming: only ints/bools in test
 	if (!check_number($1) 
@@ -767,7 +818,7 @@ and_test : not_test
 	gen($$,$1,$3,AND_log);
 	//to do: gen
 }
-not_test : comparison
+not_test: comparison
 	| "not" not_test	{
 	if (!check_number($2)
 	||  ($1->typestring == "float")
@@ -1421,47 +1472,64 @@ factor: "+" factor	{
 }
 power: primary {
 	current_scope = NULL;
-	$$ = $1;
 	if ($1->typestring == "") {
 		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at power: primary production\n", $1->lineno);
 		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 		exit(1);
 	}
+	if ($1->islval) {
+		//if it's reached here, it's no longer valid as an lval
+		//so check if any temporaries need to be generated (for
+		//cases of assignment to attributes/subscripts)
+		//if islval is true and addr is a temporary, addr holds
+		//an address/pointer -> all that needs to be done is to
+		//dereference it
+		$1->islval = false;
+		if ($1->addr[0] == 't') { //fix: check if $1->addr is a temporary
+			gen($1, $1, NULL, DEREF);
+		}
+	}
+	$$ = $1;
 }
 	| primary "**" factor	{
-	$$ = new Node ("**");
-	$$->addchild($1);
-	$$->addchild($3);
-	current_scope = NULL;
 	if ($1->typestring == "") {
 			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
 			if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 			exit(1);
+	}
+	if ($3->typestring == "") {
+		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
+		exit(1);
+	}
+	
+	if (!check_number($1)) {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first summand for addition, type is %s\n",$2->lineno, $1->typestring.c_str());
+		 exit(69);
+	}
+	if (!check_number($3)) {
+		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second summand for addition, type is %s\n",$2->lineno, $3->typestring.c_str());
+		 exit(69);
+	}
+	if ($1->typestring == "complex" || $3->typestring == "complex") {
+		$$->typestring = "complex";
+	} else if ($1->typestring == "float" || $3->typestring == "float"){
+		$$->typestring = "float";
+	} else { //i.e. ints/bools + ints/bools => always int
+		$$->typestring = "int";
+	}
+	$$ = new Node ("**");
+	//edit $1's lval status and generate temporaries if needed
+	if ($1->islval) {
+		$1->islval = false;
+		if ($1->addr[0] == 't') { //fix: check if $1->addr is a temporary
+			gen($1, $1, NULL, DEREF);
 		}
-		if ($3->typestring == "") {
-			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
-			if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
-			exit(1);
-		}
-		
-		if (!check_number($1)) {
-			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of first summand for addition, type is %s\n",$2->lineno, $1->typestring.c_str());
-			 exit(69);
-		}
-		if (!check_number($3)) {
-			 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second summand for addition, type is %s\n",$2->lineno, $3->typestring.c_str());
-			 exit(69);
-		}
-		if ($1->typestring == "complex" || $3->typestring == "complex") {
-			$$->typestring = "complex";
-		} else if ($1->typestring == "float" || $3->typestring == "float"){
-			$$->typestring = "float";
-		} else { //i.e. ints/bools + ints/bools => always int
-			$$->typestring = "int";
-		}
-		
-		//to add: gen
-		gen($$,$1, $3, POW);
+	}
+	$$->addchild($1);
+	$$->addchild($3);
+	current_scope = NULL;
+	gen($$,$1, $3, POW);
 }
 
 /* TO DO 
@@ -1496,11 +1564,12 @@ on entry to primary "." NAME: if primary is a leaf, nothing is set.
 */
 
 
+
+//whenever islval is true, if addr is a temporary, then it is a pointer
 primary: atom {
 		// // set typestring if available, so we know if it's a declaration or a use
 		// cout<<$1->isLeaf<<endl;
 		$$ = $1;
-		$$->islval = true;
 		$$->isdecl = true;
 		if (top->has($1->production)){
 			$$->typestring = top->get($1)->typestring;
@@ -1637,31 +1706,40 @@ primary: atom {
 			if (top->find_member_fn ($1->production)) {
 				current_scope = top->find_member_fn($1->production);
 				$$->typestring = current_scope->return_type;
-				// reversing push params as per format
-				auto temp = function_call_args;
-				reverse(temp.begin(), temp.end());
-				for(auto it:temp){
-					fprintf(tac, "\tparam %s\n", it->addr.c_str());
-				}
-				if(current_scope->fn_inside_class){
-					string temp =newtemp();
-					int siz = find_class(current_scope->return_type)->size; 
-					fprintf(tac,"param %d\n",siz);
-					//TO DO 
-					fprintf(tac,"stackpointer -%d\n", top->table_size);
+// <<<<<<< HEAD
+// 				// // reversing push params as per format
+// // 				auto temp = function_call_args;
+// // 				reverse(temp.begin(), temp.end());
+// // 				// fill 3ac for function call
+// // 				for(auto it:temp){
+// // 					fprintf(tac, "\tparam %s\n", it->addr.c_str());
+// // 				}
+// =======
+// 				// reversing push params as per format
+// 				auto temp = function_call_args;
+// 				reverse(temp.begin(), temp.end());
+// 				for(auto it:temp){
+// 					fprintf(tac, "\tparam %s\n", it->addr.c_str());
+// 				}
+// 				if(current_scope->fn_inside_class){
+// 					string temp =newtemp();
+// // 					int siz = find_class(current_scope->return_type)->size; 
+// // 					fprintf(tac,"param %d\n",siz);
+// 					//TO DO 
+// 					fprintf(tac,"stackpointer -%d\n", top->table_size);
 					fprintf(tac,"stackpointer -%d\n", 8);
 					fprintf(tac,"call allocmem 1\n");
 					fprintf(tac,"stackpointer +%d\n", top->table_size+8);
 					fprintf(tac,"%s = popparam\n",temp.c_str());
 					fprintf(tac,"param %s\n",temp.c_str());
 					//
-					// fprintf(tac,"call %s, %s\n", );	
-					// fprintf(tac,"stackpointer -%d\n",)
-				}
+// 					// fprintf(tac,"call %s, %s\n", );	
+// 					// fprintf(tac,"stackpointer -%d\n",)
+// 				}
+// >>>>>>> 6d89f80d20ac9fa033e397186f426fc157495b0b
 #if TEMPDEBUG
 				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 #endif
-				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
 				current_scope = globalSymTable->ctor.find ($1->production)->second;
 				$1->addr+=".ctor";
@@ -1690,10 +1768,9 @@ primary: atom {
 		}
 		// printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
-		
+
 		// check function_call_args
 		int iter;
-		bool primitive_fn = true;
 		if ($1->production == "range" && $1->isLeaf) {
 			if ((function_call_args.size() > 2 || function_call_args.size() < 1)) {
 				dprintf (stderr_copy, "Error at line %d: range() expects one or two arguments, received %d\n",
@@ -1737,38 +1814,71 @@ primary: atom {
 				exit (49);
 			}
 			$$->typestring = "int";
-		} else {
-			primitive_fn = false;
-		}
-				
-		if (!primitive_fn && function_call_args.size() != current_scope->arg_types.size()) {
-			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
+		} else { //i.e. user defined function, not len, range or print
+			if (function_call_args.size() != current_scope->arg_types.size()) {
+				dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
 					(int)$1->lineno, (int)current_scope->arg_types.size(),(int) function_call_args.size());
-			exit (60);
-		}
-#define VALID_PAIR(type1, type2)	\
-		(function_call_args[iter]->typestring == type1 && current_scope->arg_types[iter] == type2)
+				exit (60);
+			}
 
-		for (iter = 0; !primitive_fn && iter< current_scope->arg_types.size(); iter ++) { 
-			// cout << "twdfdvwfere\n";
-			// cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
-			if (function_call_args[iter]->typestring == (current_scope->arg_types)[iter]
-					&& function_call_args_dim[iter] == (current_scope->arg_dimensions)[iter])
-				continue;
-			if (VALID_PAIR( "int", "bool") || VALID_PAIR( "int", "float") ||VALID_PAIR( "bool", "int") || VALID_PAIR( "int", "bool")
-					&& function_call_args_dim[iter] == current_scope->arg_dimensions[iter])
-				continue;
-			if (function_call_args[iter]->typestring != current_scope->arg_types[iter])
-				dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be %s, received incompatible type %s\n",
-						(int) $1->lineno, iter, current_scope->arg_types[iter].c_str(), function_call_args[iter]->typestring.c_str());
-			else
-				dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be of type %s, received incompatible type %s\n",
-						(int) $1->lineno, iter,
-						(current_scope->arg_types[iter] +(current_scope->arg_dimensions[iter] ? "[]" : "")).c_str(),
-						(current_scope->arg_types[iter] +(function_call_args_dim[iter]? "[]" : "")).c_str()
-						);
-			exit(80);
+			for (iter = 0; iter< current_scope->arg_types.size(); iter ++) { 
+				// cout << "twdfdvwfere\n";
+				// cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
+				if (function_call_args[iter]->typestring == (current_scope->arg_types)[iter]
+				 && function_call_args_dim[iter] == (current_scope->arg_dimensions)[iter]) {
+					continue;
+				}
+				
+				if (    (function_call_args[iter]->typestring == "int" 
+							&& current_scope->arg_types[iter] == "bool")
+					|| 		(function_call_args[iter]->typestring == "int" 
+							&& current_scope->arg_types[iter] == "float")
+					|| 		(function_call_args[iter]->typestring == "bool" 
+							&& current_scope->arg_types[iter] == "int")
+					|| 		(function_call_args[iter]->typestring == "int" 
+							&& current_scope->arg_types[iter] == "bool")) {
+					continue;
+				}
+				if (function_call_args[iter]->typestring != current_scope->arg_types[iter])
+					dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be %s, received incompatible type %s\n",
+							(int) $1->lineno, iter, current_scope->arg_types[iter].c_str(), function_call_args[iter]->typestring.c_str());
+				else //one is array, other is not
+					dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be of type %s, received incompatible type %s\n",
+							(int) $1->lineno, iter,
+							(current_scope->arg_types[iter] +(current_scope->arg_dimensions[iter] ? "[]" : "")).c_str(),
+							(current_scope->arg_types[iter] +(function_call_args_dim[iter]? "[]" : "")).c_str()
+							);
+				exit(80);
+			}
 		}
+
+		//if we haven't exited until now, everything is fine
+		// reversing push params as per format
+		reverse(function_call_args.begin(), function_call_args.end());
+		// fill 3ac for function call
+		//we reversed function_call_args -> make sure we are accessing the right arg
+		int len = current_scope->arg_types.size();
+		for (iter = 0; iter< function_call_args.size(); iter ++) {
+			//type cast
+			if ( function_call_args[iter]->typestring == "int"
+		&& current_scope->arg_types[len - iter - 1] == "bool") {
+				
+			}
+			if ( function_call_args[iter]->typestring == "int"
+		&& current_scope->arg_types[len - iter - 1] == "float") {
+				
+			}
+			if ( function_call_args[iter]->typestring == "bool"
+		&& current_scope->arg_types[len - iter - 1] == "int") {
+				
+			}
+			if ( function_call_args[iter]->typestring == "float"
+		&& current_scope->arg_types[len - iter - 1] == "int") {
+				
+			}
+			//push onto stack
+		}
+		
 		$$->addr= "call "+ $1->addr + ", " + to_string(function_call_args.size());
 		function_call_args.clear();
 		function_call_args_dim.clear();
@@ -1857,10 +1967,11 @@ primary: atom {
 
 
 
-/* TO DO 
-	Pass the lineno, datatype from the lexer through node
-*/
-atom: NAME 
+//default value for islval is false
+atom: NAME {
+	$$ = $1;
+	$$->islval = true;
+}
     | NUMBER
     | STRING_plus {
 		$$ = $1;

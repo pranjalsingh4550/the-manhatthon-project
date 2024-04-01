@@ -99,8 +99,9 @@ enum ir_operation {
 
 	MARK_FALSE,
 	STREQ,
-	STRCMP
-	
+	STRCMP,
+	PTR,
+	DEREF,
 };
 
 enum datatypes {

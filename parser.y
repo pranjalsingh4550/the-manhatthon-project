@@ -1928,33 +1928,36 @@ primary: atom {
 			}
 		}
 		int size = 0;
-		for (iter = 0; iter < len; iter ++) {
+		for (iter = 0;iter < len; iter ++) {
 			//typecast
 			bool cast = false;
 			string temp = "";
-			if ( function_call_args[iter]->typestring == "int"
-		&& current_scope->arg_types[len - iter - 1] == "bool") {
-				cast = true;
-				temp = newtemp();
-				fprintf(tac, "%s = INT_TO_BOOL(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
-			}
-			if ( function_call_args[iter]->typestring == "int"
-		&& current_scope->arg_types[len - iter - 1] == "float") {
-				cast = true;
-				temp = newtemp();
-				fprintf(tac, "%s = INT_TO_FLOAT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
-			}
-			if ( function_call_args[iter]->typestring == "bool"
-		&& current_scope->arg_types[len - iter - 1] == "int") {
-				cast = true;
-				temp = newtemp();
-				fprintf(tac, "%s = BOOL_TO_INT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
-			}
-			if ( function_call_args[iter]->typestring == "float"
-		&& current_scope->arg_types[len - iter - 1] == "int") {
-				cast = true;
-				temp = newtemp();
-				fprintf(tac, "%s = FLOAT_TO_INT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
+			//only need coercion for nonbuiltins
+			if (current_scope != NULL) {
+				if ( function_call_args[iter]->typestring == "int"
+			&& current_scope->arg_types[len - iter - 1] == "bool") {
+					cast = true;
+					temp = newtemp();
+					fprintf(tac, "%s = INT_TO_BOOL(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
+				}
+				if ( function_call_args[iter]->typestring == "int"
+			&& current_scope->arg_types[len - iter - 1] == "float") {
+					cast = true;
+					temp = newtemp();
+					fprintf(tac, "%s = INT_TO_FLOAT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
+				}
+				if ( function_call_args[iter]->typestring == "bool"
+			&& current_scope->arg_types[len - iter - 1] == "int") {
+					cast = true;
+					temp = newtemp();
+					fprintf(tac, "%s = BOOL_TO_INT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
+				}
+				if ( function_call_args[iter]->typestring == "float"
+			&& current_scope->arg_types[len - iter - 1] == "int") {
+					cast = true;
+					temp = newtemp();
+					fprintf(tac, "%s = FLOAT_TO_INT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
+				}
 			}
 			//push onto stack
 			if (cast) {

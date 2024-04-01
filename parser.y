@@ -11,7 +11,7 @@
     using namespace std; 
 	int nodecount=0;
 	int tempcount=0;
-	int forcount=0;
+	int basecount=0;
 	FILE* graph = NULL;
 	FILE* inputfile = NULL;
     extern int yylex();
@@ -36,7 +36,7 @@
 		return temp;
 	}
 	void resettemp(){
-		tempcount=forcount;
+		tempcount=basecount;
 	}
 	SymbolTable *currently_defining_list;
 	string currently_defining_identifier_typestring;
@@ -231,7 +231,26 @@
 			case SUB: fprintf(tac, "\t%s = %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case MUL: fprintf(tac, "\t%s = %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case DIV: fprintf(tac, "\t%s = %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			default: break;
+			case MOD: fprintf(tac, "\t%s = %s %% %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case AND_log: fprintf(tac, "\t%s = %s and %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case OR_log: fprintf(tac, "\t%s = %s or %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NOT_log: fprintf(tac, "\t%s = not %s\n",resultaddr.c_str(), left.c_str()); break;
+			case LT: fprintf(tac, "\t%s = %s < %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case GT: fprintf(tac, "\t%s = %s > %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case LTE: fprintf(tac, "\t%s = %s <= %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case GTE: fprintf(tac, "\t%s = %s >= %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case EQ: fprintf(tac, "\t%s = %s == %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NEQ: fprintf(tac, "\t%s = %s != %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case OR_bit: fprintf(tac, "\t%s = %s | %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case AND_bit: fprintf(tac, "\t%s = %s & %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NOT_bit: fprintf(tac, "\t%s = ~%s\n",resultaddr.c_str(), left.c_str()); break;
+			case XOR: fprintf(tac, "\t%s = %s ^ %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case SHL: fprintf(tac, "\t%s = %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case SHR: fprintf(tac, "\t%s = %s >> %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case POW: fprintf(tac, "\t%s = %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NEG: fprintf(tac, "\t%s = -%s\n",resultaddr.c_str(), left.c_str()); break;
+			case FLOORDIV: fprintf(tac, "\t%s = %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			default: dprintf (stderr_copy,"Wrong op\n");exit(1);
 		}
 		return;
 			
@@ -721,6 +740,8 @@ test : and_test
 	$$->addchild ($3);
 	$$->typestring = "bool";
 	
+	gen($$,$1,$3,OR_log);
+
 	//to do: gen
 }
 
@@ -741,6 +762,7 @@ and_test : not_test
 	$$->addchild ($3);
 	$$->typestring = "bool";
 	
+	gen($$,$1,$3,AND_log);
 	//to do: gen
 }
 not_test : comparison
@@ -756,6 +778,7 @@ not_test : comparison
 	$$->typestring = "bool";
 	
 	//to do: gen
+	gen($$,$2,NULL,NOT_log);
 }
 
 comparison: expr {
@@ -804,6 +827,7 @@ comparison: expr {
 		$$->typestring = "bool";
 		
 		//to do: gen
+		gen($$,$1,$3,EQ);
 }
 	| expr "!=" comparison	{
 	$$ = new Node ("!=");
@@ -833,6 +857,7 @@ comparison: expr {
 	$$->typestring = "bool";
 	
 	//to do: gen
+	gen($$,$1,$3,NEQ);
 }
 	| expr "<" comparison	{
 	$$ = new Node ("<");
@@ -861,6 +886,7 @@ comparison: expr {
 	}
 	$$->typestring = "bool";
 	
+	gen($$,$1,$3,LT);
 	//to do: gen
 }
 	| expr "<=" comparison	{
@@ -890,6 +916,7 @@ comparison: expr {
 	}
 	$$->typestring = "bool";
 	
+	gen($$,$1,$3,LTE);
 	//to do: gen
 }
 	| expr ">" comparison	{
@@ -918,7 +945,7 @@ comparison: expr {
 		exit(1);
 	}
 	$$->typestring = "bool";
-	
+	gen($$,$1,$3,GT);
 	//to do: gen
 }
 	| expr ">=" comparison	{
@@ -948,6 +975,7 @@ comparison: expr {
 	}
 	$$->typestring = "bool";
 	
+	gen($$,$1,$3,GTE);
 	//to do: gen
 }
 
@@ -989,6 +1017,7 @@ expr: xor_expr {
 	} else {
 		$$->typestring = "bool";
 	}
+	gen($$,$1,$3,OR_bit);
 	//to do: gen
 }
 xor_expr: ans_expr {
@@ -1029,6 +1058,7 @@ xor_expr: ans_expr {
 		$$->typestring = "bool";
 	}
 	//to do: gen
+	gen($$,$1,$3,XOR);
 }
 
 ans_expr: shift_expr {
@@ -1069,6 +1099,7 @@ ans_expr: shift_expr {
 		$$->typestring = "bool";
 	}
 	//to do: gen
+	gen($$,$1,$3,AND_bit);
 }
 shift_expr: sum {
 	if ($1->typestring == "") {
@@ -1103,6 +1134,7 @@ shift_expr: sum {
 	$$->addchild ($3);
 	$$->typestring = "int"; //always
 	//to do: gen
+	gen($$,$1, $3, SHL);
 }
 	| shift_expr ">>" sum	{
 	if ($1->typestring == "") {
@@ -1130,6 +1162,7 @@ shift_expr: sum {
 	$$->addchild ($3);
 	$$->typestring = "int"; //always
 	//to do: gen
+	gen($$,$1, $3, SHR);
 }
 
 sum : sum "+" term  { 
@@ -1291,6 +1324,7 @@ term: term "*" factor	{
 	}
 	
 	//to add: gen
+	gen($$,$1, $3, MOD);
 }
 	| term DOUBLESLASH factor {
 	$$ = new Node ("//");
@@ -1321,6 +1355,7 @@ term: term "*" factor	{
 	}
 	
 	//to add: gen
+	gen($$,$1, $3, FLOORDIV);
 }
 	| factor {
 	if ($1->typestring == "")	{
@@ -1342,7 +1377,7 @@ factor: "+" factor	{
 	}
 	
 	$$->typestring = $2->typestring;
-	//to add: gen
+	//to add: gen //ignore
 }
 	| "-" factor	{
 	$$ = new Node ("-");
@@ -1358,6 +1393,8 @@ factor: "+" factor	{
 	
 	$$->typestring = $2->typestring;
 	//to add: gen
+	gen($$,$2,NULL,NEG);
+
 }
 	| "~" factor	{
 	$$ = new Node ("~");
@@ -1372,6 +1409,7 @@ factor: "+" factor	{
 	}
 	
 	$$->typestring = "int"; //always
+	gen($$,$2,NULL,NOT_bit);
 }
 	| power {
 	if ($1->typestring == "")	{
@@ -1423,6 +1461,7 @@ power: primary {
 		}
 		
 		//to add: gen
+		gen($$,$1, $3, POW);
 }
 
 /* TO DO 
@@ -1649,7 +1688,7 @@ primary: atom {
 		if ($1->production == "range" && $1->isLeaf) {
 			if ((function_call_args.size() > 2 || function_call_args.size() < 1)) {
 				dprintf (stderr_copy, "Error at line %d: range() expects one or two arguments, received %d\n",
-						(int)$1->lineno, function_call_args.size());
+						(int)$1->lineno, (int)function_call_args.size());
 				exit (59);
 			} else if (function_call_args[0]->typestring != "int" && function_call_args[0]->typestring != "bool" && function_call_args[0]->typestring != "float") {
 				dprintf (stderr_copy, "TypeError at line %d: first argument to range() is of incompatible type %s\n", (int)$1->lineno , $1->typestring.c_str());
@@ -1668,7 +1707,7 @@ primary: atom {
 		} else if ($1->production == "print" && $1->isLeaf) {
 			if (function_call_args.size() != 1) {
 				dprintf (stderr_copy, "Error at line %d: print() expects one argument, received %d\n",
-						(int)$1->lineno, function_call_args.size());
+						(int)$1->lineno, (int)function_call_args.size());
 				exit (59);
 			} else if (function_call_args[0]->typestring != "int" && function_call_args[0]->typestring != "bool" && function_call_args[0]->typestring != "str" && 
 					function_call_args[0]->typestring != "float" &&  function_call_args[0]->typestring != "complex") {
@@ -1681,7 +1720,7 @@ primary: atom {
 		} else if ($1->production == "len" && $$->isLeaf) {
 			if (function_call_args.size() != 1) {
 				dprintf (stderr_copy, "Error at line %d: len() expects one argument, received %d\n",
-						(int)$1->lineno, function_call_args.size());
+						(int)$1->lineno, (int)function_call_args.size());
 				exit (59);
 			} else if (function_call_args_dim[0] == false && function_call_args[0]->typestring != "str") {
 				dprintf (stderr_copy, "TypeError at line %d: argument to len() neither a string nor a list\n",
@@ -2078,11 +2117,14 @@ functionstart:  {
 			currently_defining_class->children[$<node>0->production] = top;
 		}
 		top->lineno = $<node>0->lineno;
+		fprintf(tac, ":%s\n", top->label.c_str());
+		fprintf(tac, "\tbeginfunc\n");
+		for (auto arg:function_call_args){
+			fprintf(tac, "\tt%d = popparam\n",basecount++);
+		}
 		function_call_args.clear();
 		function_call_args_dim.clear();
 
-		fprintf(tac, ":%s\n", top->label.c_str());
-		fprintf(tac, "\tbeginfunc\n");
 	}
 ;
 classdef: "class" NAME classstart ":"{

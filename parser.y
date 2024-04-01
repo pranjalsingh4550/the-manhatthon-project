@@ -11,7 +11,7 @@
     using namespace std; 
 	int nodecount=0;
 	int tempcount=0;
-	int forcount=0;
+	int basecount=0;
 	FILE* graph = NULL;
 	FILE* inputfile = NULL;
     extern int yylex();
@@ -36,7 +36,7 @@
 		return temp;
 	}
 	void resettemp(){
-		tempcount=forcount;
+		tempcount=basecount;
 	}
 	SymbolTable *currently_defining_list;
 	string currently_defining_identifier_typestring;
@@ -243,12 +243,14 @@
 			case NEQ: fprintf(tac, "\t%s = %s != %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case OR_bit: fprintf(tac, "\t%s = %s | %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case AND_bit: fprintf(tac, "\t%s = %s & %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NOT_bit: fprintf(tac, "\t%s = ~%s\n",resultaddr.c_str(), left.c_str()); break;
 			case XOR: fprintf(tac, "\t%s = %s ^ %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case SHL: fprintf(tac, "\t%s = %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case SHR: fprintf(tac, "\t%s = %s >> %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case POW: fprintf(tac, "\t%s = %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case NEG: fprintf(tac, "\t%s = -%s\n",resultaddr.c_str(), left.c_str()); break;
-			default: break;
+			case FLOORDIV: fprintf(tac, "\t%s = %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			default: dprintf (stderr_copy,"Wrong op\n");exit(1);
 		}
 		return;
 			
@@ -1686,7 +1688,7 @@ primary: atom {
 		if ($1->production == "range" && $1->isLeaf) {
 			if ((function_call_args.size() > 2 || function_call_args.size() < 1)) {
 				dprintf (stderr_copy, "Error at line %d: range() expects one or two arguments, received %d\n",
-						(int)$1->lineno, function_call_args.size());
+						(int)$1->lineno, (int)function_call_args.size());
 				exit (59);
 			} else if (function_call_args[0]->typestring != "int" && function_call_args[0]->typestring != "bool" && function_call_args[0]->typestring != "float") {
 				dprintf (stderr_copy, "TypeError at line %d: first argument to range() is of incompatible type %s\n", (int)$1->lineno , $1->typestring.c_str());
@@ -1705,7 +1707,7 @@ primary: atom {
 		} else if ($1->production == "print" && $1->isLeaf) {
 			if (function_call_args.size() != 1) {
 				dprintf (stderr_copy, "Error at line %d: print() expects one argument, received %d\n",
-						(int)$1->lineno, function_call_args.size());
+						(int)$1->lineno, (int)function_call_args.size());
 				exit (59);
 			} else if (function_call_args[0]->typestring != "int" && function_call_args[0]->typestring != "bool" && function_call_args[0]->typestring != "str" && 
 					function_call_args[0]->typestring != "float" &&  function_call_args[0]->typestring != "complex") {
@@ -1718,7 +1720,7 @@ primary: atom {
 		} else if ($1->production == "len" && $$->isLeaf) {
 			if (function_call_args.size() != 1) {
 				dprintf (stderr_copy, "Error at line %d: len() expects one argument, received %d\n",
-						(int)$1->lineno, function_call_args.size());
+						(int)$1->lineno, (int)function_call_args.size());
 				exit (59);
 			} else if (function_call_args_dim[0] == false && function_call_args[0]->typestring != "str") {
 				dprintf (stderr_copy, "TypeError at line %d: argument to len() neither a string nor a list\n",
@@ -2115,11 +2117,14 @@ functionstart:  {
 			currently_defining_class->children[$<node>0->production] = top;
 		}
 		top->lineno = $<node>0->lineno;
+		fprintf(tac, ":%s\n", top->label.c_str());
+		fprintf(tac, "\tbeginfunc\n");
+		for (auto arg:function_call_args){
+			fprintf(tac, "\tt%d = popparam\n",basecount++);
+		}
 		function_call_args.clear();
 		function_call_args_dim.clear();
 
-		fprintf(tac, ":%s\n", top->label.c_str());
-		fprintf(tac, "\tbeginfunc\n");
 	}
 ;
 classdef: "class" NAME classstart ":"{

@@ -44,8 +44,13 @@
 	vector <Node *> function_call_args;
 	vector <bool> function_call_args_dim;
 	stack <string> jump_labels, jump_labels_upper;
-	Node* for_loop_iterator_node;
+	Node* for_loop_iterator_node, *for_loop_range_second_arg, *for_loop_range_first_arg;
 	int label_count;
+
+
+
+	vector<Node*> function_params;
+
 #define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
 #define TEMPDEBUG 0
 	bool is_not_name (Node*);
@@ -223,7 +228,7 @@
 			}
 			case ATTR: {
 				string s="\t";
-				if(leftop->isLeaf){
+				if(leftop->isLeaf&&top->getnode(leftop->production)->isLeaf){
 					string obj= newtemp();
 					s+=obj +" = &(" + left +")\n\t";
 					left = obj;
@@ -243,7 +248,7 @@
 // 				result->addr = nc;
 				result->addr = ult;
 				// // cout<<"nice "<<addr<<endl;
-				fprintf(tac, "%s", s.c_str());
+				fprintf(tac, "%s\n", s.c_str());
 				return;
 			}
 			case SW:	{
@@ -276,38 +281,37 @@
 		result->addr = newtemp();
 		resultaddr = result->addr;
 		switch(op){
-			case ADD: fprintf(tac, "\t%s = %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case SUB: fprintf(tac, "\t%s = %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case MUL: fprintf(tac, "\t%s = %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case DIV: fprintf(tac, "\t%s = %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case MOD: fprintf(tac, "\t%s = %s %% %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case AND_log: fprintf(tac, "\t%s = %s and %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case OR_log: fprintf(tac, "\t%s = %s or %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case NOT_log: fprintf(tac, "\t%s = not %s\n",resultaddr.c_str(), left.c_str()); break;
-			case LT: fprintf(tac, "\t%s = %s < %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case GT: fprintf(tac, "\t%s = %s > %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case LTE: fprintf(tac, "\t%s = %s <= %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case GTE: fprintf(tac, "\t%s = %s >= %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case EQ: fprintf(tac, "\t%s = %s == %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case NEQ: fprintf(tac, "\t%s = %s != %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case OR_bit: fprintf(tac, "\t%s = %s | %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case AND_bit: fprintf(tac, "\t%s = %s & %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case NOT_bit: fprintf(tac, "\t%s = ~%s\n",resultaddr.c_str(), left.c_str()); break;
-			case XOR: fprintf(tac, "\t%s = %s ^ %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case SHL: fprintf(tac, "\t%s = %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case SHR: fprintf(tac, "\t%s = %s >> %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case POW: fprintf(tac, "\t%s = %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case NEG: fprintf(tac, "\t%s = -%s\n",resultaddr.c_str(), left.c_str()); break;
-			case FLOORDIV: fprintf(tac, "\t%s = %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			default: dprintf (stderr_copy,"Wrong op %d\n", op);exit(1);
+			case ADD:		fprintf(tac, "\t%s\t= %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case SUB:		fprintf(tac, "\t%s\t= %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case MUL:		fprintf(tac, "\t%s\t= %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case DIV:		fprintf(tac, "\t%s\t= %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case MOD:		fprintf(tac, "\t%s\t= %s %% %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case AND_log:	fprintf(tac, "\t%s\t= %s and %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case OR_log:	fprintf(tac, "\t%s\t= %s or %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NOT_log:	fprintf(tac, "\t%s\t= not %s\n",resultaddr.c_str(), left.c_str()); break;
+			case LT:		fprintf(tac, "\t%s\t= %s < %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case GT:		fprintf(tac, "\t%s\t= %s > %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case LTE:		fprintf(tac, "\t%s\t= %s <= %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case GTE:		fprintf(tac, "\t%s\t= %s >= %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case EQ:		fprintf(tac, "\t%s\t= %s == %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NEQ:		fprintf(tac, "\t%s\t= %s != %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case OR_bit:	fprintf(tac, "\t%s\t= %s | %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case AND_bit:	fprintf(tac, "\t%s\t= %s & %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NOT_bit:	fprintf(tac, "\t%s\t= ~%s\n",resultaddr.c_str(), left.c_str()); break;
+			case XOR:		fprintf(tac, "\t%s\t= %s ^ %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case SHL:		fprintf(tac, "\t%s\t= %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case SHR:		fprintf(tac, "\t%s\t= %s >> %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case POW:		fprintf(tac, "\t%s\t= %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NEG:		fprintf(tac, "\t%s\t= -%s\n",resultaddr.c_str(), left.c_str()); break;
+			case FLOORDIV:	fprintf(tac, "\t%s\t= %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case STREQ:		fprintf(tac, "\t%s\t= STREQ(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case STRCMP:	fprintf(tac, "\t%s\t= STRCMP(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break; 
+			default: dprintf (stderr_copy,"Wrong op\n");exit(1);
 		}
 		return;
 			
 	}
 
-	void gen(Node*leftop, Node* rightop, enum ir_operation op){
-		
-	}
 	string get_next_label (string description) {
 		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
 		if (description != "") tmp += "_" + description;
@@ -858,10 +862,6 @@ comparison: expr {
 			// call strcmp
 			if ($1->isLeaf && $3->isLeaf && $1->production == "__name__" && $3->strVal == "\\\"__main__\\\"") {
 				// pass
-			} else {
-				// cout <<  $1->production << $3->strVal << endl;
-				dprintf (1, "havent implemented\n");
-				exit(77);
 			}
 		}
 
@@ -875,8 +875,10 @@ comparison: expr {
 		}
 		$$->typestring = "bool";
 		
-		//to do: gen
-		gen($$,$1,$3,EQ);
+		if ($1->typestring == "str")
+			gen ($$, $1, $3, STREQ);
+		else
+			gen($$,$1,$3,EQ);
 }
 	| expr "!=" comparison	{
 	$$ = new Node ("!=");
@@ -1709,13 +1711,33 @@ primary: atom {
 			if (top->find_member_fn ($1->production)) {
 				current_scope = top->find_member_fn($1->production);
 				$$->typestring = current_scope->return_type;
-				// // reversing push params as per format
+// <<<<<<< HEAD
+// 				// // reversing push params as per format
+// // 				auto temp = function_call_args;
+// // 				reverse(temp.begin(), temp.end());
+// // 				// fill 3ac for function call
+// // 				for(auto it:temp){
+// // 					fprintf(tac, "\tparam %s\n", it->addr.c_str());
+// // 				}
+// =======
+// 				// reversing push params as per format
 // 				auto temp = function_call_args;
 // 				reverse(temp.begin(), temp.end());
-// 				// fill 3ac for function call
 // 				for(auto it:temp){
 // 					fprintf(tac, "\tparam %s\n", it->addr.c_str());
 // 				}
+// 				if(current_scope->fn_inside_class){
+// 					string temp =newtemp();
+// 					basecount++;
+// 					int siz = find_class(current_scope->return_type)->size; 
+// 					fprintf(tac,"%s = %d\n",temp.c_str(),siz);
+// 					fprintf(tac,"param %s\n",temp.c_str());
+// 					//TO DO 
+// 					fprintf(tac,"stackpointer -%d\n", top->table_size + 16);
+// 					// fprintf(tac,"call %s, %s\n", );	
+// 					// fprintf(tac,"stackpointer -%d\n",)
+// 				}
+// >>>>>>> 6d89f80d20ac9fa033e397186f426fc157495b0b
 #if TEMPDEBUG
 				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 #endif
@@ -1985,7 +2007,10 @@ atom: NAME {
 				gen ($$, itrv, (Node*) NULL, SW);
 				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
 			}
-			else{}
+			else{
+				gen ($$, itrv, (Node*) NULL, SW);
+				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
+			}
 		}
 		fprintf(tac, "\t%s = %s - %lu\n", dev_helper($$).c_str(), dev_helper($$).c_str(), list_init_inputs.size() * thissize);
 		$$->typestring = currently_defining_identifier_typestring;
@@ -2088,14 +2113,22 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 			exit (76);
 		}
 		top->thisname=$1->production;
-		top->put($1, currently_defining_class->name);
 		top->table_size = 8; // for self pointer
+		function_params.push_back ($1);
 		$$=$1;
+		
+		$1->addr="t"+to_string(basecount);
+		$1->isLeaf=false;
+		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
+		basecount++;
+		resettemp();
+		top->put($1, currently_defining_class->name);
 	}
 	| typedarglist "," typedargument[last] { 
 		$$ = new Node ("Multiple Terms"); 
 		$$->addchild($1); 
 		$$->addchild($last);
+
 	}
 
 typedarglist_comma: typedarglist | typedarglist ","
@@ -2117,12 +2150,15 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 			dprintf (stderr_copy, "Error at line %d: identifier %s redeclared in function scope\n", $1->lineno, $1->production.c_str());
 			exit(49);
 		}
-		put ($1, $3);
 		top->arg_types.push_back ($3->production);
 		top->arg_dimensions.push_back ((bool) $3->dimension);
 
-
-
+		$1->addr="t"+to_string(basecount);
+		$1->isLeaf=false;
+		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
+		basecount++;
+		resettemp();
+		put ($1, $3);
 	}
 
 suite:  simple_stmt[first] 
@@ -2143,6 +2179,10 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$->addchild($last, "Body");
 		function_call_args_dim.clear();
 		function_call_args.clear();
+
+		basecount-=function_params.size();
+		function_params.clear();
+
 		fprintf(tac, "\tendfunc\n\n");
 	}
 	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] {
@@ -2155,6 +2195,10 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	$$->addchild($last, "Body");
 			function_call_args_dim.clear();
 			function_call_args.clear();
+
+			basecount-=function_params.size();
+			function_params.clear();
+
 			fprintf(tac, "\tendfunc\n\n");
 			
 	}
@@ -2170,6 +2214,10 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	$$->addchild($last, "Body");
 			function_call_args_dim.clear();
 			function_call_args.clear();
+
+			basecount-=function_params.size();
+			function_params.clear();			
+
 			fprintf(tac, "\tendfunc\n\n");
 	}
 	| "def" NAME[id] functionstart "(" ")" ":" {
@@ -2182,6 +2230,9 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$->addchild($last, "Body");
 		function_call_args_dim.clear();
 		function_call_args.clear();
+
+		basecount-=function_params.size();
+		function_params.clear();
 		fprintf(tac, "\tendfunc\n\n");
 	}
 
@@ -2218,12 +2269,6 @@ functionstart:  {
 		top->lineno = $<node>0->lineno;
 		fprintf(tac, ":%s\n", top->label.c_str());
 		fprintf(tac, "\tbeginfunc\n");
-		for (auto arg:function_call_args){
-			fprintf(tac, "\tt%d = popparam\n",basecount++);
-		}
-		function_call_args.clear();
-		function_call_args_dim.clear();
-
 	}
 ;
 classdef: "class" NAME classstart ":"{
@@ -2304,31 +2349,55 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" NAME[itr] set_itr_ptr "in" begin_loop_condition test[loop_condition] handle_loop_condition insert_jump_if_false ":" suite[block] loop_end_jump_back jump_target_false_lower
-			{ $$ = new Node ("For Block"); $$->addchild($itr,"Iterator"); $$->addchild($loop_condition,"Object"); $$->addchild($block,"Body");
-				for_loop_iterator_node = NULL;
-			}
+for_stmt: "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom set_num_range_args_1 ")" handle_loop_condition ":" suite loop_end_jump_back jump_target_false_lower {
+		
+	}
+	|  "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom "," atom set_num_range_args_2 ")" handle_loop_condition ":" suite loop_end_jump_back jump_target_false_lower {
+	}
 
 set_itr_ptr : {
 		for_loop_iterator_node = $<node>0;
 	}
+begin_for_loop : {
+	}
+check_name_is_range : {
+			if ($<node>0->production != "range") {
+				dprintf (stderr_copy, "Error in loop statement at line %d: Expected iterator \"range\" in statement, received %s\n",
+						(int)$<node>0->lineno, $<node>0->production.c_str());
+				exit (64);
+			}
+		}
+set_num_range_args_1 : {
+		for_loop_range_first_arg = NULL;
+		for_loop_range_second_arg = $<node>0;
+		}
+set_num_range_args_2 : {
+		for_loop_range_first_arg = $<node>-1;
+		for_loop_range_second_arg = $<node>0;
+		fprintf (tac, "\n\t%s = %s\n", for_loop_iterator_node->addr.c_str(), for_loop_range_first_arg->addr.c_str());
+	}
+
 handle_loop_condition : {
-		// set $<node>0 to 0 to exit loop, true to repeat. use for_loop_iterator_node
+		fprintf (tac, "LABEL: %s\n", get_next_label_upper("for_loop").c_str());
+		fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
 		Node* test = $<node>-1;
 		int begin = 0, end = 0;
-		if(test->production=="range") {
-			end = $<node>0->intVal;
-		} else if ($<node>-2->production == "range") {
-			begin = test->intVal;
-			end = $<node>0->intVal;
+		string loop_condition = newtemp();
+		Node* dummy_test_condition_node = new Node (0);
+		Node* dummy_test_condition_node2 = new Node (0);
+		dummy_test_condition_node->addr = loop_condition;
+		if (for_loop_range_first_arg) {
+			gen (dummy_test_condition_node, for_loop_range_first_arg, for_loop_iterator_node, GTE);
+			gen (dummy_test_condition_node2, for_loop_iterator_node, for_loop_range_second_arg, LT);
+			gen (dummy_test_condition_node, dummy_test_condition_node, dummy_test_condition_node2, AND_log);
+		} else {
+			gen (dummy_test_condition_node, for_loop_iterator_node, for_loop_range_second_arg, LT);
 		}
-		cout << "productions " << endl << $<node>0->production << endl << $<node>-1 ->production << endl << $<node>-2->production << endl << endl;
-		cout << "productions " << $<node>0->typestring << endl << $<node>-1 ->typestring << endl << $<node>-2->typestring << endl << endl;
-		// printf ("FOR LOOP begin %d end %d\n");
 
-		Node* begin_iter, *end_iter;
-
+		// dummy_test_condition_node is the handle to the loop condition
+		fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper(dummy_test_condition_node).c_str(), get_next_label("for_loop").c_str());
 	}
+
 testlist: arglist
         | arglist ","
 ;

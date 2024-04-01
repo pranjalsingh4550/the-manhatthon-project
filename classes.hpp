@@ -98,7 +98,8 @@ enum ir_operation {
 	ALLOC_HEAP,
 
 	MARK_FALSE,
-	
+	STREQ,
+	STRCMP,
 	PTR,
 	DEREF,
 };
@@ -454,7 +455,9 @@ class SymbolTable {
 			this->table_size += width;
 			s->dimension = 0;
 			s->node= node;
-			s->node->addr+="_"+name;
+			if(node->isLeaf){
+				s->node->addr+="_"+name;
+			}
 			return 1;
 		}
 		Symbol* get (string name) {
@@ -468,6 +471,13 @@ class SymbolTable {
 		}
 		Symbol* get (Node* node) {
 			return get(node->production);
+		}
+		Node* getnode (string name) {
+			Symbol* s = get(name);
+			if (s != NULL) {
+				return s->node;
+			}
+			return NULL;
 		}
 		string getaddr(Node* node) {
 			Symbol* s = get(node);
@@ -555,9 +565,10 @@ class SymbolTable {
 		}
 
 		void print_st (FILE* st) {
-			fprintf (st, "\n------------ symbol table of scope %s: size %d Bytes ---------------\n", this->name.c_str(), (int)this->table_size);
+			fprintf (st, "\n#----------- symbol table of scope %s: size %d Bytes ---------------\n", this->name.c_str(), (int)this->table_size);
 			auto itrs = this->symbols.begin();
 			for (; itrs != this->symbols.end(); itrs++) {
+				// symbols
 					fprintf (st, "%s\t%s%s\t%s\t%d\t%s\t%d\n", itrs->first.c_str(), 
 							itrs->second->typestring.c_str(),
 							itrs->second->dimension ? "[]" : "",
@@ -573,6 +584,7 @@ class SymbolTable {
 				if (itrc->second->parent == NULL)
 					continue;
 				if (this->isGlobal)
+					// classes and global functions names
 					fprintf (st, "%s\t%s\t%s\t%d\t%s\n", itrc->first.c_str(), 
 							itrc->second->isClass? "NA" : itrc->second->return_type.c_str(),
 							itrc->second->isClass? "Class\t" : "Function",
@@ -580,6 +592,7 @@ class SymbolTable {
 							"GLOBAL NAMESPACE"
 					);
 				else if (this->isClass) 
+					// class 
 					fprintf (st, "%s\t%s\t%s\t%d\tCLASS %s\n", itrc->first.c_str(), 
 							itrc->second->isClass? "NA" : itrc->second->return_type.c_str(),
 							itrc->second->isClass? "Class\t" : "Class Method",

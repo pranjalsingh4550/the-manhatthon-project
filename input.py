@@ -1,6 +1,6 @@
+val:float = 5.6
 class A:
 	def __init__(self,v:int):
-		self.val:int=v
 
 
 

@@ -195,9 +195,9 @@
 				s+= offset + " = symtable(" + leftop->typestring + ", " + rightop->production + ")\n\t"; 
 #if TEMPDEBUG
 				printf("%s\n", rightop->production.c_str());
-#endif
-				printf("%p\n", top->get(rightop->production));
+				printf("%d %p\n", top->table_size, top->get(rightop->production));
 				// t_2 = $1->addr + offset
+#endif
 				string ult = newtemp();
 				s+=ult +" = (" + left + " + " + offset + ")\n";
 				result->addr = "*"+ult;
@@ -1372,6 +1372,7 @@ factor: "+" factor	{
 	| power {
 	if ($1->typestring == "")	{
 		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at factor: power production\n", $1->lineno);
+		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 		exit(1);
 	}
 	$$ = $1;
@@ -1381,6 +1382,7 @@ power: primary {
 	$$ = $1;
 	if ($1->typestring == "") {
 		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at power: primary production\n", $1->lineno);
+		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 		exit(1);
 	}
 }
@@ -1391,10 +1393,12 @@ power: primary {
 	current_scope = NULL;
 	if ($1->typestring == "") {
 			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+			if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 			exit(1);
 		}
 		if ($3->typestring == "") {
 			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+			if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 			exit(1);
 		}
 		
@@ -1874,6 +1878,7 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		}
 		top->thisname=$1->production;
 		top->put($1, currently_defining_class->name);
+		top->table_size = 8; // for self pointer
 		$$=$1;
 	}
 	| typedarglist "," typedargument[last] { 
@@ -2226,7 +2231,7 @@ int main(int argc, char** argv){
 		fclose (logs);
 	}
 	FILE* stdump = fopen ("symbol_table.csv", "w+");
-	fprintf (stdump, "LEXEME\tTYPE\tTOKEN\t\tLINE\tPARENT SCOPE\n");
+	fprintf (stdump, "LEXEME\tTYPE\tTOKEN\t\tLINE\tPARENT SCOPE\tOFFSET (for identifiers)\n");
 	globalSymTable->print_st(stdump);
 	fclose (stdump);
 	if (static_section != "Static section:\n")

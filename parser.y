@@ -1903,26 +1903,61 @@ primary: atom {
 		reverse(function_call_args.begin(), function_call_args.end());
 		// fill 3ac for function call
 		//we reversed function_call_args -> make sure we are accessing the right arg
-		int len = current_scope->arg_types.size();
-		for (iter = 0; iter< function_call_args.size(); iter ++) {
-			//type cast
-			if ( function_call_args[iter]->typestring == "int"
-		&& current_scope->arg_types[len - iter - 1] == "bool") {
-				
+		int len = (current_scope?  current_scope->arg_types.size(): -1);
+		if (len == -1) {
+			if ($1->production == "print") {
+				len = 1;
+				if (function_call_args[0]->typestring != "str" 
+						&& function_call_args[0]->typestring != "int"
+						&& function_call_args[0]->typestring != "float"
+						&& function_call_args[0]->typestring != "bool"
+				   ) {
+					dprintf (stderr_copy, "Error at line %d: print passed non-primitive type %s\n",
+							(int)$1->lineno, function_call_args[0]->typestring.c_str());
+					exit(83);
+				}
 			}
-			if ( function_call_args[iter]->typestring == "int"
-		&& current_scope->arg_types[len - iter - 1] == "float") {
-				
+			else if ($1->production == "range") {
+				if (function_call_args[0]->typestring != "int" 
+						|| (function_call_args.size() == 2 && function_call_args[1]->typestring != "int")
+				   ) {
+					dprintf (stderr_copy, "Error at line %d: range passed incompatible type %s\n",
+							(int)$1->lineno, function_call_args[0]->typestring.c_str());
+					exit(83);
+				}
 			}
-			if ( function_call_args[iter]->typestring == "bool"
-		&& current_scope->arg_types[len - iter - 1] == "int") {
-				
+			else if ($1->production == "len") {
+				len = 1;
+				if (function_call_args_dim[0] == 0) {
+					dprintf (stderr_copy, "Error at line %d: argument to len() is not a list\n", (int) $1->lineno);
+					exit (54);
+				}
+			} else {
+				dprintf (1, "internal errror - current_scope is NULL inside primary -> primary (...)\n");
+				exit(74);
 			}
-			if ( function_call_args[iter]->typestring == "float"
-		&& current_scope->arg_types[len - iter - 1] == "int") {
-				
+		}
+		else {
+			for (iter = 0; iter< function_call_args.size(); iter ++) {
+				//type cast
+				if ( function_call_args[iter]->typestring == "int"
+			&& current_scope->arg_types[len - iter - 1] == "bool") {
+					
+				}
+				if ( function_call_args[iter]->typestring == "int"
+			&& current_scope->arg_types[len - iter - 1] == "float") {
+					
+				}
+				if ( function_call_args[iter]->typestring == "bool"
+			&& current_scope->arg_types[len - iter - 1] == "int") {
+					
+				}
+				if ( function_call_args[iter]->typestring == "float"
+			&& current_scope->arg_types[len - iter - 1] == "int") {
+					
+				}
+				//push onto stack
 			}
-			//push onto stack
 		}
 		
 		$$->addr= "call "+ $1->addr + ", " + to_string(function_call_args.size());

@@ -656,6 +656,7 @@ typeclass: NAME {
 		$$->dimension = 1;
 		verify_typestring ($3);
 	}
+	| "None"
 
 augassign: "+=" {$$ = new Node ("+="); $$->op = ADD;}
 		| "-=" {$$ = new Node ("-="); $$->op = SUB;}

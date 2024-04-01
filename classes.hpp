@@ -534,7 +534,7 @@ class SymbolTable {
 		}
 
 		void print_st (FILE* st) {
-			fprintf (st, "\n------------ symbol table of scope %s: size %d Bytes ---------------\n", this->name.c_str(), this->table_size);
+			fprintf (st, "\n------------ symbol table of scope %s: size %d Bytes ---------------\n", this->name.c_str(), (int)this->table_size);
 			auto itrs = this->symbols.begin();
 			for (; itrs != this->symbols.end(); itrs++) {
 					fprintf (st, "%s\t%s%s\t%s\t%d\t%s\t%d\n", itrs->first.c_str(), 
@@ -544,7 +544,7 @@ class SymbolTable {
 							itrs->second->lineno,
 							this->isGlobal? "GLOBAL NAMESPACE" : 
 								((this->isClass? "CLASS ": "FUNCTION ") + this->name).c_str(),
-							itrs->second->offset
+							(int)itrs->second->offset
 							);
 			}
 			auto itrc = this->children.begin();

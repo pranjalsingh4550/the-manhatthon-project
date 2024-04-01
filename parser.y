@@ -44,6 +44,7 @@
 	vector <Node *> function_call_args;
 	vector <bool> function_call_args_dim;
 	stack <string> jump_labels, jump_labels_upper;
+	Node* for_loop_iterator_node;
 	int label_count;
 #define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
 #define TEMPDEBUG 0
@@ -2049,9 +2050,31 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" expr "in" test ":" suite "else" ":" suite { $$ = new Node ("For block"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
-        | "for" expr "in" test ":" suite  { $$ = new Node ("For Block"); $$->addchild($2,"Iterator"); $$->addchild($4,"Object"); $$->addchild($6,"Body");}                                    
+for_stmt: "for" NAME[itr] set_itr_ptr "in" begin_loop_condition test[loop_condition] handle_loop_condition insert_jump_if_false ":" suite[block] loop_end_jump_back jump_target_false_lower
+			{ $$ = new Node ("For Block"); $$->addchild($itr,"Iterator"); $$->addchild($loop_condition,"Object"); $$->addchild($block,"Body");
+				for_loop_iterator_node = NULL;
+			}
 
+set_itr_ptr : {
+		for_loop_iterator_node = $<node>0;
+	}
+handle_loop_condition : {
+		// set $<node>0 to 0 to exit loop, true to repeat. use for_loop_iterator_node
+		Node* test = $<node>-1;
+		int begin = 0, end = 0;
+		if(test->production=="range") {
+			end = $<node>0->intVal;
+		} else if ($<node>-2->production == "range") {
+			begin = test->intVal;
+			end = $<node>0->intVal;
+		}
+		cout << "productions " << endl << $<node>0->production << endl << $<node>-1 ->production << endl << $<node>-2->production << endl << endl;
+		cout << "productions " << $<node>0->typestring << endl << $<node>-1 ->typestring << endl << $<node>-2->typestring << endl << endl;
+		printf ("FOR LOOP begin %d end %d\n");
+
+		Node* begin_iter, *end_iter;
+
+	}
 testlist: arglist
         | arglist ","
 ;

@@ -172,7 +172,8 @@
 		if (op != ASSIGN
 		&&  result == leftop
 		&& 	result->islval
-		&&  leftop->addr[0] == 't' /*fix: addr is a temporary*/) {
+		&&  !leftop->isLeaf /*NOT isLeaf -> addr is a temporary*/) {
+			// dprintf(stderr_copy, "gen: augassign special case isLeaf: %d\n", leftop->isLeaf);
 			//augmented assign case
 			//result and leftop is an lval=true case AND is a temporary
 			//-> need to work some pointer stuff out
@@ -202,10 +203,11 @@
 		}
 		if (op == ASSIGN
 		 && leftop->islval 
-		 && leftop->addr[0] == 't' /*fix: addr is a temporary*/) {
-			//assign to left will not work, will need to assign to deref of left i.e. SW
-			//this doesn't work for augmented assign
-			op = SW;
+		 && !leftop->isLeaf /*NOT isLeaf: addr is a temporary*/) {
+		 	dprintf(stderr_copy, "gen: assign special case\n");
+			//direct assign to left will not work, will need to assign to deref of left i.e. SW
+			//this doesn't work for augmented assign, that is handled above
+			fprintf (tac, "\t*%s = %s\n", left.c_str(), right.c_str()); return;
 		}
 		switch(op){
 			case ASSIGN: {
@@ -1523,7 +1525,7 @@ power: primary {
 		//an address/pointer -> all that needs to be done is to
 		//dereference it
 		$1->islval = false;
-		if ($1->addr[0] == 't') { //fix: check if $1->addr is a temporary
+		if (!$1->isLeaf /*NOT isLeaf: addr is a temporary*/) {
 			gen($1, $1, NULL, DEREF);
 		}
 	}
@@ -1560,7 +1562,7 @@ power: primary {
 	//edit $1's lval status and generate temporaries if needed
 	if ($1->islval) {
 		$1->islval = false;
-		if ($1->addr[0] == 't') { //fix: check if $1->addr is a temporary
+		if (!$1->isLeaf /*NOT isLeaf: addr is a temporary*/) {
 			gen($1, $1, NULL, DEREF);
 		}
 	}
@@ -1774,11 +1776,10 @@ primary: atom {
 					fprintf(tac,"stackpointer +%d\n", (int) top->table_size+8);
 					fprintf(tac,"%s = popparam\n",temp.c_str());
 					fprintf(tac,"param %s\n",temp.c_str());
-					//
-// 					// fprintf(tac,"call %s, %s\n", );	
-// 					// fprintf(tac,"stackpointer -%d\n",)
-// 				}
-// >>>>>>> 6d89f80d20ac9fa033e397186f426fc157495b0b
+					
+					// fprintf(tac,"call %s, %s\n", );	
+					// fprintf(tac,"stackpointer -%d\n",)
+				}
 #if TEMPDEBUG
 				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 #endif
@@ -1871,14 +1872,18 @@ primary: atom {
 					continue;
 				}
 				
-				if (    (function_call_args[iter]->typestring == "int" 
-							&& current_scope->arg_types[iter] == "bool")
-					|| 		(function_call_args[iter]->typestring == "int" 
-							&& current_scope->arg_types[iter] == "float")
-					|| 		(function_call_args[iter]->typestring == "bool" 
-							&& current_scope->arg_types[iter] == "int")
-					|| 		(function_call_args[iter]->typestring == "int" 
-							&& current_scope->arg_types[iter] == "bool")) {
+				if (    
+					(
+							(function_call_args[iter]->typestring == "int" 
+						&& current_scope->arg_types[iter] == "bool")
+					|| 	(function_call_args[iter]->typestring == "int" 
+						&& current_scope->arg_types[iter] == "float")
+					|| 	(function_call_args[iter]->typestring == "bool" 
+						&& current_scope->arg_types[iter] == "int")
+					|| 	(function_call_args[iter]->typestring == "int" 
+						&& current_scope->arg_types[iter] == "bool")
+					) 
+				&& (function_call_args_dim[iter] == (current_scope->arg_dimensions)[iter])) {
 					continue;
 				}
 				if (function_call_args[iter]->typestring != current_scope->arg_types[iter])
@@ -2051,7 +2056,7 @@ atom: NAME {
 				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
 			
 		}
-		fprintf(tac, "\t%s = %s - %lu\n", dev_helper($$).c_str(), dev_helper($$).c_str(), list_init_inputs.size() * thissize);
+		fprintf(tac, "\t%s = %s - %lu\n", dev_helper($$).c_str(), dev_helper($$).c_str(), list_init_inputs.size());
 		$$->typestring = currently_defining_identifier_typestring;
 		$$->isLeaf = false;
 		$$->dimension = list_init_inputs.size();

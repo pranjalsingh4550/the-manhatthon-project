@@ -82,6 +82,14 @@
 		cur_symboltable->table_size += size;
 
 	}
+	SymbolTable* find_fn (string name) { // returns SymbolTable* if name is a class, NULL otherwise
+			if(globalSymTable->children.find(name) == globalSymTable->children.end())
+				return NULL;
+			else if(globalSymTable->children.find(name)->second->isClass)
+				return NULL;
+			else
+				return globalSymTable->children.find(name)->second;
+		}
 	void put(Node* n1, Node* n2){
 		top->put(n1, n2);
 		return ;
@@ -140,6 +148,12 @@
 	}
 	int gbl_decl =0; // not sure if these 2 will be used
 
+	SymbolTable* find_function (string name) {
+		if (globalSymTable->children.find(name) == globalSymTable->children.end())
+			return NULL;
+		else return (globalSymTable->children.find(name)->second->isClass ? 
+						NULL : globalSymTable->children.find(name)->second); 
+	}
 	SymbolTable *find_class(string name) { // because all classes are declared in the global namespace
 		if (globalSymTable->children.find(name) == globalSymTable->children.end())
 			return NULL; // NOT FOUND
@@ -604,7 +618,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
-			if (!check_types($value->typestring, $type->typestring)) {
+			if (!check_types($value->typestring, $type->production)) {
 				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $type->production.c_str());
 				exit(1);
 			}
@@ -771,7 +785,9 @@ typeclass: NAME {
 		$$->dimension = 1;
 		verify_typestring ($3);
 	}
-	| "None"
+	| "None" {
+		$$->production = "None";
+	}
 
 augassign: "+=" {$$ = new Node ("+="); $$->op = ADD;}
 		| "-=" {$$ = new Node ("-="); $$->op = SUB;}
@@ -1749,8 +1765,8 @@ primary: atom {
 		$$->islval = false;
 		$$->isdecl = false;
 		if ($1->isLeaf && $1->production != "print" && $1->production != "len" && $1->production != "range") {
-			if (top->find_member_fn ($1->production)) {
-				current_scope = top->find_member_fn($1->production);
+			if (find_fn ($1->production)) {
+				current_scope = find_fn($1->production);
 				$$->typestring = current_scope->return_type;
 // 					string temp =newtemp();
 // // 					int siz = find_class(current_scope->return_type)->size; 

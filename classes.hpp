@@ -97,8 +97,10 @@ enum ir_operation {
 
 	ALLOC_HEAP,
 
-	MARK_FALSE
+	MARK_FALSE,
 	
+	PTR,
+	DEREF,
 };
 
 enum datatypes {

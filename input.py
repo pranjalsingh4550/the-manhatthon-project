@@ -1,20 +1,23 @@
 val:float = 5.6
 class A:
 	def __init__(self,v:int):
-		self.plusfive:int = val + 5
+		self.plusfive:int = v + 5
 		self.true:bool = False
 	def fun(self)->int:
 		return self.val
 	def checkbool(self)->bool:
 		return self.true
-	def __init__(self, val:int):
-		self.val:int=val
-	def fun(self)->int:
-		return 1
 
-a:A = A(3)
-b:int =a.fun()
+def main():
+	a:A = A(3)
+	a.true= a.fun()
 
-print (b)
-range (b)
+	c:int =4
+	e:int =6
+	d:int =6  + e + c
 
+	b:int = a.true + 4
+
+
+if __name__ == "__main__":
+    	main()

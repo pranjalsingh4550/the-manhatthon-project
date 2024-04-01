@@ -1877,11 +1877,11 @@ primary: atom {
 					continue;
 				}
 				if (function_call_args[iter]->typestring != current_scope->arg_types[iter])
-					dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be %s, received incompatible type %s\n",
-							(int) $1->lineno, iter, current_scope->arg_types[iter].c_str(), function_call_args[iter]->typestring.c_str());
+					dprintf (stderr_copy, "TypeError at line %d: expected argument %d to be %s, received incompatible type %s\n",
+							(int) $1->lineno, iter+1, current_scope->arg_types[iter].c_str(), function_call_args[iter]->typestring.c_str());
 				else //one is array, other is not
-					dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be of type %s, received incompatible type %s\n",
-							(int) $1->lineno, iter,
+					dprintf (stderr_copy, "TypeError at line %d: expected argument %d to be of type %s, received incompatible type %s\n",
+							(int) $1->lineno, iter+1,
 							(current_scope->arg_types[iter] +(current_scope->arg_dimensions[iter] ? "[]" : "")).c_str(),
 							(current_scope->arg_types[iter] +(function_call_args_dim[iter]? "[]" : "")).c_str()
 							);

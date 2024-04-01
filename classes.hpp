@@ -452,7 +452,9 @@ class SymbolTable {
 			this->table_size += width;
 			s->dimension = 0;
 			s->node= node;
-			s->node->addr+="_"+name;
+			if(node->isLeaf){
+				s->node->addr+="_"+name;
+			}
 			return 1;
 		}
 		Symbol* get (string name) {
@@ -466,6 +468,13 @@ class SymbolTable {
 		}
 		Symbol* get (Node* node) {
 			return get(node->production);
+		}
+		Node* getnode (string name) {
+			Symbol* s = get(name);
+			if (s != NULL) {
+				return s->node;
+			}
+			return NULL;
 		}
 		string getaddr(Node* node) {
 			Symbol* s = get(node);

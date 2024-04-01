@@ -46,6 +46,11 @@
 	stack <string> jump_labels, jump_labels_upper;
 	Node* for_loop_iterator_node;
 	int label_count;
+
+
+
+	vector<Node*> function_params;
+
 #define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
 #define TEMPDEBUG 0
 	bool is_not_name (Node*);
@@ -185,7 +190,7 @@
 			case ASSIGN: fprintf(tac, "\t%s = %s\n", left.c_str(), right.c_str()); return;
 			case ATTR: {
 				string s="\t";
-				if(leftop->isLeaf){
+				if(leftop->isLeaf&&top->getnode(leftop->production)->isLeaf){
 					string obj= newtemp();
 					s+=obj +" = &(" + left +")\n\t";
 					left = obj;
@@ -199,12 +204,10 @@
 				// t_2 = $1->addr + offset
 #endif
 				string ult = newtemp();
-				s+=ult +" = (" + left + " + " + offset + ")\n\t";
-				string nc = newtemp();
-				s+=nc + " = *" + ult + "\n";
-				result->addr = nc;
+				s+=ult +" = (" + left + " + " + offset + ")";
+				result->addr = "*"+ult;
 				// // cout<<"nice "<<addr<<endl;
-				fprintf(tac, "%s", s.c_str());
+				fprintf(tac, "%s\n", s.c_str());
 				return;
 			}
 			case SW:	{
@@ -256,9 +259,6 @@
 			
 	}
 
-	void gen(Node*leftop, Node* rightop, enum ir_operation op){
-		
-	}
 	string get_next_label (string description) {
 		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
 		if (description != "") tmp += "_" + description;
@@ -1649,6 +1649,17 @@ primary: atom {
 				for(auto it:temp){
 					fprintf(tac, "\tparam %s\n", it->addr.c_str());
 				}
+				if(current_scope->fn_inside_class){
+					string temp =newtemp();
+					basecount++;
+					int siz = find_class(current_scope->return_type)->size; 
+					fprintf(tac,"%s = %d\n",temp.c_str(),siz);
+					fprintf(tac,"param %s\n",temp.c_str());
+					//TO DO 
+					fprintf(tac,"stackpointer -%d\n", top->table_size + 16);
+					// fprintf(tac,"call %s, %s\n", );	
+					// fprintf(tac,"stackpointer -%d\n",)
+				}
 #if TEMPDEBUG
 				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 #endif
@@ -1886,7 +1897,10 @@ atom: NAME
 				gen ($$, itrv, (Node*) NULL, SW);
 				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
 			}
-			else{}
+			else{
+				gen ($$, itrv, (Node*) NULL, SW);
+				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
+			}
 		}
 		fprintf(tac, "\t%s = %s - %lu\n", dev_helper($$).c_str(), dev_helper($$).c_str(), list_init_inputs.size() * thissize);
 		$$->typestring = currently_defining_identifier_typestring;
@@ -1989,14 +2003,22 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 			exit (76);
 		}
 		top->thisname=$1->production;
-		top->put($1, currently_defining_class->name);
 		top->table_size = 8; // for self pointer
+		function_params.push_back ($1);
 		$$=$1;
+		
+		$1->addr="t"+to_string(basecount);
+		$1->isLeaf=false;
+		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
+		basecount++;
+		resettemp();
+		top->put($1, currently_defining_class->name);
 	}
 	| typedarglist "," typedargument[last] { 
 		$$ = new Node ("Multiple Terms"); 
 		$$->addchild($1); 
 		$$->addchild($last);
+
 	}
 
 typedarglist_comma: typedarglist | typedarglist ","
@@ -2018,12 +2040,15 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 			dprintf (stderr_copy, "Error at line %d: identifier %s redeclared in function scope\n", $1->lineno, $1->production.c_str());
 			exit(49);
 		}
-		put ($1, $3);
 		top->arg_types.push_back ($3->production);
 		top->arg_dimensions.push_back ((bool) $3->dimension);
 
-
-
+		$1->addr="t"+to_string(basecount);
+		$1->isLeaf=false;
+		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
+		basecount++;
+		resettemp();
+		put ($1, $3);
 	}
 
 suite:  simple_stmt[first] 
@@ -2044,6 +2069,10 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$->addchild($last, "Body");
 		function_call_args_dim.clear();
 		function_call_args.clear();
+
+		basecount-=function_params.size();
+		function_params.clear();
+
 		fprintf(tac, "\tendfunc\n\n");
 	}
 	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] {
@@ -2056,6 +2085,10 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	$$->addchild($last, "Body");
 			function_call_args_dim.clear();
 			function_call_args.clear();
+
+			basecount-=function_params.size();
+			function_params.clear();
+
 			fprintf(tac, "\tendfunc\n\n");
 			
 	}
@@ -2071,6 +2104,10 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	$$->addchild($last, "Body");
 			function_call_args_dim.clear();
 			function_call_args.clear();
+
+			basecount-=function_params.size();
+			function_params.clear();			
+
 			fprintf(tac, "\tendfunc\n\n");
 	}
 	| "def" NAME[id] functionstart "(" ")" ":" {
@@ -2083,6 +2120,9 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$->addchild($last, "Body");
 		function_call_args_dim.clear();
 		function_call_args.clear();
+
+		basecount-=function_params.size();
+		function_params.clear();
 		fprintf(tac, "\tendfunc\n\n");
 	}
 
@@ -2119,12 +2159,6 @@ functionstart:  {
 		top->lineno = $<node>0->lineno;
 		fprintf(tac, ":%s\n", top->label.c_str());
 		fprintf(tac, "\tbeginfunc\n");
-		for (auto arg:function_call_args){
-			fprintf(tac, "\tt%d = popparam\n",basecount++);
-		}
-		function_call_args.clear();
-		function_call_args_dim.clear();
-
 	}
 ;
 classdef: "class" NAME classstart ":"{

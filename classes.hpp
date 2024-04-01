@@ -376,7 +376,6 @@ class SymbolTable {
 			else
 				return this->children.find(name)->second; // see comments above
 		}
-
 		bool has (string name) {
 			if (this->symbols.find(name) != this->symbols.end()) {
 				return true;

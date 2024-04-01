@@ -52,7 +52,7 @@
 	vector<Node*> function_params;
 
 #define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-#define TEMPDEBUG 0
+#define TEMPDEBUG 1
 	bool is_not_name (Node*);
 	string static_section;
 	string concatenating_string_plus;
@@ -1628,18 +1628,21 @@ primary: atom {
 			$$->addr = $1->typestring +"." + $3->production;
 			 // the only case in which current_scope is truly global
 		}
-		else if(current_scope->symbols.find(($3->production))==current_scope->symbols.end()){
+		else if(current_scope->symbols.find(($3->production))==current_scope->symbols.end() && !$$->isdecl){
 			dprintf (stderr_copy, "Error at line %d: %s is not a member of class %s\n", (int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
-			exit(23)
+			exit(23);
 		}
 		else if (!$$->isdecl && $$->typestring == "") {
 			dprintf (stderr_copy, "Error at line %d: %s is not a member of class %s\n", (int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
-			exit(23)
+			exit(23);
 		}
-		else{	gen($$,$1,$3,ATTR);}
+		else if ($$->typestring != "") {
+			gen($$,$1,$3,ATTR);
+		}
 
 
 		$$->lineno = $1->lineno;
+		$$->production = $3->production;
 		/*
 			$ new temp 
 			$$->addr = newtemp();
@@ -1727,6 +1730,7 @@ primary: atom {
 // // 					fprintf(tac,"param %d\n",siz);
 // 					//TO DO 
 // 					fprintf(tac,"stackpointer -%d\n", top->table_size);
+					string temp = newtemp();
 					fprintf(tac,"stackpointer -%d\n", 8);
 					fprintf(tac,"call allocmem 1\n");
 					fprintf(tac,"stackpointer +%d\n", top->table_size+8);

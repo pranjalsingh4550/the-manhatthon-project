@@ -1599,7 +1599,7 @@ primary: atom {
 		$$ = new Node (0, "", "");
 		$$->islval = false;
 		$$->isdecl = false;
-		if ($1->isLeaf) {
+		if ($1->isLeaf && $1->production != "print" && $1->production != "len" && $1->production != "range") {
 			if (top->find_member_fn ($1->production)) {
 				current_scope = top->find_member_fn($1->production);
 				$$->typestring = current_scope->return_type;
@@ -1627,7 +1627,8 @@ primary: atom {
 				dprintf (stderr_copy, "Error at line %d: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
 				exit(44);
 			}
-		} else { // now we expect typestring to be set to def, symboltable to be available in current_scope
+		} else if ($1->production != "print" && $1->production != "len" && $1->production != "range" ) {
+		   // now we expect typestring to be set to def, symboltable to be available in current_scope
 			if ($1->typestring != "def") {
 				dprintf (stderr_copy, "TypeError at line %d: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
@@ -1643,7 +1644,55 @@ primary: atom {
 		
 		// check function_call_args
 		int iter;
-		if (function_call_args.size() != current_scope->arg_types.size()) {
+		bool primitive_fn = true;
+		if ($1->production == "range" && $1->isLeaf) {
+			if ((function_call_args.size() > 2 || function_call_args.size() < 1)) {
+				dprintf (stderr_copy, "Error at line %d: range() expects one or two arguments, received %d\n",
+						(int)$1->lineno, function_call_args.size());
+				exit (59);
+			} else if (function_call_args[0]->typestring != "int" && function_call_args[0]->typestring != "bool" && function_call_args[0]->typestring != "float") {
+				dprintf (stderr_copy, "TypeError at line %d: first argument to range() is of incompatible type %s\n", (int)$1->lineno , $1->typestring.c_str());
+				exit (58);
+			} else if (function_call_args_dim[0] != false) {
+				dprintf (stderr_copy, "TypeError at line %d: first argument to range() is of incompatible type %s[]\n", (int)$1->lineno , $1->typestring.c_str());
+				exit (58);
+			} else if (function_call_args.size() == 2 && function_call_args[1]->typestring != "int" && function_call_args[1]->typestring != "bool" && function_call_args[1]->typestring != "float") {
+				dprintf (stderr_copy, "TypeError at line %d: second argument to range() is of incompatible type %s\n", (int)$1->lineno , $1->typestring.c_str());
+				exit (58);
+			} else if (function_call_args.size() == 2 && function_call_args_dim[1] != false) {
+				dprintf (stderr_copy, "TypeError at line %d: second argument to range() is of incompatible type %s[]\n", (int)$1->lineno , $1->typestring.c_str());
+				exit (58);
+			}
+			$$->typestring = "";
+		} else if ($1->production == "print" && $1->isLeaf) {
+			if (function_call_args.size() != 1) {
+				dprintf (stderr_copy, "Error at line %d: print() expects one argument, received %d\n",
+						(int)$1->lineno, function_call_args.size());
+				exit (59);
+			} else if (function_call_args[0]->typestring != "int" && function_call_args[0]->typestring != "bool" && function_call_args[0]->typestring != "str" && 
+					function_call_args[0]->typestring != "float" &&  function_call_args[0]->typestring != "complex") {
+				dprintf (stderr_copy, "Error at line %d: print() received argument of non-primitive type %s\n",
+						(int) $1->lineno, (function_call_args[0]->typestring + (function_call_args_dim[0]? "[]" : "")).c_str());
+				exit (83);
+			}
+			else
+				$$->typestring = "None";
+		} else if ($1->production == "len" && $$->isLeaf) {
+			if (function_call_args.size() != 1) {
+				dprintf (stderr_copy, "Error at line %d: len() expects one argument, received %d\n",
+						(int)$1->lineno, function_call_args.size());
+				exit (59);
+			} else if (function_call_args_dim[0] == false && function_call_args[0]->typestring != "str") {
+				dprintf (stderr_copy, "TypeError at line %d: argument to len() neither a string nor a list\n",
+						(int) $1->lineno);
+				exit (49);
+			}
+			$$->typestring = "int";
+		} else {
+			primitive_fn = false;
+		}
+				
+		if (!primitive_fn && function_call_args.size() != current_scope->arg_types.size()) {
 			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
 					(int)$1->lineno, (int)current_scope->arg_types.size(),(int) function_call_args.size());
 			exit (60);
@@ -1651,7 +1700,7 @@ primary: atom {
 #define VALID_PAIR(type1, type2)	\
 		(function_call_args[iter]->typestring == type1 && current_scope->arg_types[iter] == type2)
 
-		for (iter = 0; iter< current_scope->arg_types.size(); iter ++) { 
+		for (iter = 0; !primitive_fn && iter< current_scope->arg_types.size(); iter ++) { 
 			// cout << "twdfdvwfere\n";
 			// cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
 			if (function_call_args[iter]->typestring == (current_scope->arg_types)[iter]
@@ -1685,6 +1734,15 @@ primary: atom {
 
 			update $result type as the return type of function
 		*/
+		if ($1->production == "print" || $1->production == "len" || $1->production == "range") {
+			if ($1->production == "range")
+				dprintf (stderr_copy, "Error at line %d: range() expects one or two arguments, received zero\n",
+						(int)$1->lineno);
+			else 
+				dprintf (stderr_copy, "Error at line %d: %s() expects one argument, received zero\n",
+						(int)$1->lineno, $1->production.c_str());
+		   exit (83);
+		}	   
 		$$ = new Node (0, "", "");
 		if ($1->isLeaf) {
 			if(is_not_name($1)){

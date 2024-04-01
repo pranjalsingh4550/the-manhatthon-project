@@ -7,11 +7,14 @@ class A:
 		return self.val
 	def checkbool(self)->bool:
 		return self.true
-    def __init__(self, val:int):
-        self.val:int=val
-    def fun(self)->int:
-        return 1
+	def __init__(self, val:int):
+		self.val:int=val
+	def fun(self)->int:
+		return 1
 
 a:A = A(3)
 b:int =a.fun()
+
+print (b)
+range (b)
 

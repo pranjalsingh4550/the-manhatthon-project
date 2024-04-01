@@ -712,6 +712,11 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						(int) $id->lineno);
 				exit (33);
 			}
+			if ($id->typestring == "") {
+				dprintf (stderr_copy, "Error at line %d: identifier %s has not been declared in this scope\n",
+						(int) $id->lineno, $id->production.c_str());
+				exit(95);
+			}
 			if (!check_types($id->typestring, $value->typestring)) {
 				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $value->production.c_str());
 				exit(1);

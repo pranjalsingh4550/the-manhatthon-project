@@ -247,6 +247,7 @@
 			case SHL: fprintf(tac, "\t%s = %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case SHR: fprintf(tac, "\t%s = %s >> %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case POW: fprintf(tac, "\t%s = %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NEG: fprintf(tac, "\t%s = -%s\n",resultaddr.c_str(), left.c_str()); break;
 			default: break;
 		}
 		return;

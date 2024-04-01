@@ -43,7 +43,6 @@
 	vector <Node*> list_init_inputs;
 	vector <Node *> function_call_args;
 	vector <bool> function_call_args_dim;
-	stack <string> jump_labels, jump_labels_upper;
 	Node* for_loop_iterator_node, *for_loop_range_second_arg, *for_loop_range_first_arg;
 	int label_count;
 
@@ -159,6 +158,12 @@
 	int getwidth(Node*n){
 		return find_class(n->typestring)->table_size;
 	}
+	void gen_ujump (string target) {
+		fprintf (tac, "\tUJUMP: %s\n", target.c_str());
+	}
+	void gen_branch (Node* condition, string target) {
+		fprintf (tac, "\tCJUMP_IF_FALSE (%s): %s\n", condition->addr.c_str(), target.c_str());
+	}
 	void gen(Node*result, Node* leftop, Node* rightop,enum ir_operation op){
 		if (tac == NULL) tac = stdout;
 		string left= leftop ? top->getaddr(leftop) : "";
@@ -238,7 +243,7 @@
 				s+= offset + " = symtable(" + leftop->typestring + ", " + rightop->production + ")\n\t"; 
 #if TEMPDEBUG
 				printf("%s\n", rightop->production.c_str());
-				printf("%d %p\n", top->table_size, top->get(rightop->production));
+				printf("%d %p\n", (int) top->table_size, top->get(rightop->production));
 				// t_2 = $1->addr + offset
 #endif
 				string ult = newtemp();
@@ -312,6 +317,7 @@
 			
 	}
 
+	stack <string> jump_labels, jump_labels_upper;
 	string get_next_label (string description) {
 		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
 		if (description != "") tmp += "_" + description;
@@ -337,7 +343,30 @@
 	string dev_helper(Node* n) {
 		return top->getaddr (n);
 	}
-	
+	stack <string> jump_labels3, jump_labels_upper3;
+	string get_next_label3 (string description) {
+		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
+		if (description != "") tmp += "_" + description;
+		jump_labels3.push (tmp);
+		return tmp;
+	}
+	string get_current_label3 () {
+		string tmp = jump_labels3.top();
+		jump_labels3.pop();
+		return tmp;
+	}
+	string get_next_label_upper3 (string description) {
+		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
+		if (description != "") tmp += "_" + description;
+		jump_labels_upper3.push (tmp);
+		return tmp;
+	}
+	string get_current_label_upper3 () {
+		string tmp = jump_labels_upper3.top();
+		jump_labels_upper3.pop();
+		return tmp;
+	}
+
 %}
 
 %union {
@@ -465,6 +494,8 @@ small_stmt: expr_stmt
 			exit(58);
 		}
 		$$=$1;
+		string tmp = jump_labels.top();
+		gen_ujump (tmp);
 	} 
 	| "continue"{
 		/*check if current scope is loop or not by top->isLoop*/
@@ -473,6 +504,8 @@ small_stmt: expr_stmt
 			exit(59);
 		}
 		$$=$1;
+		string tmp = jump_labels_upper.top();
+		gen_ujump (tmp);
 	}
 	| {gbl_decl=1;} global_stmt[gbl] {gbl_decl=0;$$=$gbl;}
 ;
@@ -1733,7 +1766,7 @@ primary: atom {
 					string temp = newtemp();
 					fprintf(tac,"stackpointer -%d\n", 8);
 					fprintf(tac,"call allocmem 1\n");
-					fprintf(tac,"stackpointer +%d\n", top->table_size+8);
+					fprintf(tac,"stackpointer +%d\n", (int) top->table_size+8);
 					fprintf(tac,"%s = popparam\n",temp.c_str());
 					fprintf(tac,"param %s\n",temp.c_str());
 					//
@@ -2045,16 +2078,43 @@ STRING_plus: STRING {
 		concatenating_string_plus = concatenating_string_plus + $2->production;
 		 $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
-if_stmt: "if" test new_jump_to_end insert_jump_if_false ":" suite[ifsuite] insert_end_jump_label jump_target_false_lower upper_jump_target_reached { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then");
+if_stmt: "if" test new_jump_to_end3 insert_jump_if_false3 ":" suite[ifsuite] insert_end_jump_label3 jump_target_false_lower3 upper_jump_target_reached3 { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then");
 		 }
-	|  "if" test new_jump_to_end insert_jump_if_false ":" suite[ifsuite] insert_end_jump_label jump_target_false_lower elif_block[elifsuite] {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then"); $$->addchild($elifsuite, "Else"); }
+	|  "if" test new_jump_to_end3 insert_jump_if_false3 ":" suite[ifsuite] insert_end_jump_label3 jump_target_false_lower3 elif_block[elifsuite] {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then"); $$->addchild($elifsuite, "Else"); }
 
 elif_block:
-	"else" ":" suite upper_jump_target_reached 	{ $$ = $3;}
-	| "elif" test ":" insert_jump_if_false suite[elifsuite]	jump_target_false_lower upper_jump_target_reached 
+	"else" ":" suite upper_jump_target_reached3 	{ $$ = $3;}
+	| "elif" test ":" insert_jump_if_false3 suite[elifsuite]	jump_target_false_lower3 upper_jump_target_reached3 
 	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($elifsuite, "Then"); } /* ok????? fine */ 
-	| "elif" test ":" insert_jump_if_false suite[elifsuite] insert_end_jump_label jump_target_false_lower elif_block[nextblock]	
+	| "elif" test ":" insert_jump_if_false3 suite[elifsuite] insert_end_jump_label3 jump_target_false_lower3 elif_block[nextblock]	
 	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($elifsuite, "Then"); $$->addchild ($nextblock, "Else"); }
+
+new_jump_to_end3: {
+			// jump to the end of the if-elif-else sequence
+			// insert at the end of every suite, to jump to the end.
+			get_next_label_upper3("end_of_control_flow");
+	}
+
+insert_jump_if_false3: {
+		fprintf (tac, "\tCJUMP_IF_FALSE (%s): %s\n",  dev_helper($<node>-1).c_str(), get_next_label3("").c_str());
+	}
+
+
+insert_end_jump_label3: {
+		fprintf (tac, "\tUJUMP\t%s\n", jump_labels_upper3.top().c_str());
+	}
+
+jump_target_false_lower3: {
+		fprintf (tac, "\nLABEL: %s\n", get_current_label3().c_str());
+	}
+
+upper_jump_target_reached3 : {
+		fprintf (tac, "\nLABEL:\t%s\n", get_current_label_upper3().c_str());
+	}
+
+
+
+
 
 while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false suite[action] loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
 
@@ -2071,18 +2131,6 @@ insert_jump_if_false : {
 	}
 jump_target_false_lower : {
 		fprintf (tac, "\nLABEL: %s\n", get_current_label().c_str());
-	}
-
-new_jump_to_end : {
-			// jump to the end of the if-elif-else sequence
-			// insert at the end of every suite, to jump to the end.
-			get_next_label_upper("end_of_control_flow");
-	}
-insert_end_jump_label : {
-		fprintf (tac, "\tUJUMP\t%s\n", jump_labels_upper.top().c_str());
-	}
-upper_jump_target_reached : {
-		fprintf (tac, "\nLABEL:\t%s\n", get_current_label_upper().c_str());
 	}
 
 arglist: test[obj]

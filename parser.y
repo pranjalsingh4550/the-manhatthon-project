@@ -227,29 +227,31 @@
 		result->addr = newtemp();
 		resultaddr = result->addr;
 		switch(op){
-			case ADD: fprintf(tac, "\t%s = %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case SUB: fprintf(tac, "\t%s = %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case MUL: fprintf(tac, "\t%s = %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case DIV: fprintf(tac, "\t%s = %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case MOD: fprintf(tac, "\t%s = %s %% %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case AND_log: fprintf(tac, "\t%s = %s and %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case OR_log: fprintf(tac, "\t%s = %s or %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case NOT_log: fprintf(tac, "\t%s = not %s\n",resultaddr.c_str(), left.c_str()); break;
-			case LT: fprintf(tac, "\t%s = %s < %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case GT: fprintf(tac, "\t%s = %s > %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case LTE: fprintf(tac, "\t%s = %s <= %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case GTE: fprintf(tac, "\t%s = %s >= %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case EQ: fprintf(tac, "\t%s = %s == %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case NEQ: fprintf(tac, "\t%s = %s != %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case OR_bit: fprintf(tac, "\t%s = %s | %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case AND_bit: fprintf(tac, "\t%s = %s & %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case NOT_bit: fprintf(tac, "\t%s = ~%s\n",resultaddr.c_str(), left.c_str()); break;
-			case XOR: fprintf(tac, "\t%s = %s ^ %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case SHL: fprintf(tac, "\t%s = %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case SHR: fprintf(tac, "\t%s = %s >> %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case POW: fprintf(tac, "\t%s = %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case NEG: fprintf(tac, "\t%s = -%s\n",resultaddr.c_str(), left.c_str()); break;
-			case FLOORDIV: fprintf(tac, "\t%s = %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case ADD:		fprintf(tac, "\t%s\t= %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case SUB:		fprintf(tac, "\t%s\t= %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case MUL:		fprintf(tac, "\t%s\t= %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case DIV:		fprintf(tac, "\t%s\t= %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case MOD:		fprintf(tac, "\t%s\t= %s %% %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case AND_log:	fprintf(tac, "\t%s\t= BOOL [%s and %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case OR_log:	fprintf(tac, "\t%s\t= BOOL [%s or %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NOT_log:	fprintf(tac, "\t%s\t= BOOL [not %s]\n",resultaddr.c_str(), left.c_str()); break;
+			case LT:		fprintf(tac, "\t%s\t= BOOL [%s < %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case GT:		fprintf(tac, "\t%s\t= BOOL [%s > %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case LTE:		fprintf(tac, "\t%s\t= BOOL [%s <= %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case GTE:		fprintf(tac, "\t%s\t= BOOL [%s >= %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case EQ:		fprintf(tac, "\t%s\t= BOOL [%s == %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NEQ:		fprintf(tac, "\t%s\t= BOOL [%s != %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case OR_bit:	fprintf(tac, "\t%s\t= BOOL [%s | %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case AND_bit:	fprintf(tac, "\t%s\t= BOOL [%s & %s]\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NOT_bit:	fprintf(tac, "\t%s\t= ~%s\n",resultaddr.c_str(), left.c_str()); break;
+			case XOR:		fprintf(tac, "\t%s\t= %s ^ %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case SHL:		fprintf(tac, "\t%s\t= %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case SHR:		fprintf(tac, "\t%s\t= %s >> %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case POW:		fprintf(tac, "\t%s\t= %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NEG:		fprintf(tac, "\t%s\t= -%s\n",resultaddr.c_str(), left.c_str()); break;
+			case FLOORDIV:	fprintf(tac, "\t%s\t= %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case STREQ:		fprintf(tac, "\t%s\t= STREQ(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case STRCMP:	fprintf(tac, "\t%s\t= STRCMP(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break; 
 			default: dprintf (stderr_copy,"Wrong op\n");exit(1);
 		}
 		return;
@@ -809,10 +811,6 @@ comparison: expr {
 			// call strcmp
 			if ($1->isLeaf && $3->isLeaf && $1->production == "__name__" && $3->strVal == "\\\"__main__\\\"") {
 				// pass
-			} else {
-				// cout <<  $1->production << $3->strVal << endl;
-				dprintf (1, "havent implemented\n");
-				exit(77);
 			}
 		}
 
@@ -826,8 +824,10 @@ comparison: expr {
 		}
 		$$->typestring = "bool";
 		
-		//to do: gen
-		gen($$,$1,$3,EQ);
+		if ($1->typestring == "str")
+			gen ($$, $1, $3, STREQ);
+		else
+			gen($$,$1,$3,EQ);
 }
 	| expr "!=" comparison	{
 	$$ = new Node ("!=");
@@ -2205,14 +2205,16 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom set_num_range_args_1 ")" handle_loop_condition insert_jump_if_false ":" suite loop_end_jump_back jump_target_false_lower {
+for_stmt: "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom set_num_range_args_1 ")" handle_loop_condition ":" suite loop_end_jump_back jump_target_false_lower {
 		
 	}
-	|  "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom "," atom set_num_range_args_2 ")" handle_loop_condition insert_jump_if_false ":" suite loop_end_jump_back jump_target_false_lower {
+	|  "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom "," atom set_num_range_args_2 ")" handle_loop_condition ":" suite loop_end_jump_back jump_target_false_lower {
 	}
 
+set_itr_ptr : {
+		for_loop_iterator_node = $<node>0;
+	}
 begin_for_loop : {
-		fprintf (tac, "\nLABEL: %s\n", get_next_label_upper("for_loop").c_str());
 	}
 check_name_is_range : {
 			if ($<node>0->production != "range") {
@@ -2222,29 +2224,34 @@ check_name_is_range : {
 			}
 		}
 set_num_range_args_1 : {
-		for_loop_range_first_arg = $<node>0;
-		cout << "first " << for_loop_range_first_arg->production << endl;
-		for_loop_range_second_arg = NULL;
+		for_loop_range_first_arg = NULL;
+		for_loop_range_second_arg = $<node>0;
 		}
 set_num_range_args_2 : {
 		for_loop_range_first_arg = $<node>-1;
 		for_loop_range_second_arg = $<node>0;
-		cout << "first " << for_loop_range_first_arg->production << " second " << for_loop_range_second_arg->production <<  endl;
+		fprintf (tac, "\n\t%s = %s\n", for_loop_iterator_node->addr.c_str(), for_loop_range_first_arg->addr.c_str());
 	}
 
-
-
-
-set_itr_ptr : {
-		for_loop_iterator_node = $<node>0;
-	}
 handle_loop_condition : {
+		fprintf (tac, "LABEL: %s\n", get_next_label_upper("for_loop").c_str());
+		fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
 		Node* test = $<node>-1;
 		int begin = 0, end = 0;
 		string loop_condition = newtemp();
-		
+		Node* dummy_test_condition_node = new Node (0);
+		Node* dummy_test_condition_node2 = new Node (0);
+		dummy_test_condition_node->addr = loop_condition;
+		if (for_loop_range_first_arg) {
+			gen (dummy_test_condition_node, for_loop_range_first_arg, for_loop_iterator_node, GTE);
+			gen (dummy_test_condition_node2, for_loop_iterator_node, for_loop_range_second_arg, LT);
+			gen (dummy_test_condition_node, dummy_test_condition_node, dummy_test_condition_node2, AND_log);
+		} else {
+			gen (dummy_test_condition_node, for_loop_iterator_node, for_loop_range_second_arg, LT);
+		}
 
-		Node* begin_iter, *end_iter;
+		// dummy_test_condition_node is the handle to the loop condition
+		fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper(dummy_test_condition_node).c_str(), get_next_label("for_loop").c_str());
 	}
 
 testlist: arglist

@@ -11,7 +11,7 @@
     using namespace std; 
 	int nodecount=0;
 	int tempcount=0;
-	int forcount=0;
+	int basecount=0;
 	FILE* graph = NULL;
 	FILE* inputfile = NULL;
     extern int yylex();
@@ -36,7 +36,7 @@
 		return temp;
 	}
 	void resettemp(){
-		tempcount=forcount;
+		tempcount=basecount;
 	}
 	SymbolTable *currently_defining_list;
 	string currently_defining_identifier_typestring;
@@ -44,6 +44,7 @@
 	vector <Node *> function_call_args;
 	vector <bool> function_call_args_dim;
 	stack <string> jump_labels, jump_labels_upper;
+	Node* for_loop_iterator_node;
 	int label_count;
 #define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
 #define TEMPDEBUG 0
@@ -125,6 +126,7 @@
 		} else if (n->typestring != typestring) {
 			return false;
 		}
+
 		return true;
 	}
 	int Funcsuite=0;
@@ -191,12 +193,18 @@
 				string offset = newtemp();
 				// t_1 = symtable($1->typestring, $3->production)
 				s+= offset + " = symtable(" + leftop->typestring + ", " + rightop->production + ")\n\t"; 
+#if TEMPDEBUG
+				printf("%s\n", rightop->production.c_str());
+				printf("%d %p\n", top->table_size, top->get(rightop->production));
 				// t_2 = $1->addr + offset
+#endif
 				string ult = newtemp();
-				s+=ult +" = (" + left + " + " + offset + ")\n";
-				result->addr = "*"+ult;
+				s+=ult +" = (" + left + " + " + offset + ")\n\t";
+				string nc = newtemp();
+				s+=nc + " = *" + ult + "\n";
+				result->addr = nc;
 				// // cout<<"nice "<<addr<<endl;
-				fprintf(tac, "\t%s", s.c_str());
+				fprintf(tac, "%s", s.c_str());
 				return;
 			}
 			case SW:	{
@@ -209,6 +217,7 @@
 				s += offset + " =  "  +right + "*"+ to_string(getwidth(leftop)) + "\n\t";
 				string ult = newtemp();
 				s+=ult +" = (" + left + " + " + offset + ")\n";
+				string nc = newtemp();
 				result->addr = "*"+ult;
 				fprintf(tac, "%s", s.c_str()); 
 				return;
@@ -222,7 +231,26 @@
 			case SUB: fprintf(tac, "\t%s = %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case MUL: fprintf(tac, "\t%s = %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case DIV: fprintf(tac, "\t%s = %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			default: break;
+			case MOD: fprintf(tac, "\t%s = %s %% %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case AND_log: fprintf(tac, "\t%s = %s and %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case OR_log: fprintf(tac, "\t%s = %s or %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NOT_log: fprintf(tac, "\t%s = not %s\n",resultaddr.c_str(), left.c_str()); break;
+			case LT: fprintf(tac, "\t%s = %s < %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case GT: fprintf(tac, "\t%s = %s > %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case LTE: fprintf(tac, "\t%s = %s <= %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case GTE: fprintf(tac, "\t%s = %s >= %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case EQ: fprintf(tac, "\t%s = %s == %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NEQ: fprintf(tac, "\t%s = %s != %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case OR_bit: fprintf(tac, "\t%s = %s | %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case AND_bit: fprintf(tac, "\t%s = %s & %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NOT_bit: fprintf(tac, "\t%s = ~%s\n",resultaddr.c_str(), left.c_str()); break;
+			case XOR: fprintf(tac, "\t%s = %s ^ %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case SHL: fprintf(tac, "\t%s = %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case SHR: fprintf(tac, "\t%s = %s >> %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case POW: fprintf(tac, "\t%s = %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			case NEG: fprintf(tac, "\t%s = -%s\n",resultaddr.c_str(), left.c_str()); break;
+			case FLOORDIV: fprintf(tac, "\t%s = %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
+			default: dprintf (stderr_copy,"Wrong op\n");exit(1);
 		}
 		return;
 			
@@ -343,7 +371,7 @@
 
 
 %%
-program : {printf("now\n");}input | program INDENT
+program : input | program INDENT
 
 input: start 
 	| NEWLINE input
@@ -351,7 +379,7 @@ input: start
 start :{$$=new Node("Empty file");} | stmts[first] {$$= new Node("Start"); $$->addchild($first);}
 
 stmts : 
-	stmt
+	stmt {$$=$1; resettemp();}
 	| stmts[first] {resettemp();} stmt[last] { resettemp();$$ = new Node ("Statements"); $$->addchild($first); $$->addchild($last);}
 
 ;
@@ -360,8 +388,8 @@ stmt:  simple_stmt
 	| compound_stmt 
 ;
 
-simple_stmt: small_stmt ";" NEWLINE {$$=$1;resettemp();}
-	| small_stmt NEWLINE {$$=$1;resettemp();}
+simple_stmt: small_stmt ";" NEWLINE 
+	| small_stmt NEWLINE 
 	| small_stmt[first]";" {resettemp();} simple_stmt[last] {$$ = new Node ("Inline Statement"); $$->addchild($first);$$->addchild($last);}
 ;
 
@@ -413,7 +441,7 @@ global_stmt: "global" NAME[id] {
 			dprintf (stderr_copy, "Error at line %d: %s is not declared in global scope\n", (int) $id->lineno, $id->production.c_str());
 			exit(87);
 		}
-		$id->nodeid= globalSymTable->get($id)->node->nodeid;
+		$id->addr= globalSymTable->get($id)->node->addr;
 	} 
 	| global_stmt "," NAME[id]  { $$ = new Node ("Multiple Global"); $$->addchild($1); $$->addchild($3);
 
@@ -485,6 +513,10 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
+			if (!check_typestring($value, $type->production)) {
+				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $type->production.c_str());
+				exit(1);
+			}
 			if ($value->typestring == "") {
 				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n",
 						$id->lineno);
@@ -493,10 +525,6 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				printf ("empty typestring: production is %s token %d\n", $value->production.c_str(), $value->token);
 #endif
 				exit (96);
-			}
-			if (!check_typestring($value, $type->production)) {
-				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $operation->lineno, $id->typestring.c_str(), $type->production.c_str());
-				exit(1);
 			}
 			/*
 				if($id is not lvalue) error
@@ -598,6 +626,10 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						(int) $id->lineno);
 				exit (33);
 			}
+			if (!check_typestring($id, $value->typestring)) {
+				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $value->production.c_str());
+				exit(1);
+			}
 			$$ = new Node ("=");
 			$$->addchild($id);
 			$$->addchild($value);
@@ -605,7 +637,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			check ($id);
 			check($value);
 			if (!check($id, $value)) {
-				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $operation->lineno, $id->typestring.c_str(), $value->typestring.c_str());
+				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $value->typestring.c_str());
 				exit(1);
 			}
 			gen($$,$id,$value,ASSIGN);
@@ -643,6 +675,7 @@ typeclass: NAME {
 		$$->dimension = 1;
 		verify_typestring ($3);
 	}
+	| "None"
 
 augassign: "+=" {$$ = new Node ("+="); $$->op = ADD;}
 		| "-=" {$$ = new Node ("-="); $$->op = SUB;}
@@ -658,26 +691,33 @@ augassign: "+=" {$$ = new Node ("+="); $$->op = ADD;}
 		| "**=" {$$ = new Node ("**="); }
 
 return_stmt: "return" test {
-			if($2->isConstant && $2->typestring != top->return_type){
-				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
-				exit(57);
+			if($2->isConstant ){
+				if(!check_typestring($2, top->return_type)){
+					dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
+					exit(57);
+				}
 			}
-			if(!top->has($2)){
-				dprintf (stderr_copy, "Error at line %d: return value not declared\n", (int) $2->lineno);
-				exit(57);
-			}
-			if($2->typestring != top->return_type){
-				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
-				exit(57);
+			else{
+				if($2->isLeaf&&!top->has($2)){
+					dprintf (stderr_copy, "Error at line %d: return value not declared\n", (int) $2->lineno);
+					exit(57);
+				}
+				if(!check_typestring($2, top->return_type)){
+					dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
+					exit(57);
+				}
 			}
 			$1->addchild($2,"Data"); $$=$1;	
+
+			fprintf(tac, "\tret %s\n", top->getaddr($2).c_str());
 	}
 	| "return" {
 			if(top->return_type != "None"){
 				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $1->lineno);
 				exit(57);
 			}
-		string temp = "Keyword\n"; temp += "( return )"; $$ = new Node(temp);}
+		string temp = "Keyword\n"; temp += "( return )"; $$ = new Node(temp);
+	}
 
 // for each operation check if the operands are in current scope or not
 // check type compatibility
@@ -700,6 +740,8 @@ test : and_test
 	$$->addchild ($3);
 	$$->typestring = "bool";
 	
+	gen($$,$1,$3,OR_log);
+
 	//to do: gen
 }
 
@@ -720,15 +762,15 @@ and_test : not_test
 	$$->addchild ($3);
 	$$->typestring = "bool";
 	
+	gen($$,$1,$3,AND_log);
 	//to do: gen
-}
 }
 not_test : comparison
 	| "not" not_test	{
 	if (!check_number($2)
 	||  ($1->typestring == "float")
 	||  ($1->typestring == "complex")) {
-		dprintf(stderr_copy, "TypeError on line %d: logical operator and doesn't support types %s and %s", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+		dprintf(stderr_copy, "TypeError on line %d: logical operator and doesn't support types %s and %s", $2->lineno, $1->typestring.c_str(), $2->typestring.c_str());
 		exit(1);
 	}
 	$$ = new Node ("not");
@@ -736,6 +778,7 @@ not_test : comparison
 	$$->typestring = "bool";
 	
 	//to do: gen
+	gen($$,$2,NULL,NOT_log);
 }
 
 comparison: expr {
@@ -784,6 +827,7 @@ comparison: expr {
 		$$->typestring = "bool";
 		
 		//to do: gen
+		gen($$,$1,$3,EQ);
 }
 	| expr "!=" comparison	{
 	$$ = new Node ("!=");
@@ -813,6 +857,7 @@ comparison: expr {
 	$$->typestring = "bool";
 	
 	//to do: gen
+	gen($$,$1,$3,NEQ);
 }
 	| expr "<" comparison	{
 	$$ = new Node ("<");
@@ -841,6 +886,7 @@ comparison: expr {
 	}
 	$$->typestring = "bool";
 	
+	gen($$,$1,$3,LT);
 	//to do: gen
 }
 	| expr "<=" comparison	{
@@ -870,6 +916,7 @@ comparison: expr {
 	}
 	$$->typestring = "bool";
 	
+	gen($$,$1,$3,LTE);
 	//to do: gen
 }
 	| expr ">" comparison	{
@@ -898,7 +945,7 @@ comparison: expr {
 		exit(1);
 	}
 	$$->typestring = "bool";
-	
+	gen($$,$1,$3,GT);
 	//to do: gen
 }
 	| expr ">=" comparison	{
@@ -928,6 +975,7 @@ comparison: expr {
 	}
 	$$->typestring = "bool";
 	
+	gen($$,$1,$3,GTE);
 	//to do: gen
 }
 
@@ -969,6 +1017,7 @@ expr: xor_expr {
 	} else {
 		$$->typestring = "bool";
 	}
+	gen($$,$1,$3,OR_bit);
 	//to do: gen
 }
 xor_expr: ans_expr {
@@ -1009,6 +1058,7 @@ xor_expr: ans_expr {
 		$$->typestring = "bool";
 	}
 	//to do: gen
+	gen($$,$1,$3,XOR);
 }
 
 ans_expr: shift_expr {
@@ -1049,6 +1099,7 @@ ans_expr: shift_expr {
 		$$->typestring = "bool";
 	}
 	//to do: gen
+	gen($$,$1,$3,AND_bit);
 }
 shift_expr: sum {
 	if ($1->typestring == "") {
@@ -1083,6 +1134,7 @@ shift_expr: sum {
 	$$->addchild ($3);
 	$$->typestring = "int"; //always
 	//to do: gen
+	gen($$,$1, $3, SHL);
 }
 	| shift_expr ">>" sum	{
 	if ($1->typestring == "") {
@@ -1110,6 +1162,7 @@ shift_expr: sum {
 	$$->addchild ($3);
 	$$->typestring = "int"; //always
 	//to do: gen
+	gen($$,$1, $3, SHR);
 }
 
 sum : sum "+" term  { 
@@ -1271,6 +1324,7 @@ term: term "*" factor	{
 	}
 	
 	//to add: gen
+	gen($$,$1, $3, MOD);
 }
 	| term DOUBLESLASH factor {
 	$$ = new Node ("//");
@@ -1301,6 +1355,7 @@ term: term "*" factor	{
 	}
 	
 	//to add: gen
+	gen($$,$1, $3, FLOORDIV);
 }
 	| factor {
 	if ($1->typestring == "")	{
@@ -1322,7 +1377,7 @@ factor: "+" factor	{
 	}
 	
 	$$->typestring = $2->typestring;
-	//to add: gen
+	//to add: gen //ignore
 }
 	| "-" factor	{
 	$$ = new Node ("-");
@@ -1338,6 +1393,8 @@ factor: "+" factor	{
 	
 	$$->typestring = $2->typestring;
 	//to add: gen
+	gen($$,$2,NULL,NEG);
+
 }
 	| "~" factor	{
 	$$ = new Node ("~");
@@ -1352,10 +1409,12 @@ factor: "+" factor	{
 	}
 	
 	$$->typestring = "int"; //always
+	gen($$,$2,NULL,NOT_bit);
 }
 	| power {
 	if ($1->typestring == "")	{
 		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at factor: power production\n", $1->lineno);
+		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 		exit(1);
 	}
 	$$ = $1;
@@ -1365,6 +1424,7 @@ power: primary {
 	$$ = $1;
 	if ($1->typestring == "") {
 		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at power: primary production\n", $1->lineno);
+		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 		exit(1);
 	}
 }
@@ -1375,10 +1435,12 @@ power: primary {
 	current_scope = NULL;
 	if ($1->typestring == "") {
 			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+			if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 			exit(1);
 		}
 		if ($3->typestring == "") {
 			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+			if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 			exit(1);
 		}
 		
@@ -1399,6 +1461,7 @@ power: primary {
 		}
 		
 		//to add: gen
+		gen($$,$1, $3, POW);
 }
 
 /* TO DO 
@@ -1459,9 +1522,12 @@ primary: atom {
 
 		string this_ptr = top->thisname;
 		// CHECKING PRIMARY
+		int genattr=0;
+
 		if ($1->isLeaf) { // set typestring
-			if (top->get ($1))
+			if (top->get ($1)){
 				$1->typestring = top->gettype($1->production);
+			}
 			else if ($1->production == top->thisname) {
 				if (!Classsuite || !currently_defining_class) {
 					dprintf (stderr_copy, "Error at line %d: self pointer cannot be used outside class scope\n", (int)$1->lineno);
@@ -1491,12 +1557,13 @@ primary: atom {
 		if (current_scope->find_member_fn ($3->production)) {
 			$$->typestring = "def"; $$->islval = false;
 			current_scope = current_scope->find_member_fn($3->production);
-			$$->addr = $1->typestring +"_" + $3->production;
+			$$->addr = $1->typestring +"." + $3->production;
 			 // the only case in which current_scope is truly global
 		}
 		else{
 			$$->typestring = current_scope->gettype($3->production);
-			gen($$,$1,$3,ATTR);
+			genattr = 1;
+			// gen($$,$1,$3,ATTR);
 		}
 		$$->production = $3->production;
 		if (!$$->isdecl && $$->typestring == "") {
@@ -1506,6 +1573,10 @@ primary: atom {
 		}
 		$$->lineno = $1->lineno;
 
+
+		if(genattr){
+			gen($$,$1,$3,ATTR);
+		}
 		/*
 			$ new temp 
 			$$->addr = newtemp();
@@ -1568,17 +1639,23 @@ primary: atom {
 		$$ = new Node (0, "", "");
 		$$->islval = false;
 		$$->isdecl = false;
-		if ($1->isLeaf) {
+		if ($1->isLeaf && $1->production != "print" && $1->production != "len" && $1->production != "range") {
 			if (top->find_member_fn ($1->production)) {
 				current_scope = top->find_member_fn($1->production);
 				$$->typestring = current_scope->return_type;
-				$$->addr = "call "+ $1->addr + ", "+ to_string(current_scope->arg_types.size());
+				// reversing push params as per format
+				auto temp = function_call_args;
+				reverse(temp.begin(), temp.end());
+				for(auto it:temp){
+					fprintf(tac, "\tparam %s\n", it->addr.c_str());
+				}
 #if TEMPDEBUG
 				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 #endif
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
 				current_scope = globalSymTable->ctor.find ($1->production)->second;
+				$1->addr+=".ctor";
 #if TEMPDEBUG
 				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 #endif
@@ -1590,7 +1667,8 @@ primary: atom {
 				dprintf (stderr_copy, "Error at line %d: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
 				exit(44);
 			}
-		} else { // now we expect typestring to be set to def, symboltable to be available in current_scope
+		} else if ($1->production != "print" && $1->production != "len" && $1->production != "range" ) {
+		   // now we expect typestring to be set to def, symboltable to be available in current_scope
 			if ($1->typestring != "def") {
 				dprintf (stderr_copy, "TypeError at line %d: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
@@ -1601,12 +1679,60 @@ primary: atom {
 #endif
 			}
 		}
-		printf("typestring = %s\n", $$->typestring.c_str());
+		// printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
 		
 		// check function_call_args
 		int iter;
-		if (function_call_args.size() != current_scope->arg_types.size()) {
+		bool primitive_fn = true;
+		if ($1->production == "range" && $1->isLeaf) {
+			if ((function_call_args.size() > 2 || function_call_args.size() < 1)) {
+				dprintf (stderr_copy, "Error at line %d: range() expects one or two arguments, received %d\n",
+						(int)$1->lineno, (int)function_call_args.size());
+				exit (59);
+			} else if (function_call_args[0]->typestring != "int" && function_call_args[0]->typestring != "bool" && function_call_args[0]->typestring != "float") {
+				dprintf (stderr_copy, "TypeError at line %d: first argument to range() is of incompatible type %s\n", (int)$1->lineno , $1->typestring.c_str());
+				exit (58);
+			} else if (function_call_args_dim[0] != false) {
+				dprintf (stderr_copy, "TypeError at line %d: first argument to range() is of incompatible type %s[]\n", (int)$1->lineno , $1->typestring.c_str());
+				exit (58);
+			} else if (function_call_args.size() == 2 && function_call_args[1]->typestring != "int" && function_call_args[1]->typestring != "bool" && function_call_args[1]->typestring != "float") {
+				dprintf (stderr_copy, "TypeError at line %d: second argument to range() is of incompatible type %s\n", (int)$1->lineno , $1->typestring.c_str());
+				exit (58);
+			} else if (function_call_args.size() == 2 && function_call_args_dim[1] != false) {
+				dprintf (stderr_copy, "TypeError at line %d: second argument to range() is of incompatible type %s[]\n", (int)$1->lineno , $1->typestring.c_str());
+				exit (58);
+			}
+			$$->typestring = "";
+		} else if ($1->production == "print" && $1->isLeaf) {
+			if (function_call_args.size() != 1) {
+				dprintf (stderr_copy, "Error at line %d: print() expects one argument, received %d\n",
+						(int)$1->lineno, (int)function_call_args.size());
+				exit (59);
+			} else if (function_call_args[0]->typestring != "int" && function_call_args[0]->typestring != "bool" && function_call_args[0]->typestring != "str" && 
+					function_call_args[0]->typestring != "float" &&  function_call_args[0]->typestring != "complex") {
+				dprintf (stderr_copy, "Error at line %d: print() received argument of non-primitive type %s\n",
+						(int) $1->lineno, (function_call_args[0]->typestring + (function_call_args_dim[0]? "[]" : "")).c_str());
+				exit (83);
+			}
+			else
+				$$->typestring = "None";
+		} else if ($1->production == "len" && $$->isLeaf) {
+			if (function_call_args.size() != 1) {
+				dprintf (stderr_copy, "Error at line %d: len() expects one argument, received %d\n",
+						(int)$1->lineno, (int)function_call_args.size());
+				exit (59);
+			} else if (function_call_args_dim[0] == false && function_call_args[0]->typestring != "str") {
+				dprintf (stderr_copy, "TypeError at line %d: argument to len() neither a string nor a list\n",
+						(int) $1->lineno);
+				exit (49);
+			}
+			$$->typestring = "int";
+		} else {
+			primitive_fn = false;
+		}
+				
+		if (!primitive_fn && function_call_args.size() != current_scope->arg_types.size()) {
 			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
 					(int)$1->lineno, (int)current_scope->arg_types.size(),(int) function_call_args.size());
 			exit (60);
@@ -1614,7 +1740,7 @@ primary: atom {
 #define VALID_PAIR(type1, type2)	\
 		(function_call_args[iter]->typestring == type1 && current_scope->arg_types[iter] == type2)
 
-		for (iter = 0; iter< current_scope->arg_types.size(); iter ++) { 
+		for (iter = 0; !primitive_fn && iter< current_scope->arg_types.size(); iter ++) { 
 			// cout << "twdfdvwfere\n";
 			// cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
 			if (function_call_args[iter]->typestring == (current_scope->arg_types)[iter]
@@ -1634,8 +1760,11 @@ primary: atom {
 						);
 			exit(80);
 		}
+		$$->addr= "call "+ $1->addr + ", " + to_string(function_call_args.size());
 		function_call_args.clear();
 		function_call_args_dim.clear();
+
+
 	}
 	| primary "(" ")" {
 		/*
@@ -1645,6 +1774,15 @@ primary: atom {
 
 			update $result type as the return type of function
 		*/
+		if ($1->production == "print" || $1->production == "len" || $1->production == "range") {
+			if ($1->production == "range")
+				dprintf (stderr_copy, "Error at line %d: range() expects one or two arguments, received zero\n",
+						(int)$1->lineno);
+			else 
+				dprintf (stderr_copy, "Error at line %d: %s() expects one argument, received zero\n",
+						(int)$1->lineno, $1->production.c_str());
+		   exit (83);
+		}	   
 		$$ = new Node (0, "", "");
 		if ($1->isLeaf) {
 			if(is_not_name($1)){
@@ -1654,7 +1792,6 @@ primary: atom {
 			if (top->find_member_fn ($1->production)) {
 				// $1->typestring = "def";
 				$$->typestring = top->find_member_fn($1->production)->return_type;
-				$$->addr = "call "+ $1->addr;
 				current_scope = top->find_member_fn($1->production);
 
 #if TEMPDEBUG
@@ -1702,6 +1839,7 @@ primary: atom {
 					(int)$1->lineno,(int) current_scope->arg_types.size(), 0);
 			exit (60);
 		}
+		$$->addr= "call "+ $1->addr;
 		function_call_args.clear();
 		function_call_args_dim.clear();
 		current_scope = NULL;
@@ -1720,8 +1858,9 @@ atom: NAME
 		$$->production = concatenating_string_plus;
 		concatenating_string_plus = "\0";
 		$$->typestring = "str";
+		$$->addr = newtemp();
 
-		static_section += "\t<string literal> l_" + to_string ($$->nodeid) + "\t: \"" + $$->production + "\"\n" ;
+		fprintf (tac, "\t<string literal> %s = ptr(\"%s\")\n", top->getaddr($$).c_str(), $$->production.c_str()) ;
 	}
 	|"(" test ")"{$$=$2;}
     | "True"
@@ -1851,13 +1990,13 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		}
 		top->thisname=$1->production;
 		top->put($1, currently_defining_class->name);
+		top->table_size = 8; // for self pointer
 		$$=$1;
 	}
-	| typedarglist "," {fprintf(tac,"\tparam %s\n",$1->production.c_str());} typedargument[last] { 
+	| typedarglist "," typedargument[last] { 
 		$$ = new Node ("Multiple Terms"); 
 		$$->addchild($1); 
 		$$->addchild($last);
-		fprintf(tac,"\tparam %s\n", $last->production.c_str());
 	}
 
 typedarglist_comma: typedarglist | typedarglist ","
@@ -1883,7 +2022,8 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 		top->arg_types.push_back ($3->production);
 		top->arg_dimensions.push_back ((bool) $3->dimension);
 
-		fprintf(tac,"\tparam %s\n", $1->production.c_str());
+
+
 	}
 
 suite:  simple_stmt[first] 
@@ -1904,6 +2044,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$->addchild($last, "Body");
 		function_call_args_dim.clear();
 		function_call_args.clear();
+		fprintf(tac, "\tendfunc\n\n");
 	}
 	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] {
 		top->return_type = $returntype->production;
@@ -1915,6 +2056,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	$$->addchild($last, "Body");
 			function_call_args_dim.clear();
 			function_call_args.clear();
+			fprintf(tac, "\tendfunc\n\n");
 			
 	}
 	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" {
@@ -1927,6 +2069,9 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	$$->addchild($id, "Name");
 	       	$$->addchild($param,"Parameters");
 	       	$$->addchild($last, "Body");
+			function_call_args_dim.clear();
+			function_call_args.clear();
+			fprintf(tac, "\tendfunc\n\n");
 	}
 	| "def" NAME[id] functionstart "(" ")" ":" {
 			top->return_type = "None";
@@ -1938,6 +2083,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$->addchild($last, "Body");
 		function_call_args_dim.clear();
 		function_call_args.clear();
+		fprintf(tac, "\tendfunc\n\n");
 	}
 
 functionstart:  {
@@ -1958,12 +2104,27 @@ functionstart:  {
 			top = new SymbolTable (globalSymTable, CTOR_ST, currently_defining_class->name);
 		else
 			top = new SymbolTable (
-					currently_defining_class? currently_defining_class : top,
+					top,
 					Classsuite?MEMBER_FN_ST:FUNCTION_ST,
 					$<node>0->production);
+		if(currently_defining_class){
+			if(inside_init){
+				top->label=currently_defining_class->name+".ctor";
+			}
+			else{
+				top->label=currently_defining_class->name+"."+top->name;
+			}
+			currently_defining_class->children[$<node>0->production] = top;
+		}
 		top->lineno = $<node>0->lineno;
+		fprintf(tac, ":%s\n", top->label.c_str());
+		fprintf(tac, "\tbeginfunc\n");
+		for (auto arg:function_call_args){
+			fprintf(tac, "\tt%d = popparam\n",basecount++);
+		}
 		function_call_args.clear();
 		function_call_args_dim.clear();
+
 	}
 ;
 classdef: "class" NAME classstart ":"{
@@ -2044,9 +2205,31 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" expr "in" test ":" suite "else" ":" suite { $$ = new Node ("For block"); $$->addchild($2); $$->addchild($4); $$->addchild($6); $$->addchild($9);}                        
-        | "for" expr "in" test ":" suite  { $$ = new Node ("For Block"); $$->addchild($2,"Iterator"); $$->addchild($4,"Object"); $$->addchild($6,"Body");}                                    
+for_stmt: "for" NAME[itr] set_itr_ptr "in" begin_loop_condition test[loop_condition] handle_loop_condition insert_jump_if_false ":" suite[block] loop_end_jump_back jump_target_false_lower
+			{ $$ = new Node ("For Block"); $$->addchild($itr,"Iterator"); $$->addchild($loop_condition,"Object"); $$->addchild($block,"Body");
+				for_loop_iterator_node = NULL;
+			}
 
+set_itr_ptr : {
+		for_loop_iterator_node = $<node>0;
+	}
+handle_loop_condition : {
+		// set $<node>0 to 0 to exit loop, true to repeat. use for_loop_iterator_node
+		Node* test = $<node>-1;
+		int begin = 0, end = 0;
+		if(test->production=="range") {
+			end = $<node>0->intVal;
+		} else if ($<node>-2->production == "range") {
+			begin = test->intVal;
+			end = $<node>0->intVal;
+		}
+		cout << "productions " << endl << $<node>0->production << endl << $<node>-1 ->production << endl << $<node>-2->production << endl << endl;
+		cout << "productions " << $<node>0->typestring << endl << $<node>-1 ->typestring << endl << $<node>-2->typestring << endl << endl;
+		// printf ("FOR LOOP begin %d end %d\n");
+
+		Node* begin_iter, *end_iter;
+
+	}
 testlist: arglist
         | arglist ","
 ;
@@ -2178,7 +2361,7 @@ int main(int argc, char** argv){
 		fclose (logs);
 	}
 	FILE* stdump = fopen ("symbol_table.csv", "w+");
-	fprintf (stdump, "LEXEME\tTYPE\tTOKEN\t\tLINE\tPARENT SCOPE\n");
+	fprintf (stdump, "LEXEME\tTYPE\tTOKEN\t\tLINE\tPARENT SCOPE\tOFFSET (for identifiers)\n");
 	globalSymTable->print_st(stdump);
 	fclose (stdump);
 	if (static_section != "Static section:\n")

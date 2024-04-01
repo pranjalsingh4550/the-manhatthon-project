@@ -13,6 +13,7 @@ extern int yylineno;
 static FILE* tac = NULL;
 class SymbolTable;
 extern SymbolTable* top;
+extern SymbolTable* globalSymTable;
 
 enum ir_operation {
 	UJUMP,
@@ -30,6 +31,25 @@ enum ir_operation {
 	SUB,
 	MUL,
 	DIV,
+	MOD,
+	AND_log,
+	OR_log,
+	NOT_log,
+	OR_bit,
+	AND_bit,
+	NOT_bit,
+	EQ,
+	NEQ,
+	GT,
+	GTE,
+	LT,
+	LTE,
+	SHL,
+	SHR,
+	XOR,
+	NEG,
+	POW,
+	FLOORDIV,
 
 	ATTR,
 	SUBSCRIPT,
@@ -251,79 +271,6 @@ class Node {
 				child->printnode();
 			}
 		}
-// 		void gen (Node *leftoperand, Node *rightoperand, enum ir_operation op) {
-// 			// should ir_operations be a map <str, int>? ??????
-// 			char* left= top->getaddr(leftoperand);
-// 			char* right= top->getaddr(rightoperand);
-
-// #define STRING(x) #x
-// #define BINARY_OP(op, in1, in2) {fprintf(tac, "\tt_%d = %s\t(t_%d,\tt_%d)\n", this->nodeid, STRING(op), in1->nodeid, in2->nodeid); break;}
-// #define UNARY_OP(op, in1, in2) {fprintf(tac, "\tt_%d = %s\t(t_%d)\n", this->nodeid, STRING(op), in1->nodeid); break;}
-// 			if (tac == NULL) tac = stdout;
-// 				switch (op) {
-
-// 					case ASSIGN	: fprintf(tac, "%s = %s\n", leftoperand->addr.c_str(), rightoperand->addr.c_str()); break;
-// 					case ADD	: {
-// 							addr = "t_" + to_string(tempcount++);
-// 						fprintf(tac, "%s = %s + %s\n", addr.c_str(), leftoperand->addr.c_str(), rightoperand->addr.c_str()); break;
-// 						}
-// 					case SUB	: {
-// 							addr = "t_" + to_string(tempcount++);
-// 						fprintf(tac, "%s = %s - %s\n", addr.c_str(), leftoperand->addr.c_str(), rightoperand->addr.c_str()); break;
-// 						}
-// 					case MUL	: {
-// 							addr = "t_" + to_string(tempcount++);
-// 						fprintf(tac, "%s = %s * %s\n", addr.c_str(), leftoperand->addr.c_str(), rightoperand->addr.c_str()); break;
-// 						}
-// 					case DIV	: {
-// 							addr = "t_" + to_string(tempcount++);
-// 						fprintf(tac, "%s = %s / %s\n", addr.c_str(), leftoperand->addr.c_str(), rightoperand->addr.c_str()); break;
-// 						}
-// 					case UJUMP	:
-// 					case CJUMP	:
-// 					case LW		: UNARY_OP(LW, leftoperand, rightoperand);
-// 					case LI		: fprintf(tac, "%s = %s\n", leftoperand->addr.c_str(), rightoperand->addr.c_str()); break;
-// 					case SW		: UNARY_OP(SW, leftoperand, rightoperand);
-// 					case RETQ	:
-// 					case MOV_REG: UNARY_OP(MOV_REG, leftoperand, rightoperand);
-// 					case ANDBW	: BINARY_OP(ANDBW, leftoperand, rightoperand);
-// 					case ORBW	: BINARY_OP(ORBW, leftoperand, rightoperand);
-// 					case NOTBW	: UNARY_OP(NOTBW, leftoperand, rightoperand);
-// 					case ORBL	: BINARY_OP(ORBL, leftoperand, rightoperand);
-// 					case ANDBL	: BINARY_OP(ANDBL, leftoperand, rightoperand);
-// 					case NOTBL	: BINARY_OP(NOTBL, leftoperand, rightoperand);
-// 					case XORBW	: BINARY_OP(XORBW, leftoperand, rightoperand);
-// 					case SHRBW	: BINARY_OP(SHRBW, leftoperand, rightoperand);
-// 					case SHLBW	: BINARY_OP(SHLBW, leftoperand, rightoperand);
-// 					case CMPEQ	: BINARY_OP(CMPEQ, leftoperand, rightoperand);
-// 					case CMPNE	: BINARY_OP(CMPNE, leftoperand, rightoperand);
-// 					case CMPGT	: BINARY_OP(CMPGT, leftoperand, rightoperand);
-// 					case CMPGE	: BINARY_OP(CMPGE, leftoperand, rightoperand);
-// 					case CMPLT	: BINARY_OP(CMPLT, leftoperand, rightoperand);
-// 					case CMPLE	: BINARY_OP(CMPLE, leftoperand, rightoperand);
-// 					case ADDI	: BINARY_OP(ADDI, leftoperand, rightoperand);
-// 					case SUBI	: BINARY_OP(SUBI, leftoperand, rightoperand);
-// 					case MULI	: BINARY_OP(MULI, leftoperand, rightoperand);
-// 					case DIVI	: BINARY_OP(DIVI, leftoperand, rightoperand);
-// 					case FLOORI	: UNARY_OP(FLOORI, leftoperand, rightoperand);
-// 					case MODI	: UNARY_OP(MODI, leftoperand, rightoperand);
-// 					case EXPI	: BINARY_OP(EXPI, leftoperand, rightoperand);
-// 					case ADDF	: BINARY_OP(ADDF, leftoperand, rightoperand);
-// 					case SUBF	: BINARY_OP(SUBF, leftoperand, rightoperand);
-// 					case MULF	: BINARY_OP(MULF, leftoperand, rightoperand);
-// 					case DIVF	: BINARY_OP(DIVF, leftoperand, rightoperand);
-// 					case FLOORF	: UNARY_OP(FLOORF, leftoperand, rightoperand);
-// 					case MODF	: UNARY_OP(MODF, leftoperand, rightoperand);
-// 					case EXPF	: BINARY_OP(EXPF, leftoperand, rightoperand);
-// 					case INT2FL	: UNARY_OP(INT2FL, leftoperand, rightoperand);
-// 					case FL2INT	: UNARY_OP(FL2INT, leftoperand, rightoperand);
-// 					case FUNCTION_CALL	:
-// 					case FUNCTION_RETURN: ;
-
-// 				}
-
-// 			return ;
-// 		}
 		void gen (string left, string right, enum ir_operation op) {
 			// should ir_operations be a map <str, int>? ??????
 			switch(op){
@@ -383,11 +330,14 @@ class SymbolTable {
 		int isGlobal;
 		int lineno;
 		string name;
+		string label=name;
 		string thisname = "";
 		string return_type="None";
 		vector<string> arg_types; // for function, but class also ig
 		vector<bool> arg_dimensions;
 		bool fn_inside_class;
+
+		int redef =0;
 		// not using atm // map <string, SymbolTable*> classes; // if global
 		// not using atm // map <string, SymbolTable*> member_functions; // for a class
 		// not using atm // map <string, SymbolTable*> functions;
@@ -464,6 +414,14 @@ class SymbolTable {
 			s->isClass = 0;
 			s->name = node->production;
 			this->symbols[node->production] = s;
+			int width;
+			if (globalSymTable->children.find (type->production) != globalSymTable->children.end()
+					&& globalSymTable->children.find(type->production)->second->isClass)
+				width = globalSymTable->children.find(type->production)->second->table_size;
+			else
+				printf ("Should not be here; someone forgot to check args to put()\n");
+			s->offset = table_size;
+			this->table_size += width;
 			this->size = this->size + 1;
 			s->dimension = type->dimension;
 			s->node= node;
@@ -484,6 +442,14 @@ class SymbolTable {
 			s->name = node->production;
 			this->symbols[node->production] = s;
 			this->size = this->size + 1;
+			int width;
+			if (globalSymTable->children.find (type) != globalSymTable->children.end()
+					&& globalSymTable->children.find(type)->second->isClass)
+				width = globalSymTable->children.find(type)->second->table_size;
+			else
+				printf ("Should not be here; someone forgot to check args to put()\n");
+			s->offset = table_size;
+			this->table_size += width;
 			s->dimension = 0;
 			s->node= node;
 			s->node->addr+="_"+name;
@@ -509,9 +475,10 @@ class SymbolTable {
 			return node->addr;
 		}
 		int putFunc(Node* node, Node* type, vector<Node*> args) {
-			if (this->isClass == false) {
-				cerr << "Adding member function to non-class symbol table!\n";
-				return 5;
+			int ref=0;
+			if(this->children.find(node->production) != this->children.end()) {
+				ref=this->children[node->production]->redef+1;
+				return 4;
 			}
 			SymbolTable *f = new SymbolTable(this, MEMBER_FN_ST, node->production); // node->production?
 			f->name = node->production;
@@ -519,6 +486,7 @@ class SymbolTable {
 			for (auto arg: args) {
 				f->arg_types.push_back(arg->production);
 			}
+			f->redef=ref;
 			this->children[node->production] = f;
 			return 1;
 		}
@@ -585,7 +553,19 @@ class SymbolTable {
 		}
 
 		void print_st (FILE* st) {
-			// print functions first, then classes, then identifiers
+			fprintf (st, "\n------------ symbol table of scope %s: size %d Bytes ---------------\n", this->name.c_str(), (int)this->table_size);
+			auto itrs = this->symbols.begin();
+			for (; itrs != this->symbols.end(); itrs++) {
+					fprintf (st, "%s\t%s%s\t%s\t%d\t%s\t%d\n", itrs->first.c_str(), 
+							itrs->second->typestring.c_str(),
+							itrs->second->dimension ? "[]" : "",
+							"Identifier",
+							itrs->second->lineno,
+							this->isGlobal? "GLOBAL NAMESPACE" : 
+								((this->isClass? "CLASS ": "FUNCTION ") + this->name).c_str(),
+							(int)itrs->second->offset
+							);
+			}
 			auto itrc = this->children.begin();
 			for (; itrc!= this->children.end(); itrc++) {
 				if (itrc->second->parent == NULL)
@@ -603,17 +583,6 @@ class SymbolTable {
 							itrc->second->isClass? "Class\t" : "Class Method",
 							itrc->second->lineno,
 							this->name.c_str()
-					);
-			}
-			auto itrs = this->symbols.begin();
-			for (; itrs != this->symbols.end(); itrs++) {
-					fprintf (st, "%s\t%s%s\t%s\t%d\t%s\n", itrs->first.c_str(), 
-							itrs->second->typestring.c_str(),
-							itrs->second->dimension ? "[]" : "",
-							"Identifier",
-							itrs->second->lineno,
-							this->isGlobal? "GLOBAL NAMESPACE" : 
-								((this->isClass? "CLASS ": "FUNCTION ") + this->name).c_str()
 					);
 			}
 			itrc = this->children.begin();

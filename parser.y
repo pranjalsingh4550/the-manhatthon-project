@@ -125,6 +125,7 @@
 		} else if (n->typestring != typestring) {
 			return false;
 		}
+
 		return true;
 	}
 	int Funcsuite=0;
@@ -495,7 +496,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				exit (96);
 			}
 			if (!check_typestring($value, $type->production)) {
-				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $operation->lineno, $id->typestring.c_str(), $type->production.c_str());
+				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $type->production.c_str());
 				exit(1);
 			}
 			/*
@@ -598,6 +599,10 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						(int) $id->lineno);
 				exit (33);
 			}
+			if (!check_typestring($value, $value->production)) {
+				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $value->production.c_str());
+				exit(1);
+			}
 			$$ = new Node ("=");
 			$$->addchild($id);
 			$$->addchild($value);
@@ -605,7 +610,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			check ($id);
 			check($value);
 			if (!check($id, $value)) {
-				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $operation->lineno, $id->typestring.c_str(), $value->typestring.c_str());
+				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $value->typestring.c_str());
 				exit(1);
 			}
 			gen($$,$id,$value,ASSIGN);
@@ -658,7 +663,7 @@ augassign: "+=" {$$ = new Node ("+="); $$->op = ADD;}
 		| "**=" {$$ = new Node ("**="); }
 
 return_stmt: "return" test {
-			if($2->isConstant && $2->typestring != top->return_type){
+			if($2->isConstant && check_typestring($2, top->return_type)){
 				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
 				exit(57);
 			}
@@ -666,7 +671,7 @@ return_stmt: "return" test {
 				dprintf (stderr_copy, "Error at line %d: return value not declared\n", (int) $2->lineno);
 				exit(57);
 			}
-			if($2->typestring != top->return_type){
+			if(!check_typestring($2, top->return_type)){
 				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
 				exit(57);
 			}
@@ -677,7 +682,8 @@ return_stmt: "return" test {
 				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $1->lineno);
 				exit(57);
 			}
-		string temp = "Keyword\n"; temp += "( return )"; $$ = new Node(temp);}
+		string temp = "Keyword\n"; temp += "( return )"; $$ = new Node(temp);
+	}
 
 // for each operation check if the operands are in current scope or not
 // check type compatibility
@@ -722,13 +728,12 @@ and_test : not_test
 	
 	//to do: gen
 }
-}
 not_test : comparison
 	| "not" not_test	{
 	if (!check_number($2)
 	||  ($1->typestring == "float")
 	||  ($1->typestring == "complex")) {
-		dprintf(stderr_copy, "TypeError on line %d: logical operator and doesn't support types %s and %s", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
+		dprintf(stderr_copy, "TypeError on line %d: logical operator and doesn't support types %s and %s", $2->lineno, $1->typestring.c_str(), $2->typestring.c_str());
 		exit(1);
 	}
 	$$ = new Node ("not");

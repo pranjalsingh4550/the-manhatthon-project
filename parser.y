@@ -43,7 +43,6 @@
 	vector <Node*> list_init_inputs;
 	vector <Node *> function_call_args;
 	vector <bool> function_call_args_dim;
-	stack <string> jump_labels, jump_labels_upper;
 	Node* for_loop_iterator_node, *for_loop_range_second_arg, *for_loop_range_first_arg;
 	int label_count;
 
@@ -52,7 +51,7 @@
 	vector<Node*> function_params;
 
 #define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-#define TEMPDEBUG 0
+#define TEMPDEBUG 1
 	bool is_not_name (Node*);
 	string static_section;
 	string concatenating_string_plus;
@@ -159,6 +158,12 @@
 	int getwidth(Node*n){
 		return find_class(n->typestring)->table_size;
 	}
+	void gen_ujump (string target) {
+		fprintf (tac, "\tUJUMP: %s\n", target.c_str());
+	}
+	void gen_branch (Node* condition, string target) {
+		fprintf (tac, "\tCJUMP_IF_FALSE (%s): %s\n", condition->addr.c_str(), target.c_str());
+	}
 	void gen(Node*result, Node* leftop, Node* rightop,enum ir_operation op){
 		if (tac == NULL) tac = stdout;
 		string left= leftop ? top->getaddr(leftop) : "";
@@ -238,7 +243,7 @@
 				s+= offset + " = symtable(" + leftop->typestring + ", " + rightop->production + ")\n\t"; 
 #if TEMPDEBUG
 				printf("%s\n", rightop->production.c_str());
-				printf("%d %p\n", top->table_size, top->get(rightop->production));
+				printf("%d %p\n", (int) top->table_size, top->get(rightop->production));
 				// t_2 = $1->addr + offset
 #endif
 				string ult = newtemp();
@@ -312,6 +317,7 @@
 			
 	}
 
+	stack <string> jump_labels, jump_labels_upper;
 	string get_next_label (string description) {
 		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
 		if (description != "") tmp += "_" + description;
@@ -337,7 +343,30 @@
 	string dev_helper(Node* n) {
 		return top->getaddr (n);
 	}
-	
+	stack <string> jump_labels3, jump_labels_upper3;
+	string get_next_label3 (string description) {
+		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
+		if (description != "") tmp += "_" + description;
+		jump_labels3.push (tmp);
+		return tmp;
+	}
+	string get_current_label3 () {
+		string tmp = jump_labels3.top();
+		jump_labels3.pop();
+		return tmp;
+	}
+	string get_next_label_upper3 (string description) {
+		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
+		if (description != "") tmp += "_" + description;
+		jump_labels_upper3.push (tmp);
+		return tmp;
+	}
+	string get_current_label_upper3 () {
+		string tmp = jump_labels_upper3.top();
+		jump_labels_upper3.pop();
+		return tmp;
+	}
+
 %}
 
 %union {
@@ -465,6 +494,8 @@ small_stmt: expr_stmt
 			exit(58);
 		}
 		$$=$1;
+		string tmp = jump_labels.top();
+		gen_ujump (tmp);
 	} 
 	| "continue"{
 		/*check if current scope is loop or not by top->isLoop*/
@@ -473,6 +504,8 @@ small_stmt: expr_stmt
 			exit(59);
 		}
 		$$=$1;
+		string tmp = jump_labels_upper.top();
+		gen_ujump (tmp);
 	}
 	| {gbl_decl=1;} global_stmt[gbl] {gbl_decl=0;$$=$gbl;}
 ;
@@ -678,6 +711,11 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				dprintf (stderr_copy, "Error at line %d: assignment must be to an identifier or class attribute\n",
 						(int) $id->lineno);
 				exit (33);
+			}
+			if ($id->typestring == "") {
+				dprintf (stderr_copy, "Error at line %d: identifier %s has not been declared in this scope\n",
+						(int) $id->lineno, $id->production.c_str());
+				exit(95);
 			}
 			if (!check_types($id->typestring, $value->typestring)) {
 				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $value->production.c_str());
@@ -1628,18 +1666,21 @@ primary: atom {
 			$$->addr = $1->typestring +"." + $3->production;
 			 // the only case in which current_scope is truly global
 		}
-		else if(current_scope->symbols.find(($3->production))==current_scope->symbols.end()){
+		else if(current_scope->symbols.find(($3->production))==current_scope->symbols.end() && !$$->isdecl){
 			dprintf (stderr_copy, "Error at line %d: %s is not a member of class %s\n", (int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
-			exit(23)
+			exit(23);
 		}
 		else if (!$$->isdecl && $$->typestring == "") {
 			dprintf (stderr_copy, "Error at line %d: %s is not a member of class %s\n", (int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
-			exit(23)
+			exit(23);
 		}
-		else{	gen($$,$1,$3,ATTR);}
+		else if ($$->typestring != "") {
+			gen($$,$1,$3,ATTR);
+		}
 
 
 		$$->lineno = $1->lineno;
+		$$->production = $3->production;
 		/*
 			$ new temp 
 			$$->addr = newtemp();
@@ -1727,9 +1768,10 @@ primary: atom {
 // // 					fprintf(tac,"param %d\n",siz);
 // 					//TO DO 
 // 					fprintf(tac,"stackpointer -%d\n", top->table_size);
+					string temp = newtemp();
 					fprintf(tac,"stackpointer -%d\n", 8);
 					fprintf(tac,"call allocmem 1\n");
-					fprintf(tac,"stackpointer +%d\n", top->table_size+8);
+					fprintf(tac,"stackpointer +%d\n", (int) top->table_size+8);
 					fprintf(tac,"%s = popparam\n",temp.c_str());
 					fprintf(tac,"param %s\n",temp.c_str());
 					//
@@ -1840,11 +1882,11 @@ primary: atom {
 					continue;
 				}
 				if (function_call_args[iter]->typestring != current_scope->arg_types[iter])
-					dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be %s, received incompatible type %s\n",
-							(int) $1->lineno, iter, current_scope->arg_types[iter].c_str(), function_call_args[iter]->typestring.c_str());
+					dprintf (stderr_copy, "TypeError at line %d: expected argument %d to be %s, received incompatible type %s\n",
+							(int) $1->lineno, iter+1, current_scope->arg_types[iter].c_str(), function_call_args[iter]->typestring.c_str());
 				else //one is array, other is not
-					dprintf (stderr_copy, "TypeError at line %d: expected %dth argument to be of type %s, received incompatible type %s\n",
-							(int) $1->lineno, iter,
+					dprintf (stderr_copy, "TypeError at line %d: expected argument %d to be of type %s, received incompatible type %s\n",
+							(int) $1->lineno, iter+1,
 							(current_scope->arg_types[iter] +(current_scope->arg_dimensions[iter] ? "[]" : "")).c_str(),
 							(current_scope->arg_types[iter] +(function_call_args_dim[iter]? "[]" : "")).c_str()
 							);
@@ -2041,16 +2083,43 @@ STRING_plus: STRING {
 		concatenating_string_plus = concatenating_string_plus + $2->production;
 		 $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
-if_stmt: "if" test new_jump_to_end insert_jump_if_false ":" suite[ifsuite] insert_end_jump_label jump_target_false_lower upper_jump_target_reached { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then");
+if_stmt: "if" test new_jump_to_end3 insert_jump_if_false3 ":" suite[ifsuite] insert_end_jump_label3 jump_target_false_lower3 upper_jump_target_reached3 { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then");
 		 }
-	|  "if" test new_jump_to_end insert_jump_if_false ":" suite[ifsuite] insert_end_jump_label jump_target_false_lower elif_block[elifsuite] {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then"); $$->addchild($elifsuite, "Else"); }
+	|  "if" test new_jump_to_end3 insert_jump_if_false3 ":" suite[ifsuite] insert_end_jump_label3 jump_target_false_lower3 elif_block[elifsuite] {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then"); $$->addchild($elifsuite, "Else"); }
 
 elif_block:
-	"else" ":" suite upper_jump_target_reached 	{ $$ = $3;}
-	| "elif" test ":" insert_jump_if_false suite[elifsuite]	jump_target_false_lower upper_jump_target_reached 
+	"else" ":" suite upper_jump_target_reached3 	{ $$ = $3;}
+	| "elif" test ":" insert_jump_if_false3 suite[elifsuite]	jump_target_false_lower3 upper_jump_target_reached3 
 	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($elifsuite, "Then"); } /* ok????? fine */ 
-	| "elif" test ":" insert_jump_if_false suite[elifsuite] insert_end_jump_label jump_target_false_lower elif_block[nextblock]	
+	| "elif" test ":" insert_jump_if_false3 suite[elifsuite] insert_end_jump_label3 jump_target_false_lower3 elif_block[nextblock]	
 	{$$ = new Node ("If"); $$->addchild ($2, "Condition"); $$->addchild($elifsuite, "Then"); $$->addchild ($nextblock, "Else"); }
+
+new_jump_to_end3: {
+			// jump to the end of the if-elif-else sequence
+			// insert at the end of every suite, to jump to the end.
+			get_next_label_upper3("end_of_control_flow");
+	}
+
+insert_jump_if_false3: {
+		fprintf (tac, "\tCJUMP_IF_FALSE (%s): %s\n",  dev_helper($<node>-1).c_str(), get_next_label3("").c_str());
+	}
+
+
+insert_end_jump_label3: {
+		fprintf (tac, "\tUJUMP\t%s\n", jump_labels_upper3.top().c_str());
+	}
+
+jump_target_false_lower3: {
+		fprintf (tac, "\nLABEL: %s\n", get_current_label3().c_str());
+	}
+
+upper_jump_target_reached3 : {
+		fprintf (tac, "\nLABEL:\t%s\n", get_current_label_upper3().c_str());
+	}
+
+
+
+
 
 while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false suite[action] loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
 
@@ -2067,18 +2136,6 @@ insert_jump_if_false : {
 	}
 jump_target_false_lower : {
 		fprintf (tac, "\nLABEL: %s\n", get_current_label().c_str());
-	}
-
-new_jump_to_end : {
-			// jump to the end of the if-elif-else sequence
-			// insert at the end of every suite, to jump to the end.
-			get_next_label_upper("end_of_control_flow");
-	}
-insert_end_jump_label : {
-		fprintf (tac, "\tUJUMP\t%s\n", jump_labels_upper.top().c_str());
-	}
-upper_jump_target_reached : {
-		fprintf (tac, "\nLABEL:\t%s\n", get_current_label_upper().c_str());
 	}
 
 arglist: test[obj]

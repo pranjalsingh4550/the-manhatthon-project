@@ -585,7 +585,18 @@ class SymbolTable {
 		}
 
 		void print_st (FILE* st) {
-			// print functions first, then classes, then identifiers
+			fprintf (st, "\n------------ symbol table of scope %s ---------------\n", this->name.c_str());
+			auto itrs = this->symbols.begin();
+			for (; itrs != this->symbols.end(); itrs++) {
+					fprintf (st, "%s\t%s%s\t%s\t%d\t%s\n", itrs->first.c_str(), 
+							itrs->second->typestring.c_str(),
+							itrs->second->dimension ? "[]" : "",
+							"Identifier",
+							itrs->second->lineno,
+							this->isGlobal? "GLOBAL NAMESPACE" : 
+								((this->isClass? "CLASS ": "FUNCTION ") + this->name).c_str()
+					);
+			}
 			auto itrc = this->children.begin();
 			for (; itrc!= this->children.end(); itrc++) {
 				if (itrc->second->parent == NULL)
@@ -603,17 +614,6 @@ class SymbolTable {
 							itrc->second->isClass? "Class\t" : "Class Method",
 							itrc->second->lineno,
 							this->name.c_str()
-					);
-			}
-			auto itrs = this->symbols.begin();
-			for (; itrs != this->symbols.end(); itrs++) {
-					fprintf (st, "%s\t%s%s\t%s\t%d\t%s\n", itrs->first.c_str(), 
-							itrs->second->typestring.c_str(),
-							itrs->second->dimension ? "[]" : "",
-							"Identifier",
-							itrs->second->lineno,
-							this->isGlobal? "GLOBAL NAMESPACE" : 
-								((this->isClass? "CLASS ": "FUNCTION ") + this->name).c_str()
 					);
 			}
 			itrc = this->children.begin();

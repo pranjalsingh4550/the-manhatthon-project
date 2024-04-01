@@ -193,6 +193,10 @@
 				string offset = newtemp();
 				// t_1 = symtable($1->typestring, $3->production)
 				s+= offset + " = symtable(" + leftop->typestring + ", " + rightop->production + ")\n\t"; 
+#if TEMPDEBUG
+				printf("%s\n", rightop->production.c_str());
+#endif
+				printf("%p\n", top->get(rightop->production));
 				// t_2 = $1->addr + offset
 				string ult = newtemp();
 				s+=ult +" = (" + left + " + " + offset + ")\n";
@@ -345,7 +349,7 @@
 
 
 %%
-program : {printf("now\n");}input | program INDENT
+program : input | program INDENT
 
 input: start 
 	| NEWLINE input
@@ -600,7 +604,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						(int) $id->lineno);
 				exit (33);
 			}
-			if (!check_typestring($value, $value->production)) {
+			if (!check_typestring($id, $value->typestring)) {
 				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $value->production.c_str());
 				exit(1);
 			}
@@ -1738,8 +1742,9 @@ atom: NAME
 		$$->production = concatenating_string_plus;
 		concatenating_string_plus = "\0";
 		$$->typestring = "str";
+		$$->addr = newtemp();
 
-		static_section += "\t<string literal> l_" + to_string ($$->nodeid) + "\t: \"" + $$->production + "\"\n" ;
+		fprintf (tac, "\t<string literal> %s = ptr(\"%s\")\n", top->getaddr($$).c_str(), $$->production.c_str()) ;
 	}
 	|"(" test ")"{$$=$2;}
     | "True"

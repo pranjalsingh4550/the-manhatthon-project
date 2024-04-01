@@ -3,4 +3,3 @@ def tain (g:int, y:int, e:str)->float:
 
 tain (5, True, "1b")
 
-

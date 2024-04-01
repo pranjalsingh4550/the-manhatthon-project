@@ -601,7 +601,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
-			if (!check_types($value->typestring, $type->production)) {
+			if (!check_types($value->typestring, $type->typestring)) {
 				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $type->production.c_str());
 				exit(1);
 			}
@@ -2101,7 +2101,7 @@ elif_block:
 new_jump_to_end3: {
 			// jump to the end of the if-elif-else sequence
 			// insert at the end of every suite, to jump to the end.
-			get_next_label_upper3("end_of_control_flow");
+			get_next_label_upper3("");
 	}
 
 insert_jump_if_false3: {
@@ -2114,11 +2114,11 @@ insert_end_jump_label3: {
 	}
 
 jump_target_false_lower3: {
-		fprintf (tac, "\nLABEL: %s\n", get_current_label3().c_str());
+		fprintf (tac, "\n:%s\n", get_current_label3().c_str());
 	}
 
 upper_jump_target_reached3 : {
-		fprintf (tac, "\nLABEL:\t%s\n", get_current_label_upper3().c_str());
+		fprintf (tac, "\n:%s\n", get_current_label_upper3().c_str());
 	}
 
 
@@ -2128,7 +2128,7 @@ upper_jump_target_reached3 : {
 while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false suite[action] loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
 
 begin_loop_condition : {
-		fprintf (tac, "\nLABEL: %s\n", get_next_label_upper("loop").c_str());
+		fprintf (tac, "\n:%s\n", get_next_label_upper("loop").c_str());
 	}
 
 loop_end_jump_back : {
@@ -2139,7 +2139,7 @@ insert_jump_if_false : {
 				fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper($<node>-1).c_str(), get_next_label("").c_str());
 	}
 jump_target_false_lower : {
-		fprintf (tac, "\nLABEL: %s\n", get_current_label().c_str());
+		fprintf (tac, "\n:%s\n", get_current_label().c_str());
 	}
 
 arglist: test[obj]
@@ -2315,6 +2315,7 @@ functionstart:  {
 					top,
 					Classsuite?MEMBER_FN_ST:FUNCTION_ST,
 					$<node>0->production);
+		top->label=top->name;
 		if(currently_defining_class){
 			if(inside_init){
 				top->label=currently_defining_class->name+".ctor";
@@ -2436,7 +2437,7 @@ set_num_range_args_2 : {
 	}
 
 handle_loop_condition : {
-		fprintf (tac, "LABEL: %s\n", get_next_label_upper("for_loop").c_str());
+		fprintf (tac, "%s\n", get_next_label_upper("for_loop").c_str());
 		fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
 		Node* test = $<node>-1;
 		int begin = 0, end = 0;
@@ -2476,7 +2477,7 @@ int main(int argc, char** argv){
 	int pread, pwr;
 	int verbosity = 0; // 1 for shift, 2 for reduce, 1|2 for both
 	char *outputfile = (char *) malloc (128);
-	sprintf (outputfile, "ast.dot");
+	sprintf (outputfile, "tac.txt");
 
 	char verbositym[] = "\t-verbose shift\tList all shift operations\n\t-verbose reduce\tList all reduce operations\n\t-verbose sr\tList shift and reduce operations\n\t-verbose all\tCopy the entire debugger log\n\t-verbose srla\tPrint shift, reduce and lookahead logs\n";
 
@@ -2502,7 +2503,7 @@ int main(int argc, char** argv){
 			dup (input_fd);
 			// cout << "input file: " << argv[i+1] << endl;
 		}
-		else if (strcmp(argv[i], "-output") == 0) { // outpur file name, default ast.dot
+		else if (strcmp(argv[i], "-output") == 0) { // outpur file name, default tac.txt
 			if (argv[i+1] == NULL) {
 				fprintf (stderr, "Missing argument: -output must be followed by output file name\n");
 				return 1;
@@ -2537,7 +2538,7 @@ int main(int argc, char** argv){
 				return 1;
 		}
 		else if (strcmp (argv[i], "-help") == 0) {
-			printf ("This is a basic python compiler made by Dev*\nCommand-line options:\n\t-input:\t\tInput file (default - standart input console. Use Ctrl-D for EOF)\n\t-output:\tOutput file (default: ast.dot; overwritten if exists)\n\t-verbose:\tPrint debugging information to stderr\n\t-help:\t\tPrint this summary\nVerbosity flags: (no default value)\n%s", verbositym );
+			printf ("This is a basic python compiler made by Dev*\nCommand-line options:\n\t-input:\t\tInput file (default - standart input console. Use Ctrl-D for EOF)\n\t-output:\tOutput file (default: tac.txt; overwritten if exists)\n\t-verbose:\tPrint debugging information to stderr\n\t-help:\t\tPrint this summary\nVerbosity flags: (no default value)\n%s", verbositym );
 			return 0;
 		}
 	}
@@ -2552,7 +2553,7 @@ int main(int argc, char** argv){
 	
 	tac = fopen (outputfile, "w+");
 	graph = NULL;
-	fprintf (graph, "strict digraph ast {\n");
+	if (graph) fprintf (graph, "strict digraph ast {\n");
 	yyparse();
 	if (graph) {
 		fprintf (graph, "}\n");

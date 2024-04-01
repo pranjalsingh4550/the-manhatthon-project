@@ -1,0 +1,25 @@
+:fib
+	beginfunc
+	t0 = popparam
+	t1	= t0 == 0
+	CJUMP_IF_FALSE (t1): label_1_fib
+	ret 1
+	UJUMP	label_0_fib
+
+:label_1_fib
+
+:label_0_fib
+	t1	= t0 == 1
+	CJUMP_IF_FALSE (t1): label_3_fib
+	ret 1
+	UJUMP	label_2_fib
+
+:label_3_fib
+
+:label_2_fib
+	t1	= t0 - 1
+	t2	= t0 - 2
+	t3	= call fib, 1 + call fib, 1
+	ret t3
+	endfunc
+

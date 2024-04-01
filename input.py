@@ -1,9 +1,9 @@
 
 class A:
-    def __init__(self,val:int):
-        self.val=val
+    def __init__(self, val:int):
+        self.val:int=val
     def fun(self)->int:
-        return self.val+5
+        return 1
 
-a:A = A(2)
+a:A = A(3)
 b:int =a.fun()

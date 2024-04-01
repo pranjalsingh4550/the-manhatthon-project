@@ -159,7 +159,7 @@ class Node {
 		bool isConstant = false;
 		bool isLeaf = false;
 		bool isdecl = false;	// true if the node can be the body of a production
-		bool islval = true;		// false for fn()
+		bool islval = false;
 		
 		Node (int tokenIn) {
 			//none, but let the lexer pass the token value so that I don't have to include parser.tab.h here

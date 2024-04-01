@@ -199,8 +199,10 @@
 				// t_2 = $1->addr + offset
 #endif
 				string ult = newtemp();
-				s+=ult +" = (" + left + " + " + offset + ")\n";
-				result->addr = "*"+ult;
+				s+=ult +" = (" + left + " + " + offset + ")\n\t";
+				string nc = newtemp();
+				s+=nc + " = *" + ult + "\n";
+				result->addr = nc;
 				// // cout<<"nice "<<addr<<endl;
 				fprintf(tac, "%s", s.c_str());
 				return;
@@ -215,6 +217,7 @@
 				s += offset + " =  "  +right + "*"+ to_string(getwidth(leftop)) + "\n\t";
 				string ult = newtemp();
 				s+=ult +" = (" + left + " + " + offset + ")\n";
+				string nc = newtemp();
 				result->addr = "*"+ult;
 				fprintf(tac, "%s", s.c_str()); 
 				return;
@@ -686,7 +689,7 @@ return_stmt: "return" test {
 			}
 			$1->addchild($2,"Data"); $$=$1;	
 
-			fprintf(tac, "\treturn %s\n", top->getaddr($2).c_str());
+			fprintf(tac, "\tret %s\n", top->getaddr($2).c_str());
 	}
 	| "return" {
 			if(top->return_type != "None"){
@@ -1479,9 +1482,12 @@ primary: atom {
 
 		string this_ptr = top->thisname;
 		// CHECKING PRIMARY
+		int genattr=0;
+
 		if ($1->isLeaf) { // set typestring
-			if (top->get ($1))
+			if (top->get ($1)){
 				$1->typestring = top->gettype($1->production);
+			}
 			else if ($1->production == top->thisname) {
 				if (!Classsuite || !currently_defining_class) {
 					dprintf (stderr_copy, "Error at line %d: self pointer cannot be used outside class scope\n", (int)$1->lineno);
@@ -1511,12 +1517,13 @@ primary: atom {
 		if (current_scope->find_member_fn ($3->production)) {
 			$$->typestring = "def"; $$->islval = false;
 			current_scope = current_scope->find_member_fn($3->production);
-			$$->addr = $1->typestring +"_" + $3->production;
+			$$->addr = $1->typestring +"." + $3->production;
 			 // the only case in which current_scope is truly global
 		}
 		else{
 			$$->typestring = current_scope->gettype($3->production);
-			gen($$,$1,$3,ATTR);
+			genattr = 1;
+			// gen($$,$1,$3,ATTR);
 		}
 		$$->production = $3->production;
 		if (!$$->isdecl && $$->typestring == "") {
@@ -1526,6 +1533,10 @@ primary: atom {
 		}
 		$$->lineno = $1->lineno;
 
+
+		if(genattr){
+			gen($$,$1,$3,ATTR);
+		}
 		/*
 			$ new temp 
 			$$->addr = newtemp();
@@ -1598,13 +1609,13 @@ primary: atom {
 				for(auto it:temp){
 					fprintf(tac, "\tparam %s\n", it->addr.c_str());
 				}
-				$$->addr = "call "+ $1->addr + ", "+ to_string(current_scope->arg_types.size());
 #if TEMPDEBUG
 				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 #endif
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
 				current_scope = globalSymTable->ctor.find ($1->production)->second;
+				$1->addr+=".ctor";
 #if TEMPDEBUG
 				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 #endif
@@ -1660,8 +1671,11 @@ primary: atom {
 						);
 			exit(80);
 		}
+		$$->addr= "call "+ $1->addr + ", " + to_string(function_call_args.size());
 		function_call_args.clear();
 		function_call_args_dim.clear();
+
+
 	}
 	| primary "(" ")" {
 		/*
@@ -1680,7 +1694,6 @@ primary: atom {
 			if (top->find_member_fn ($1->production)) {
 				// $1->typestring = "def";
 				$$->typestring = top->find_member_fn($1->production)->return_type;
-				$$->addr = "call "+ $1->addr;
 				current_scope = top->find_member_fn($1->production);
 
 #if TEMPDEBUG
@@ -1728,6 +1741,7 @@ primary: atom {
 					(int)$1->lineno,(int) current_scope->arg_types.size(), 0);
 			exit (60);
 		}
+		$$->addr= "call "+ $1->addr;
 		function_call_args.clear();
 		function_call_args_dim.clear();
 		current_scope = NULL;
@@ -1932,6 +1946,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$->addchild($last, "Body");
 		function_call_args_dim.clear();
 		function_call_args.clear();
+		fprintf(tac, "\tendfunc\n\n");
 	}
 	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] {
 		top->return_type = $returntype->production;
@@ -1943,6 +1958,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	$$->addchild($last, "Body");
 			function_call_args_dim.clear();
 			function_call_args.clear();
+			fprintf(tac, "\tendfunc\n\n");
 			
 	}
 	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" {
@@ -1955,6 +1971,9 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	$$->addchild($id, "Name");
 	       	$$->addchild($param,"Parameters");
 	       	$$->addchild($last, "Body");
+			function_call_args_dim.clear();
+			function_call_args.clear();
+			fprintf(tac, "\tendfunc\n\n");
 	}
 	| "def" NAME[id] functionstart "(" ")" ":" {
 			top->return_type = "None";
@@ -1966,6 +1985,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		$$->addchild($last, "Body");
 		function_call_args_dim.clear();
 		function_call_args.clear();
+		fprintf(tac, "\tendfunc\n\n");
 	}
 
 functionstart:  {
@@ -1986,15 +2006,24 @@ functionstart:  {
 			top = new SymbolTable (globalSymTable, CTOR_ST, currently_defining_class->name);
 		else
 			top = new SymbolTable (
-					currently_defining_class? currently_defining_class : top,
+					top,
 					Classsuite?MEMBER_FN_ST:FUNCTION_ST,
 					$<node>0->production);
+		if(currently_defining_class){
+			if(inside_init){
+				top->label=currently_defining_class->name+".ctor";
+			}
+			else{
+				top->label=currently_defining_class->name+"."+top->name;
+			}
+			currently_defining_class->children[$<node>0->production] = top;
+		}
 		top->lineno = $<node>0->lineno;
 		function_call_args.clear();
 		function_call_args_dim.clear();
 
-		fprintf(tac, ":%s\n", $<node>0->addr.c_str());
-
+		fprintf(tac, ":%s\n", top->label.c_str());
+		fprintf(tac, "\tbeginfunc\n");
 	}
 ;
 classdef: "class" NAME classstart ":"{

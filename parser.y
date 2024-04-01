@@ -158,6 +158,9 @@
 	int getwidth(Node*n){
 		return find_class(n->typestring)->table_size;
 	}
+	int getwidth(string typestring) {
+		return find_class(typestring)->table_size;
+	}
 	void gen_ujump (string target) {
 		fprintf (tac, "\tUJUMP: %s\n", target.c_str());
 	}
@@ -1749,33 +1752,19 @@ primary: atom {
 			if (top->find_member_fn ($1->production)) {
 				current_scope = top->find_member_fn($1->production);
 				$$->typestring = current_scope->return_type;
-// <<<<<<< HEAD
-// 				// // reversing push params as per format
-// // 				auto temp = function_call_args;
-// // 				reverse(temp.begin(), temp.end());
-// // 				// fill 3ac for function call
-// // 				for(auto it:temp){
-// // 					fprintf(tac, "\tparam %s\n", it->addr.c_str());
-// // 				}
-// =======
-// 				// reversing push params as per format
-// 				auto temp = function_call_args;
-// 				reverse(temp.begin(), temp.end());
-// 				for(auto it:temp){
-// 					fprintf(tac, "\tparam %s\n", it->addr.c_str());
-// 				}
-// 				if(current_scope->fn_inside_class){
 // 					string temp =newtemp();
 // // 					int siz = find_class(current_scope->return_type)->size; 
 // // 					fprintf(tac,"param %d\n",siz);
 // 					//TO DO 
 // 					fprintf(tac,"stackpointer -%d\n", top->table_size);
-					string temp = newtemp();
-					fprintf(tac,"\tstackpointer -%d\n", 8);
-					fprintf(tac,"\tcall allocmem 1\n");
-					fprintf(tac,"\tstackpointer +%d\n", (int) top->table_size+8);
-					fprintf(tac,"\t%s = popparam\n",temp.c_str());
-					fprintf(tac,"\tparam %s\n",temp.c_str());
+
+					//below: moved to end
+// 					fprintf(tac,"stackpointer -%d\n", 8);
+// 					fprintf(tac,"call allocmem 1\n");
+// 					fprintf(tac,"stackpointer +%d\n", (int) top->table_size+8);
+// 					fprintf(tac,"%s = popparam\n",temp.c_str());
+// 					fprintf(tac,"param %s\n",temp.c_str());
+
 					
 					// fprintf(tac,"call %s, %s\n", );	
 					// fprintf(tac,"stackpointer -%d\n",)
@@ -1813,6 +1802,7 @@ primary: atom {
 
 		// check function_call_args
 		int iter;
+		
 		if ($1->production == "range" && $1->isLeaf) {
 			if ((function_call_args.size() > 2 || function_call_args.size() < 1)) {
 				dprintf (stderr_copy, "Error at line %d: range() expects one or two arguments, received %d\n",
@@ -1937,30 +1927,91 @@ primary: atom {
 				exit(74);
 			}
 		}
-		else {
-			for (iter = 0; iter< function_call_args.size(); iter ++) {
-				//type cast
-				if ( function_call_args[iter]->typestring == "int"
-			&& current_scope->arg_types[len - iter - 1] == "bool") {
-					
-				}
-				if ( function_call_args[iter]->typestring == "int"
-			&& current_scope->arg_types[len - iter - 1] == "float") {
-					
-				}
-				if ( function_call_args[iter]->typestring == "bool"
-			&& current_scope->arg_types[len - iter - 1] == "int") {
-					
-				}
-				if ( function_call_args[iter]->typestring == "float"
-			&& current_scope->arg_types[len - iter - 1] == "int") {
-					
-				}
-				//push onto stack
+		int size = 0;
+		for (iter = 0; iter < len; iter ++) {
+			//typecast
+			bool cast = false;
+			string temp = "";
+			if ( function_call_args[iter]->typestring == "int"
+		&& current_scope->arg_types[len - iter - 1] == "bool") {
+				cast = true;
+				temp = newtemp();
+				fprintf(tac, "%s = INT_TO_BOOL(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
+			}
+			if ( function_call_args[iter]->typestring == "int"
+		&& current_scope->arg_types[len - iter - 1] == "float") {
+				cast = true;
+				temp = newtemp();
+				fprintf(tac, "%s = INT_TO_FLOAT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
+			}
+			if ( function_call_args[iter]->typestring == "bool"
+		&& current_scope->arg_types[len - iter - 1] == "int") {
+				cast = true;
+				temp = newtemp();
+				fprintf(tac, "%s = BOOL_TO_INT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
+			}
+			if ( function_call_args[iter]->typestring == "float"
+		&& current_scope->arg_types[len - iter - 1] == "int") {
+				cast = true;
+				temp = newtemp();
+				fprintf(tac, "%s = FLOAT_TO_INT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
+			}
+			//push onto stack
+			if (cast) {
+				fprintf(tac, "param %s\n", temp.c_str());
+			} else {
+				fprintf(tac, "param %s\n", function_call_args[iter]->addr.c_str());
+			}
+			string typestring = current_scope->arg_types[len-iter-1];
+			if (typestring == "bool" || typestring == "float" || typestring == "int") {
+				size += 8;
+			} else if (typestring == "complex" || typestring == "str") {
+				size += 16;
+			} else {
+				size += getwidth(typestring);
 			}
 		}
 		
-		$$->addr= "call "+ $1->addr + ", " + to_string(function_call_args.size());
+		
+		//for member functions
+		if (!$1->isLeaf) {
+			string temp = newtemp();
+			fprintf(tac,"stackpointer -%d\n", 8);
+			fprintf(tac,"call allocmem 1\n");
+			fprintf(tac,"stackpointer +%d\n", (int) top->table_size+8);
+			fprintf(tac,"%s = popparam\n",temp.c_str());
+			fprintf(tac,"param %s\n",temp.c_str());	
+			size += 8;
+		}
+		//move stackptr
+		fprintf(tac, "stackpointer +%d\n", size);
+		//function call
+		//if the function has no return type, don't allocate a temp for it and leave addr blank
+		//addr blank because should have no ops after this anyway
+		//if it has a return type, allocate a temp for it and assign to this node
+		//note: len has number of args (see above)
+		if (!current_scope) {
+			//built-in: len, print, range
+			if ($1->production == "len") {
+				//returns something
+				$$->addr = newtemp();
+				fprintf(tac, "%s = call len 1\n", $$->addr.c_str());
+			} else if ($1->production == "range") {
+				//return something
+				//TO DO
+			} else if ($1->production == "print") {
+				//returns nothing
+				fprintf(tac, "call print 1\n");
+			}
+		} else {
+			//not a built-in
+			if (current_scope->return_type != "None") {
+				$$->addr = newtemp();
+				fprintf(tac, "%s = call %s %d\n", $$->addr.c_str(), $1->production.c_str(), len);
+			} else {
+				fprintf(tac, "call %s %d\n", $1->production.c_str(), len);
+			}
+		}
 		function_call_args.clear();
 		function_call_args_dim.clear();
 

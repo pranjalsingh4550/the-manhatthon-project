@@ -565,11 +565,12 @@ class SymbolTable {
 		}
 
 		void print_st (FILE* st) {
-			fprintf (st, "\n#----------- symbol table of scope %s: size %d Bytes ---------------\n", this->name.c_str(), (int)this->table_size);
+			fprintf (st, "\n");
 			auto itrs = this->symbols.begin();
 			for (; itrs != this->symbols.end(); itrs++) {
 				// symbols
-					fprintf (st, "%s\t%s%s\t%s\t%d\t%s\t%d\n", itrs->first.c_str(), 
+				if (this->isGlobal) break;
+					fprintf (st, "%s,%s%s,%s,%d,%s,%d\n", itrs->first.c_str(), 
 							itrs->second->typestring.c_str(),
 							itrs->second->dimension ? "[]" : "",
 							"Identifier",
@@ -585,17 +586,17 @@ class SymbolTable {
 					continue;
 				if (this->isGlobal)
 					// classes and global functions names
-					fprintf (st, "%s\t%s\t%s\t%d\t%s\n", itrc->first.c_str(), 
+					fprintf (st, "%s,%s,%s,%d,%s\n", itrc->first.c_str(), 
 							itrc->second->isClass? "NA" : itrc->second->return_type.c_str(),
-							itrc->second->isClass? "Class\t" : "Function",
+							itrc->second->isClass? "Class," : "Function",
 							itrc->second->lineno,
 							"GLOBAL NAMESPACE"
 					);
 				else if (this->isClass) 
 					// class 
-					fprintf (st, "%s\t%s\t%s\t%d\tCLASS %s\n", itrc->first.c_str(), 
+					fprintf (st, "%s,%s,%s,%d,CLASS %s\n", itrc->first.c_str(), 
 							itrc->second->isClass? "NA" : itrc->second->return_type.c_str(),
-							itrc->second->isClass? "Class\t" : "Class Method",
+							itrc->second->isClass? "Class," : "Class Method",
 							itrc->second->lineno,
 							this->name.c_str()
 					);

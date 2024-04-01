@@ -51,7 +51,7 @@
 	vector<Node*> function_params;
 
 #define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-#define TEMPDEBUG 1
+#define TEMPDEBUG 0
 	bool is_not_name (Node*);
 	string static_section;
 	string concatenating_string_plus;
@@ -2546,7 +2546,8 @@ int main(int argc, char** argv){
 	static_section = "Static Section:\n" ;
 	concatenating_string_plus = "\0";
 	
-	graph = fopen (outputfile, "w+");
+	tac = fopen (outputfile, "w+");
+	graph = NULL;
 	fprintf (graph, "strict digraph ast {\n");
 	yyparse();
 	if (graph) {

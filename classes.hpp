@@ -13,6 +13,7 @@ extern int yylineno;
 static FILE* tac = NULL;
 class SymbolTable;
 extern SymbolTable* top;
+extern SymbolTable* globalSymTable;
 
 enum ir_operation {
 	UJUMP,
@@ -394,6 +395,14 @@ class SymbolTable {
 			s->isClass = 0;
 			s->name = node->production;
 			this->symbols[node->production] = s;
+			int width;
+			if (globalSymTable->children.find (type->production) != globalSymTable->children.end()
+					&& globalSymTable->children.find(type->production)->second->isClass)
+				width = globalSymTable->children.find(type->production)->second->table_size;
+			else
+				printf ("Should not be here; someone forgot to check args to put()\n");
+			s->offset = table_size;
+			this->table_size += width;
 			this->size = this->size + 1;
 			s->dimension = type->dimension;
 			s->node= node;
@@ -414,6 +423,14 @@ class SymbolTable {
 			s->name = node->production;
 			this->symbols[node->production] = s;
 			this->size = this->size + 1;
+			int width;
+			if (globalSymTable->children.find (type) != globalSymTable->children.end()
+					&& globalSymTable->children.find(type)->second->isClass)
+				width = globalSymTable->children.find(type)->second->table_size;
+			else
+				printf ("Should not be here; someone forgot to check args to put()\n");
+			s->offset = table_size;
+			this->table_size += width;
 			s->dimension = 0;
 			s->node= node;
 			s->node->addr+="_"+name;
@@ -517,7 +534,19 @@ class SymbolTable {
 		}
 
 		void print_st (FILE* st) {
-			// print functions first, then classes, then identifiers
+			fprintf (st, "\n------------ symbol table of scope %s: size %d Bytes ---------------\n", this->name.c_str(), this->table_size);
+			auto itrs = this->symbols.begin();
+			for (; itrs != this->symbols.end(); itrs++) {
+					fprintf (st, "%s\t%s%s\t%s\t%d\t%s\t%d\n", itrs->first.c_str(), 
+							itrs->second->typestring.c_str(),
+							itrs->second->dimension ? "[]" : "",
+							"Identifier",
+							itrs->second->lineno,
+							this->isGlobal? "GLOBAL NAMESPACE" : 
+								((this->isClass? "CLASS ": "FUNCTION ") + this->name).c_str(),
+							itrs->second->offset
+							);
+			}
 			auto itrc = this->children.begin();
 			for (; itrc!= this->children.end(); itrc++) {
 				if (itrc->second->parent == NULL)
@@ -535,17 +564,6 @@ class SymbolTable {
 							itrc->second->isClass? "Class\t" : "Class Method",
 							itrc->second->lineno,
 							this->name.c_str()
-					);
-			}
-			auto itrs = this->symbols.begin();
-			for (; itrs != this->symbols.end(); itrs++) {
-					fprintf (st, "%s\t%s%s\t%s\t%d\t%s\n", itrs->first.c_str(), 
-							itrs->second->typestring.c_str(),
-							itrs->second->dimension ? "[]" : "",
-							"Identifier",
-							itrs->second->lineno,
-							this->isGlobal? "GLOBAL NAMESPACE" : 
-								((this->isClass? "CLASS ": "FUNCTION ") + this->name).c_str()
 					);
 			}
 			itrc = this->children.begin();

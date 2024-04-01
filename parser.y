@@ -198,7 +198,7 @@
 				s+=ult +" = (" + left + " + " + offset + ")\n";
 				result->addr = "*"+ult;
 				// // cout<<"nice "<<addr<<endl;
-				fprintf(tac, "\t%s", s.c_str());
+				fprintf(tac, "%s", s.c_str());
 				return;
 			}
 			case SW:	{
@@ -353,7 +353,7 @@ input: start
 start :{$$=new Node("Empty file");} | stmts[first] {$$= new Node("Start"); $$->addchild($first);}
 
 stmts : 
-	stmt
+	stmt {$$=$1; resettemp();}
 	| stmts[first] {resettemp();} stmt[last] { resettemp();$$ = new Node ("Statements"); $$->addchild($first); $$->addchild($last);}
 
 ;
@@ -362,8 +362,8 @@ stmt:  simple_stmt
 	| compound_stmt 
 ;
 
-simple_stmt: small_stmt ";" NEWLINE {$$=$1;resettemp();}
-	| small_stmt NEWLINE {$$=$1;resettemp();}
+simple_stmt: small_stmt ";" NEWLINE 
+	| small_stmt NEWLINE 
 	| small_stmt[first]";" {resettemp();} simple_stmt[last] {$$ = new Node ("Inline Statement"); $$->addchild($first);$$->addchild($last);}
 ;
 
@@ -415,7 +415,7 @@ global_stmt: "global" NAME[id] {
 			dprintf (stderr_copy, "Error at line %d: %s is not declared in global scope\n", (int) $id->lineno, $id->production.c_str());
 			exit(87);
 		}
-		$id->nodeid= globalSymTable->get($id)->node->nodeid;
+		$id->addr= globalSymTable->get($id)->node->addr;
 	} 
 	| global_stmt "," NAME[id]  { $$ = new Node ("Multiple Global"); $$->addchild($1); $$->addchild($3);
 
@@ -487,6 +487,10 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
+			if (!check_typestring($value, $type->production)) {
+				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $type->production.c_str());
+				exit(1);
+			}
 			if ($value->typestring == "") {
 				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n",
 						$id->lineno);
@@ -495,10 +499,6 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				printf ("empty typestring: production is %s token %d\n", $value->production.c_str(), $value->token);
 #endif
 				exit (96);
-			}
-			if (!check_typestring($value, $type->production)) {
-				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $type->production.c_str());
-				exit(1);
 			}
 			/*
 				if($id is not lvalue) error
@@ -664,19 +664,25 @@ augassign: "+=" {$$ = new Node ("+="); $$->op = ADD;}
 		| "**=" {$$ = new Node ("**="); }
 
 return_stmt: "return" test {
-			if($2->isConstant && check_typestring($2, top->return_type)){
-				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
-				exit(57);
+			if($2->isConstant ){
+				if(!check_typestring($2, top->return_type)){
+					dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
+					exit(57);
+				}
 			}
-			if(!top->has($2)){
-				dprintf (stderr_copy, "Error at line %d: return value not declared\n", (int) $2->lineno);
-				exit(57);
-			}
-			if(!check_typestring($2, top->return_type)){
-				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
-				exit(57);
+			else{
+				if($2->isLeaf&&!top->has($2)){
+					dprintf (stderr_copy, "Error at line %d: return value not declared\n", (int) $2->lineno);
+					exit(57);
+				}
+				if(!check_typestring($2, top->return_type)){
+					dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
+					exit(57);
+				}
 			}
 			$1->addchild($2,"Data"); $$=$1;	
+
+			fprintf(tac, "\treturn %s\n", top->getaddr($2).c_str());
 	}
 	| "return" {
 			if(top->return_type != "None"){
@@ -1578,6 +1584,12 @@ primary: atom {
 			if (top->find_member_fn ($1->production)) {
 				current_scope = top->find_member_fn($1->production);
 				$$->typestring = current_scope->return_type;
+				// reversing push params as per format
+				auto temp = function_call_args;
+				reverse(temp.begin(), temp.end());
+				for(auto it:temp){
+					fprintf(tac, "\tparam %s\n", it->addr.c_str());
+				}
 				$$->addr = "call "+ $1->addr + ", "+ to_string(current_scope->arg_types.size());
 #if TEMPDEBUG
 				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
@@ -1607,7 +1619,7 @@ primary: atom {
 #endif
 			}
 		}
-		printf("typestring = %s\n", $$->typestring.c_str());
+		// printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
 		
 		// check function_call_args
@@ -1859,11 +1871,10 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		top->put($1, currently_defining_class->name);
 		$$=$1;
 	}
-	| typedarglist "," {fprintf(tac,"\tparam %s\n",$1->production.c_str());} typedargument[last] { 
+	| typedarglist "," typedargument[last] { 
 		$$ = new Node ("Multiple Terms"); 
 		$$->addchild($1); 
 		$$->addchild($last);
-		fprintf(tac,"\tparam %s\n", $last->production.c_str());
 	}
 
 typedarglist_comma: typedarglist | typedarglist ","
@@ -1889,7 +1900,8 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 		top->arg_types.push_back ($3->production);
 		top->arg_dimensions.push_back ((bool) $3->dimension);
 
-		fprintf(tac,"\tparam %s\n", $1->production.c_str());
+
+
 	}
 
 suite:  simple_stmt[first] 
@@ -1970,6 +1982,9 @@ functionstart:  {
 		top->lineno = $<node>0->lineno;
 		function_call_args.clear();
 		function_call_args_dim.clear();
+
+		fprintf(tac, ":%s\n", $<node>0->addr.c_str());
+
 	}
 ;
 classdef: "class" NAME classstart ":"{
@@ -2070,7 +2085,7 @@ handle_loop_condition : {
 		}
 		cout << "productions " << endl << $<node>0->production << endl << $<node>-1 ->production << endl << $<node>-2->production << endl << endl;
 		cout << "productions " << $<node>0->typestring << endl << $<node>-1 ->typestring << endl << $<node>-2->typestring << endl << endl;
-		printf ("FOR LOOP begin %d end %d\n");
+		// printf ("FOR LOOP begin %d end %d\n");
 
 		Node* begin_iter, *end_iter;
 

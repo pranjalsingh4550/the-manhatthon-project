@@ -44,7 +44,7 @@
 	vector <Node *> function_call_args;
 	vector <bool> function_call_args_dim;
 	stack <string> jump_labels, jump_labels_upper;
-	Node* for_loop_iterator_node;
+	Node* for_loop_iterator_node, *for_loop_range_second_arg, *for_loop_range_first_arg;
 	int label_count;
 #define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
 #define TEMPDEBUG 0
@@ -2163,31 +2163,48 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" NAME[itr] set_itr_ptr "in" begin_loop_condition test[loop_condition] handle_loop_condition insert_jump_if_false ":" suite[block] loop_end_jump_back jump_target_false_lower
-			{ $$ = new Node ("For Block"); $$->addchild($itr,"Iterator"); $$->addchild($loop_condition,"Object"); $$->addchild($block,"Body");
-				for_loop_iterator_node = NULL;
+for_stmt: "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom set_num_range_args_1 ")" handle_loop_condition insert_jump_if_false ":" suite loop_end_jump_back jump_target_false_lower {
+		
+	}
+	|  "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom "," atom set_num_range_args_2 ")" handle_loop_condition insert_jump_if_false ":" suite loop_end_jump_back jump_target_false_lower {
+	}
+
+begin_for_loop : {
+		fprintf (tac, "\nLABEL: %s\n", get_next_label_upper("for_loop").c_str());
+	}
+check_name_is_range : {
+			if ($<node>0->production != "range") {
+				dprintf (stderr_copy, "Error in loop statement at line %d: Expected iterator \"range\" in statement, received %s\n",
+						(int)$<node>0->lineno, $<node>0->production.c_str());
+				exit (64);
 			}
+		}
+set_num_range_args_1 : {
+		for_loop_range_first_arg = $<node>0;
+		cout << "first " << for_loop_range_first_arg->production << endl;
+		for_loop_range_second_arg = NULL;
+		}
+set_num_range_args_2 : {
+		for_loop_range_first_arg = $<node>-1;
+		for_loop_range_second_arg = $<node>0;
+		cout << "first " << for_loop_range_first_arg->production << " second " << for_loop_range_second_arg->production <<  endl;
+	}
+
+
+
 
 set_itr_ptr : {
 		for_loop_iterator_node = $<node>0;
 	}
 handle_loop_condition : {
-		// set $<node>0 to 0 to exit loop, true to repeat. use for_loop_iterator_node
 		Node* test = $<node>-1;
 		int begin = 0, end = 0;
-		if(test->production=="range") {
-			end = $<node>0->intVal;
-		} else if ($<node>-2->production == "range") {
-			begin = test->intVal;
-			end = $<node>0->intVal;
-		}
-		cout << "productions " << endl << $<node>0->production << endl << $<node>-1 ->production << endl << $<node>-2->production << endl << endl;
-		cout << "productions " << $<node>0->typestring << endl << $<node>-1 ->typestring << endl << $<node>-2->typestring << endl << endl;
-		// printf ("FOR LOOP begin %d end %d\n");
+		string loop_condition = newtemp();
+		
 
 		Node* begin_iter, *end_iter;
-
 	}
+
 testlist: arglist
         | arglist ","
 ;

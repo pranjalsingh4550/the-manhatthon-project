@@ -12,12 +12,5 @@ def main():
 	a:A = A(3)
 	a.true= a.fun()
 
-	c:int =4
-	e:int =6
-	d:int =6  + e + c
-
-	b:int = a.true + 4
-
-
 if __name__ == "__main__":
     	main()

@@ -1522,7 +1522,6 @@ primary: atom {
 
 		string this_ptr = top->thisname;
 		// CHECKING PRIMARY
-		int genattr=0;
 
 		if ($1->isLeaf) { // set typestring
 			if (top->get ($1)){
@@ -1560,23 +1559,18 @@ primary: atom {
 			$$->addr = $1->typestring +"." + $3->production;
 			 // the only case in which current_scope is truly global
 		}
-		else{
-			$$->typestring = current_scope->gettype($3->production);
-			genattr = 1;
-			// gen($$,$1,$3,ATTR);
+		else if(current_scope->symbols.find(($3->production))==current_scope->symbols.end()){
+			dprintf (stderr_copy, "Error at line %d: %s is not a member of class %s\n", (int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
+			exit(23)
 		}
-		$$->production = $3->production;
-		if (!$$->isdecl && $$->typestring == "") {
-			dprintf (stderr_copy, "Error at line %d: Class %s does not have attribute %s\n",
-					(int) $3->lineno, $1->typestring.c_str(), $3->production.c_str());
-			exit (84);
+		else if (!$$->isdecl && $$->typestring == "") {
+			dprintf (stderr_copy, "Error at line %d: %s is not a member of class %s\n", (int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
+			exit(23)
 		}
+		else{	gen($$,$1,$3,ATTR);}
+
+
 		$$->lineno = $1->lineno;
-
-
-		if(genattr){
-			gen($$,$1,$3,ATTR);
-		}
 		/*
 			$ new temp 
 			$$->addr = newtemp();
@@ -1651,12 +1645,16 @@ primary: atom {
 				}
 				if(current_scope->fn_inside_class){
 					string temp =newtemp();
-					basecount++;
 					int siz = find_class(current_scope->return_type)->size; 
-					fprintf(tac,"%s = %d\n",temp.c_str(),siz);
-					fprintf(tac,"param %s\n",temp.c_str());
+					fprintf(tac,"param %d\n",siz);
 					//TO DO 
-					fprintf(tac,"stackpointer -%d\n", top->table_size + 16);
+					fprintf(tac,"stackpointer -%d\n", top->table_size);
+					fprintf(tac,"stackpointer -%d\n", 8);
+					fprintf(tac,"call allocmem 1\n");
+					fprintf(tac,"stackpointer +%d\n", top->table_size+8);
+					fprintf(tac,"%s = popparam\n",temp.c_str());
+					fprintf(tac,"param %s\n",temp.c_str());
+					//
 					// fprintf(tac,"call %s, %s\n", );	
 					// fprintf(tac,"stackpointer -%d\n",)
 				}
@@ -1885,22 +1883,20 @@ atom: NAME
 	 	$$->rename(temp);
 		list_init = false;
 		// lists are the ONLY way to increase the refcounts of objects, so we cannot store lists of pointers to possibly stack objects. Copy the damn thing.
-		if (find_class (currently_defining_identifier_typestring) == NULL || find_class(currently_defining_identifier_typestring)->table_size > 8)
-			{ dprintf (stderr_copy, "HAVENT IMPLEMENTED LISTS OF NON-PRIMITIVES\n"); exit (55); }
+		if (find_class (currently_defining_identifier_typestring) == NULL)
+		{	
+			dprintf (stderr_copy, "Error at line %d: list of unknown type\n", yylineno);
+			exit (55);
+		}
 		// Node* $$ = new Node (0, "", "");
 		$$->addr= newtemp();
 		int thissize = find_class (currently_defining_identifier_typestring)->table_size;
 		fprintf (tac, "\t%s = ALLOC_HEAP (%lu)\n", dev_helper($$).c_str(), list_init_inputs.size() * thissize);
 		for(auto itrv:list_init_inputs){
 			// 3ac to copy list to temp
-			if (ISPRIMITIVE (itrv)) {
 				gen ($$, itrv, (Node*) NULL, SW);
 				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
-			}
-			else{
-				gen ($$, itrv, (Node*) NULL, SW);
-				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
-			}
+			
 		}
 		fprintf(tac, "\t%s = %s - %lu\n", dev_helper($$).c_str(), dev_helper($$).c_str(), list_init_inputs.size() * thissize);
 		$$->typestring = currently_defining_identifier_typestring;

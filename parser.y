@@ -1938,32 +1938,32 @@ primary: atom {
 			&& current_scope->arg_types[len - iter - 1] == "bool") {
 					cast = true;
 					temp = newtemp();
-					fprintf(tac, "%s = INT_TO_BOOL(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
+					fprintf(tac, "\t%s = INT_TO_BOOL(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
 				}
 				if ( function_call_args[iter]->typestring == "int"
 			&& current_scope->arg_types[len - iter - 1] == "float") {
 					cast = true;
 					temp = newtemp();
-					fprintf(tac, "%s = INT_TO_FLOAT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
+					fprintf(tac, "\t%s = INT_TO_FLOAT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
 				}
 				if ( function_call_args[iter]->typestring == "bool"
 			&& current_scope->arg_types[len - iter - 1] == "int") {
 					cast = true;
 					temp = newtemp();
-					fprintf(tac, "%s = BOOL_TO_INT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
+					fprintf(tac, "\t%s = BOOL_TO_INT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
 				}
 				if ( function_call_args[iter]->typestring == "float"
 			&& current_scope->arg_types[len - iter - 1] == "int") {
 					cast = true;
 					temp = newtemp();
-					fprintf(tac, "%s = FLOAT_TO_INT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
+					fprintf(tac, "\t%s = FLOAT_TO_INT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
 				}
 			}
 			//push onto stack
 			if (cast) {
-				fprintf(tac, "param %s\n", temp.c_str());
+				fprintf(tac, "\tparam %s\n", temp.c_str());
 			} else {
-				fprintf(tac, "param %s\n", function_call_args[iter]->addr.c_str());
+				fprintf(tac, "\tparam %s\n", function_call_args[iter]->addr.c_str());
 			}
 			string typestring = current_scope->arg_types[len-iter-1];
 			if (typestring == "bool" || typestring == "float" || typestring == "int") {
@@ -1979,15 +1979,15 @@ primary: atom {
 		//for member functions
 		if (!$1->isLeaf) {
 			string temp = newtemp();
-			fprintf(tac,"stackpointer -%d\n", 8);
-			fprintf(tac,"call allocmem 1\n");
-			fprintf(tac,"stackpointer +%d\n", (int) top->table_size+8);
-			fprintf(tac,"%s = popparam\n",temp.c_str());
-			fprintf(tac,"param %s\n",temp.c_str());	
+			fprintf(tac,"\tstackpointer -%d\n", 8);
+			fprintf(tac,"\tcall allocmem 1\n");
+			fprintf(tac,"\tstackpointer +%d\n", (int) top->table_size+8);
+			fprintf(tac,"\t%s = popparam\n",temp.c_str());
+			fprintf(tac,"\tparam %s\n",temp.c_str());	
 			size += 8;
 		}
 		//move stackptr
-		fprintf(tac, "stackpointer +%d\n", size);
+		fprintf(tac, "\tstackpointer -%d\n", size + 16);
 		//function call
 		//if the function has no return type, don't allocate a temp for it and leave addr blank
 		//addr blank because should have no ops after this anyway
@@ -1998,23 +1998,24 @@ primary: atom {
 			if ($1->production == "len") {
 				//returns something
 				$$->addr = newtemp();
-				fprintf(tac, "%s = call len 1\n", $$->addr.c_str());
+				fprintf(tac, "\t%s = call len 1\n", $$->addr.c_str());
 			} else if ($1->production == "range") {
 				//return something
 				//TO DO
 			} else if ($1->production == "print") {
 				//returns nothing
-				fprintf(tac, "call print 1\n");
+				fprintf(tac, "\tcall print 1\n");
 			}
 		} else {
 			//not a built-in
 			if (current_scope->return_type != "None") {
 				$$->addr = newtemp();
-				fprintf(tac, "%s = call %s %d\n", $$->addr.c_str(), $1->production.c_str(), len);
+				fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), $1->production.c_str(), len);
 			} else {
-				fprintf(tac, "call %s %d\n", $1->production.c_str(), len);
+				fprintf(tac, "\tcall %s %d\n", $1->production.c_str(), len);
 			}
 		}
+		fprintf(tac, "\tstackpointer +%d\n", size + 16);
 		function_call_args.clear();
 		function_call_args_dim.clear();
 

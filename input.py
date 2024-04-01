@@ -1,5 +1,7 @@
-def tain (g:int, y:int, e:str)->float:
-	return 9.4
-
-tain (5, True, "1b")
+def fib(n:int)->int:
+    if(n==0):
+        return 1
+    if(n==1):
+        return 1
+    return fib(n-1)+fib(n-2)
 

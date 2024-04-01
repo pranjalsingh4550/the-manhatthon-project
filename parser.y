@@ -1771,15 +1771,14 @@ primary: atom {
 // 					//TO DO 
 // 					fprintf(tac,"stackpointer -%d\n", top->table_size);
 					string temp = newtemp();
-					fprintf(tac,"stackpointer -%d\n", 8);
-					fprintf(tac,"call allocmem 1\n");
-					fprintf(tac,"stackpointer +%d\n", (int) top->table_size+8);
-					fprintf(tac,"%s = popparam\n",temp.c_str());
-					fprintf(tac,"param %s\n",temp.c_str());
+					fprintf(tac,"\tstackpointer -%d\n", 8);
+					fprintf(tac,"\tcall allocmem 1\n");
+					fprintf(tac,"\tstackpointer +%d\n", (int) top->table_size+8);
+					fprintf(tac,"\t%s = popparam\n",temp.c_str());
+					fprintf(tac,"\tparam %s\n",temp.c_str());
 					
 					// fprintf(tac,"call %s, %s\n", );	
 					// fprintf(tac,"stackpointer -%d\n",)
-				}
 #if TEMPDEBUG
 				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 #endif

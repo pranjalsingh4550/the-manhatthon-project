@@ -210,10 +210,10 @@
 		return find_class(typestring)->table_size;
 	}
 	void gen_ujump (string target) {
-		fprintf (tac, "\tUJUMP\t%s\n", target.c_str());
+		fprintf (tac, "\tjmp %s\n", target.c_str());
 	}
 	void gen_branch (Node* condition, string target) {
-		fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", condition->addr.c_str(), target.c_str());
+		fprintf (tac, "\tifFalse %s\tjmp %s\n", condition->addr.c_str(), target.c_str());
 	}
 	void gen(Node*result, Node* leftop, Node* rightop,enum ir_operation op){
 		if (tac == NULL) tac = stdout;
@@ -366,7 +366,12 @@
 			case NEG:		fprintf(tac, "\t%s\t= -%s\n",resultaddr.c_str(), left.c_str()); break;
 			case FLOORDIV:	fprintf(tac, "\t%s\t= %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case STREQ:		fprintf(tac, "\t%s\t= STREQ(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break;
-			case STRCMP:	fprintf(tac, "\t%s\t= STRCMP(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break; 
+			case STRCMP:	{
+					fprintf(tac,"\tparam %s\n",right.c_str());
+					fprintf(tac,"\tparam %s\n",left.c_str());
+					fprintf(tac,"\t%s\t= call STRCMP 2\n",resultaddr.c_str());break;
+				// fprintf(tac, "\t%s\t= STRCMP(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break; 
+				}
 			default: dprintf (stderr_copy,"Wrong op at line no : %d\n",yylineno);exit(1);
 		}
 		return;
@@ -1021,11 +1026,14 @@ comparison: expr {
 			dprintf(stderr_copy, "TypeError at line %d: incompatible types for == comparison: %s and %s\n", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
 			exit(1);
 		}
-		if ($1->typestring == "str" && $3->typestring == "str") {
-			// call strcmp
-			if ($1->isLeaf && $3->isLeaf && $1->production == "__name__" && $3->strVal == "\\\"__main__\\\"") {
-				// pass
-			}
+		if ($1->typestring == "str") {
+				$$->typestring = "bool";
+				gen($$,$1,$3,STRCMP);
+				gen($$,$$,NULL,NOT_log);
+				// string temp =newtemp();
+				// fprintf(tac,"\t%s = not %s\n",temp.c_str(),$$->addr.c_str());
+				// $$->addr = temp;
+				//if $$->addr not equal to 0 
 		}
 
 		else if (!check_number($1)) {
@@ -1036,12 +1044,12 @@ comparison: expr {
 			dprintf(stderr_copy, "TypeError at line %d: second operand for == comparison has type %s\n", $2->lineno, $3->typestring.c_str());
 			exit(1);
 		}
-		$$->typestring = "bool";
-		
-		if ($1->typestring == "str")
-			gen ($$, $1, $3, STREQ);
-		else
+		// if ($1->typestring == "str")
+		// 	gen ($$, $1, $3, STREQ);
+		else{
 			gen($$,$1,$3,EQ);
+		}
+		$$->typestring = "bool";
 }
 	| expr "!=" comparison	{
 	$$ = new Node ("!=");
@@ -1060,17 +1068,25 @@ comparison: expr {
 		dprintf(stderr_copy, "TypeError at line %d: incompatible types for != comparison: %s and %s\n", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
 		exit(1);
 	}
-	if (!check_number($1)) {
+	if ($1->typestring == "str" ) {
+			// call strcmp
+			$$->typestring = "bool";
+			gen($$,$1,$3,STRCMP);
+			// gen($$,$$,NULL,NOT_log);
+			// gen($$,$$,NULL,NOT_log);
+
+		}
+	else if (!check_number($1)) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for != comparison has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if (!check_number($3)) {
+	else if (!check_number($3)) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for != comparison has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
+	else gen($$,$1,$3,NEQ);
 	$$->typestring = "bool";
 	
-	gen($$,$1,$3,NEQ);
 }
 	| expr "<" comparison	{
 	$$ = new Node ("<");
@@ -1089,17 +1105,28 @@ comparison: expr {
 		dprintf(stderr_copy, "TypeError at line %d: incompatible types for < comparison: %s and %s\n", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
 		exit(1);
 	}
-	if (!check_number($1)) {
+	if($1->typestring == "str" && $3->typestring == "str") {
+		$$->typestring = "bool";
+		gen($$,$1,$3,STRCMP);
+		Node *dummy = new Node("0");
+		dummy->addr="0";
+		gen($$,$$,dummy,LT);
+		// call strcmp
+		// if ($1->isLeaf && $3->isLeaf && $1->production == "__name__" && $3->strVal == "\\\"__main__\\\"") {
+		// 	// pass
+		// }
+	}
+	else if (!check_number($1)) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for < comparison has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if (!check_number($3)) {
+	else if (!check_number($3)) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for < comparison has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
+	else gen($$,$1,$3,LT);
 	$$->typestring = "bool";
 	
-	gen($$,$1,$3,LT);
 }
 	| expr "<=" comparison	{
 	$$ = new Node ("<=");
@@ -1118,17 +1145,24 @@ comparison: expr {
 		dprintf(stderr_copy, "TypeError at line %d: incompatible types for <= comparison: %s and %s\n", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
 		exit(1);
 	}
-	if (!check_number($1)) {
+	if($1->typestring =="str"){
+		$$->typestring = "bool";
+		gen($$,$1,$3,STRCMP);
+		Node *dummy = new Node("0");
+		dummy->addr="0";
+		gen($$,$$,dummy,LTE);
+	}
+	else if (!check_number($1)) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for <= comparison has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if (!check_number($3)) {
+	else if (!check_number($3)) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for <= comparison has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
+	else gen($$,$1,$3,LTE);
 	$$->typestring = "bool";
 	
-	gen($$,$1,$3,LTE);
 }
 	| expr ">" comparison	{
 	$$ = new Node (">");
@@ -1147,16 +1181,23 @@ comparison: expr {
 		dprintf(stderr_copy, "TypeError at line %d: incompatible types for > comparison: %s and %s\n", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
 		exit(1);
 	}
-	if (!check_number($1)) {
+	if($1->typestring == "str"){
+		$$->typestring = "bool";
+		gen($$,$1,$3,STRCMP);
+		Node *dummy = new Node("0");
+		dummy->addr="0";
+		gen($$,$$,dummy,GT);
+	}
+	else if (!check_number($1)) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for > comparison has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if (!check_number($3)) {
+	else if (!check_number($3)) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for > comparison has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
+	else gen($$,$1,$3,GT);
 	$$->typestring = "bool";
-	gen($$,$1,$3,GT);
 }
 	| expr ">=" comparison	{
 	$$ = new Node (">=");
@@ -1175,17 +1216,24 @@ comparison: expr {
 		dprintf(stderr_copy, "TypeError at line %d: incompatible types for >= comparison: %s and %s\n", $2->lineno, $1->typestring.c_str(), $3->typestring.c_str());
 		exit(1);
 	}
-	if (!check_number($1)) {
+	if($1->typestring == "str"){
+		$$->typestring = "bool";
+		gen($$,$1,$3,STRCMP);
+		Node *dummy = new Node("0");
+		dummy->addr="0";
+		gen($$,$$,dummy,GTE);
+	}
+	else if (!check_number($1)) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for >= comparison has type %s\n", $2->lineno, $1->typestring.c_str());
 		exit(1);
 	}
-	if (!check_number($3)) {
+	else if (!check_number($3)) {
 		dprintf(stderr_copy, "TypeError at line %d: first operand for >=T comparison has type %s\n", $2->lineno, $3->typestring.c_str());
 		exit(1);
 	}
+	else gen($$,$1,$3,GTE);
 	$$->typestring = "bool";
 	
-	gen($$,$1,$3,GTE);
 }
 
 
@@ -1563,7 +1611,7 @@ term: term "*" factor	{
 }
 	| factor {
 	if ($1->typestring == "")	{
-		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at term: factor production\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n",$1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	$$ = $1;
@@ -1591,7 +1639,7 @@ factor: "+" factor	{
 		exit(1);
 	}
 	if (!check_number($2)) {
-		dprintf(stderr_copy, "TypeError at line %d: Invalid type for setting negative, type is %s\n",$2->lineno, $2->typestring.c_str());
+		dprintf(stderr_copy, "TypeError at line %d: negative incompatible with type %s\n",$2->lineno, $2->typestring.c_str());
 		exit(1);
 	}
 	
@@ -1619,7 +1667,7 @@ factor: "+" factor	{
 	| power {
 	if ($1->typestring == "")	{
 		dprintf(stderr_copy, 
-		"NameError at line %d: undefined variable %s, caught at factor: power production\n", 
+		"NameError at line %d: undefined variable %s\n", 
 		$1->lineno, $1->production.c_str());
 		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 		exit(1);
@@ -1630,7 +1678,7 @@ power: primary {
 	current_scope = NULL;
 	if ($1->typestring == "") {
 		dprintf(stderr_copy, 
-		"NameError at line %d: undefined variable %s, caught at power: primary production\n", 
+		"NameError at line %d: undefined variable %s\n", 
 		$1->lineno, $1->production.c_str());
 		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 		exit(1);
@@ -2083,22 +2131,24 @@ primary: atom {
 				&& check_array(function_call_args_dim[iter], (current_scope->arg_dimensions)[iter])) {
 					continue;
 				}
-				if (function_call_args[iter]->typestring != current_scope->arg_types[iter])
+				if (function_call_args[iter]->typestring != current_scope->arg_types[iter]) {
 					dprintf (stderr_copy,
 					"TypeError at line %d: expected argument %d to be %s, received incompatible type %s\n",
 					(int) $1->lineno, 
 					iter+1,
 					current_scope->arg_types[iter].c_str(), 
 					function_call_args[iter]->typestring.c_str());
-				else //one is array, other is not
+					exit(80);
+				} else if (!!function_call_args_dim[iter] != !!current_scope->arg_dimensions[iter]) {
+					//one is array, other is not
 					dprintf(stderr_copy,
 					"TypeError at line %d: expected argument %d to be of type %s, received incompatible type %s\n",
 					(int) $1->lineno, 
 					iter+1,
 					(current_scope->arg_types[iter] +(current_scope->arg_dimensions[iter] ? "[]" : "")).c_str(),
-					(current_scope->arg_types[iter] +(function_call_args_dim[iter]? "[]" : "")).c_str()
-					);
-				exit(80);
+					(current_scope->arg_types[iter] +(function_call_args_dim[iter]? "[]" : "")).c_str());
+					exit(80);
+				}
 			}
 		}
 
@@ -2180,13 +2230,14 @@ primary: atom {
 				fprintf(tac, "\tparam %s\n", function_call_args[iter]->addr.c_str());
 			}
 			string typestring = function_call_args[iter]->typestring;
-			if (typestring == "bool" || typestring == "float" || typestring == "int") {
-				size += 8;
-			} else if (typestring == "complex" || typestring == "str") {
-				size += 16;
-			} else {
-				size += getwidth(typestring);
-			}
+			size+=8;
+			// if (typestring == "bool" || typestring == "float" || typestring == "int") {
+			// 	size += 8;
+			// } else if (typestring == "complex" || typestring == "str") {
+			// 	size += 8;
+			// } else {
+			// 	size += getwidth(typestring);
+			// }
 		}
 		
 		
@@ -2454,12 +2505,12 @@ new_jump_to_end3: {
 	}
 
 insert_jump_if_false3: {
-		fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n",  dev_helper($<node>-1).c_str(), get_next_label3("").c_str());
+		fprintf (tac, "\tifFalse %s\tjmp %s\n",  dev_helper($<node>-1).c_str(), get_next_label3("").c_str());
 	}
 
 
 insert_end_jump_label3: {
-		fprintf (tac, "\tUJUMP\t%s\n", jump_labels_upper3.top().c_str());
+		fprintf (tac, "\tjmp\t%s\n", jump_labels_upper3.top().c_str());
 	}
 
 jump_target_false_lower3: {
@@ -2481,11 +2532,11 @@ begin_loop_condition : {
 	}
 
 loop_end_jump_back : {
-		fprintf (tac, "\tUJUMP %s\n", get_current_label_upper().c_str());
+		fprintf (tac, "\tjmp %s\n", get_current_label_upper().c_str());
 	}
 
 insert_jump_if_false : {
-				fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper($<node>-1).c_str(), get_next_label("").c_str());
+				fprintf (tac, "\tifFalse %s\tjmp %s\n", dev_helper($<node>-1).c_str(), get_next_label("").c_str());
 	}
 jump_target_false_lower : {
 		fprintf (tac, "\n%s:\n", get_current_label().c_str());
@@ -2580,6 +2631,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	top->return_type = $ret->production;
 }":" suite[last] {
 		Funcsuite=0;
+		top->print_st(stdump);
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
 		$$->addchild($id, "Name");
@@ -2593,11 +2645,13 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		function_params.clear();
 		
 		fprintf(tac, "\tendfunc\n\n");
+
 	}
 	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] {
 		top->return_type = $returntype->production;
 	} ":" suite[last] {
 	       	Funcsuite=0;
+		top->print_st(stdump);
 		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn"); $$->addchild($id, "Name");
 	       	$$->addchild($returntype, "Return type");
@@ -2615,6 +2669,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		}
 		suite[last] {
 	       	Funcsuite=0;
+		top->print_st(stdump);
 		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn");
 	       	$$->addchild($id, "Name");
@@ -2815,7 +2870,7 @@ handle_loop_condition : {
 		}
 
 		// dummy_test_condition_node is the handle to the loop condition
-		fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper(dummy_test_condition_node).c_str(), get_next_label("").c_str());
+		fprintf (tac, "\tifFalse %s\tjmp %s\n", dev_helper(dummy_test_condition_node).c_str(), get_next_label("").c_str());
 	}
 
 testlist: arglist
@@ -2913,11 +2968,13 @@ int main(int argc, char** argv){
 	concatenating_string_plus = "\0";
 	
 	tac = fopen (outputfile, "w+");
-	
+
 	stdump = fopen ("symbol_table.csv", "w+");
+	if(stdump == NULL){
+		fprintf(stderr, "Error opening file\n");
+		exit(1);
+	}
 	fprintf (stdump, "LEXEME\tTYPE\tTOKEN\t\tLINE\tPARENT SCOPE\tOFFSET (for identifiers)\n");
-	globalSymTable->print_st(stdump);
-	
 	if(yyparse()!=0){
 		/* fprintf(stderr,"Error in parsing\n"); */
 		return 1;
@@ -2951,6 +3008,7 @@ int main(int argc, char** argv){
 		unlink (".debuglog");
 		fclose (logs);
 	}
+	/* globalSymTable->print_st(stdump); */
 	fclose (stdump);
 	if (static_section != "Static section:\n")
 		// cout << static_section << endl;

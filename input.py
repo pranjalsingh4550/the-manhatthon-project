@@ -1,10 +1,9 @@
 def bubbleSort(array: list[int]) -> None:
     i: int = 0
-    # n: int = len(array)
     for i in range(10):
       swapped: bool = False
       j: int = 0
-      for j in range(0, 20):
+      for j in range(10, 20):
         if array[j] > array[j + 1]:
           temp: int = array[j]
           array[j] = array[j + 1]

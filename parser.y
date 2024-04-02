@@ -12,8 +12,8 @@
 	int nodecount=0;
 	int tempcount=0;
 	int basecount=0;
-	FILE* graph = NULL;
 	FILE* inputfile = NULL;
+	FILE* stdump = NULL;
     extern int yylex();
     extern int yyparse();
     extern void debugprintf (const char *) ;
@@ -42,7 +42,7 @@
 	string currently_defining_identifier_typestring;
 	vector <Node*> list_init_inputs;
 	vector <Node *> function_call_args;
-	vector <bool> function_call_args_dim;
+	vector <int> function_call_args_dim;
 	Node* for_loop_iterator_node, *for_loop_range_second_arg, *for_loop_range_first_arg;
 	int label_count;
 
@@ -50,9 +50,11 @@
 
 	vector<Node*> function_params;
 
-#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-#define TEMPDEBUG 0
+	#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
+	#define TEMPDEBUG 1
+	
 	bool is_not_name (Node*);
+	
 	string static_section;
 	string concatenating_string_plus;
 	Symbol::Symbol (string name, string typestring, int lineno, int flag, SymbolTable* cur_symboltable) {
@@ -95,7 +97,22 @@
 		return ;
 	}
 	extern void check (Node* n) ;
-	extern int check_number(Node* n) ;
+	
+	int check_number(Node* n) {
+		//return 1 if number, 0 if not
+		if (n->dimension != 0) {
+			dprintf(stderr_copy, "Error: found array where expected single type (see following message)\n");
+			return 0;
+		}
+		if (n->typestring != "bool"
+		 && n->typestring != "int"
+		 && n->typestring != "float"
+		 && n->typestring != "complex") {
+			return 0;
+		}
+		return 1;
+	}
+	
 	bool check_types(string t1, string t2) {
 		if (t1 == "int") {
 			if (t2 != "bool"
@@ -117,6 +134,25 @@
 			return false;
 		}
 		return true;
+	}
+	
+	bool check_array(int len1, int len2) {
+		//len1: dimension of lhs
+		//len2: dimension of rhs
+		if (len1 == 0) {
+			//len1 not an array, so len2 can't be either
+			if (len2 == 0) return true;
+			return false;
+		} else if (len1 < 0) {
+			//len1 belongs to uninitialized array
+			if (len2 > 0) return true; 
+			 //problem: rhs cannot be an uninitialized array
+			 //-> rhs must have actual length, can't be -1
+			return false;
+		} else {
+			if (len2 == len1) return true; //same length -> A-OK
+			return false; //not same length -> not ok
+		}
 	}
 	
 	int Funcsuite=0;
@@ -587,12 +623,10 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
-			$$ = new Node ("Declaration");
-			$$->addchild($id, "Name");
-			$$->addchild($type, "Type");
-			$1->typestring = $type->typestring;
-			$1->dimension = $type->dimension;
-			put ($id, $type);
+			$id->typestring = $type->typestring;
+			//no need to check dimension here because this is type declaration
+			$id->dimension = $type->dimension;
+			put($id, $type);
 		} else { // mind the indent
 			if (!Classsuite	|| !currently_defining_class) {
 				dprintf (stderr_copy, "Error at line %d: self object cannot be used outside class scope\n",
@@ -608,12 +642,14 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				exit(87);
 			}
 			currently_defining_class->put ($id, $type);
-			$$ = new Node ("Declaration");
-			$$->addchild($id, "Name");
-			$$->addchild($type, "Type");
-			$1->typestring = $type->typestring;
-			$1->dimension = $type->dimension;
 		}
+		$id->typestring = $type->typestring;
+		//no need to check dimension here because this is type declaration
+		$id->dimension = $type->dimension;
+		
+		$$ = new Node ("Declaration");
+		$$->addchild($id, "Name");
+		$$->addchild($type, "Type");
 	}
 	| primary[id] ":" typeclass[type] decl_set_curr_id "=" test[value] {
 		if ($id->isLeaf) {
@@ -627,16 +663,20 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				exit(87);
 			}
 			if (!check_types($value->typestring, $type->production)) {
-				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $type->production.c_str());
+				dprintf(stderr_copy, 
+				"TypeError on line %d: %s and %s are incompatible\n", 
+				$id->lineno, $id->typestring.c_str(), $type->production.c_str());
 				exit(1);
 			}
 			if ($value->typestring == "") {
 				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n",
 						$id->lineno);
 			
-#if TEMPDEBUG
+			
+				#if TEMPDEBUG
 				printf ("empty typestring: production is %s token %d\n", $value->production.c_str(), $value->token);
-#endif
+				#endif
+
 				exit (96);
 			}
 			/*
@@ -648,16 +688,19 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				
 				add $id to curent scope with type $type and node $id (put($id,$type));
 			*/
-			$$ = new Node ("Declaration");
-			$$->addchild($id, "Name");
-			$$->addchild($type, "Type");
-			$$->addchild($value, "Value");
-			$1->typestring = $type->typestring;
-			$1->dimension = $type->dimension;
-			put ($id, $type);
-			// // cout<<"Dimension of type" <<$type->dimension<<endl;
-			gen ($$,$id, $value, ASSIGN);
-			// // cout<<"Dimension "<<$id->dimension<<endl;
+			//must check dimension here because we have a value
+			//check type vs value dimension because id may not have a dimension yet
+			if (check_array($type->dimension, $value->dimension)) {
+				//edit dimension to value
+				$id->dimension = $value->dimension;
+				$type->dimension = $value->dimension; //bad fix for put doing $id->dimension = $type->dimension
+			} else {
+				dprintf(stderr_copy, 
+				"TypeError on line %d: Uninitialized array on RHS or length mismatch\n",
+				$5->lineno);
+				exit(1);
+			}
+			put($id, $type); //will put the correct dimension in the symbol table
 
 		} else { // mind the indent
 			if (!$id->isdecl) {
@@ -677,15 +720,26 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						$id->lineno, $id->production.c_str());
 				exit(87);
 			}
-			currently_defining_class->put ($id, $type);
-			$$ = new Node ("Declaration");
-			$$->addchild($id, "Name");
-			$$->addchild($type, "Type");
-			$1->typestring = $type->typestring;
-			$1->dimension = $type->dimension;
-
-			gen ($$,$id, $value, ASSIGN);
+			
+			//check type vs value dimension because id may not have a dimension yet
+			if (check_array($type->dimension, $value->dimension)) {
+				//edit dimension to value
+				$id->dimension = $value->dimension;
+				$type->dimension = $value->dimension; //bad fix for put doing $id->dimension = $type->dimension
+			} else {
+				dprintf(stderr_copy, 
+				"TypeError on line %d: Uninitialized array on RHS or length mismatch\n",
+				$5->lineno);
+				exit(1);
+			}
+			//put handles typestrings of id, type
+			currently_defining_class->put($id, $type);
 		}
+		gen ($$,$id, $value, ASSIGN);
+		$$ = new Node ("Declaration");
+		$$->addchild($id, "Name");
+		$$->addchild($type, "Type");
+		$$->addchild($value, "Value");
 	} 
 	| primary[id] augassign[operation] test[value] { 
 			/*
@@ -696,8 +750,9 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			*/
 			// added during merging - check integrity later
 			if ($id->typestring == "" && !$id->isLeaf) {
-				dprintf (stderr_copy, "Error at line %d: class attribute %s has not been defined\n",
-						(int)$id->lineno, $id->production.c_str());
+				dprintf (stderr_copy, 
+				"Error at line %d: class attribute %s has not been defined\n",
+				(int)$id->lineno, $id->production.c_str());
 				exit (40);
 			}
 			if ($id->typestring == "def" || $id->typestring == "class" || $id->islval == false) {
@@ -750,16 +805,38 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $value->production.c_str());
 				exit(1);
 			}
-			$$ = new Node ("=");
-			$$->addchild($id);
-			$$->addchild($value);
 			// these 3 lines copied during merging: check consistency
 			check ($id);
 			check($value);
+			
 			if (!check_types($id->typestring, $value->typestring)) {
-				dprintf(stderr_copy, "TypeError on line %d: %s and %s are incompatible\n", $id->lineno, $id->typestring.c_str(), $value->typestring.c_str());
+				dprintf(stderr_copy, 
+				"TypeError on line %d: %s and %s are incompatible\n", 
+				$id->lineno, $id->typestring.c_str(), $value->typestring.c_str());
 				exit(1);
 			}
+			
+			if (check_array($id->dimension, $value->dimension)) {
+				//edit dimension to value
+				$id->dimension = $value->dimension;
+				top->print_st();
+				//update symbol table if any
+				//FIX: object-wise symbol tables/dimensions for self.a : list[int] declaration without definition
+				Node *t1 = $id; 
+				Node *t2 = $value;
+				Symbol *sym = top->get($id);
+				if (sym) sym->dimension = $value->dimension;
+			} else {
+				dprintf(stderr_copy, 
+				"TypeError on line %d: Uninitialized array on RHS or length mismatch\n",
+				$2->lineno);
+				exit(1);
+			}
+			
+			$$ = new Node ("=");
+			$$->addchild($id);
+			$$->addchild($value);
+			
 			gen($$,$id,$value,ASSIGN);
 	}
 	| test {
@@ -791,11 +868,12 @@ typeclass: NAME {
 		$$ = $1;
 	}
 	| "list" "[" NAME "]" {
-		$$ = $3;
-		$$->dimension = 1;
 		verify_typestring ($3);
+		$$ = $3;
+		$$->dimension = -1;
 	}
 	| "None" {
+		$$ = $1;
 		$$->production = "None";
 	}
 
@@ -885,7 +963,6 @@ and_test: not_test
 	$$->typestring = "bool";
 	
 	gen($$,$1,$3,AND_log);
-	//to do: gen
 }
 not_test: comparison
 	| "not" not_test	{
@@ -899,13 +976,12 @@ not_test: comparison
 	$$->addchild ($2);
 	$$->typestring = "bool";
 	
-	//to do: gen
 	gen($$,$2,NULL,NOT_log);
 }
 
 comparison: expr {
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	$$ = $1;
@@ -915,11 +991,11 @@ comparison: expr {
 		$$->addchild ($1);
 		$$->addchild ($3);
 		if ($1->typestring == "") {
-			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+			dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 			exit(1);
 		}
 		if ($3->typestring == "") {
-			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+			dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 			exit(1);
 		}
 		if (($1->typestring == "str" && $3->typestring != "str")
@@ -954,11 +1030,11 @@ comparison: expr {
 	$$->addchild ($1);
 	$$->addchild ($3);
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	if (($1->typestring == "str" && $3->typestring != "str")
@@ -976,7 +1052,6 @@ comparison: expr {
 	}
 	$$->typestring = "bool";
 	
-	//to do: gen
 	gen($$,$1,$3,NEQ);
 }
 	| expr "<" comparison	{
@@ -984,11 +1059,11 @@ comparison: expr {
 	$$->addchild ($1);
 	$$->addchild ($3);
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	if (($1->typestring == "str" && $3->typestring != "str")
@@ -1007,18 +1082,17 @@ comparison: expr {
 	$$->typestring = "bool";
 	
 	gen($$,$1,$3,LT);
-	//to do: gen
 }
 	| expr "<=" comparison	{
 	$$ = new Node ("<=");
 	$$->addchild ($1);
 	$$->addchild ($3);
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	if (($1->typestring == "str" && $3->typestring != "str")
@@ -1037,18 +1111,17 @@ comparison: expr {
 	$$->typestring = "bool";
 	
 	gen($$,$1,$3,LTE);
-	//to do: gen
 }
 	| expr ">" comparison	{
 	$$ = new Node (">");
 	$$->addchild ($1);
 	$$->addchild ($3);
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	if (($1->typestring == "str" && $3->typestring != "str")
@@ -1066,18 +1139,17 @@ comparison: expr {
 	}
 	$$->typestring = "bool";
 	gen($$,$1,$3,GT);
-	//to do: gen
 }
 	| expr ">=" comparison	{
 	$$ = new Node (">=");
 	$$->addchild ($1);
 	$$->addchild ($3);
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	if (($1->typestring == "str" && $3->typestring != "str")
@@ -1096,24 +1168,23 @@ comparison: expr {
 	$$->typestring = "bool";
 	
 	gen($$,$1,$3,GTE);
-	//to do: gen
 }
 
 
 expr: xor_expr {
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	$$ = $1;
 }
 	| expr "|" xor_expr {
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	if (!check_number($1)
@@ -1138,22 +1209,21 @@ expr: xor_expr {
 		$$->typestring = "bool";
 	}
 	gen($$,$1,$3,OR_bit);
-	//to do: gen
 }
 xor_expr: ans_expr {
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	$$ = $1;
 }
 	| xor_expr "^" ans_expr	{
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	if (!check_number($1)
@@ -1177,24 +1247,23 @@ xor_expr: ans_expr {
 	} else {
 		$$->typestring = "bool";
 	}
-	//to do: gen
 	gen($$,$1,$3,XOR);
 }
 
 ans_expr: shift_expr {
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	$$ = $1;
 }
 	| ans_expr "&" shift_expr	{
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	if (!check_number($1)
@@ -1218,23 +1287,22 @@ ans_expr: shift_expr {
 	} else {
 		$$->typestring = "bool";
 	}
-	//to do: gen
 	gen($$,$1,$3,AND_bit);
 }
 shift_expr: sum {
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	$$ = $1;
 } 
 	| shift_expr "<<" sum	{
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	if (!check_number($1)
@@ -1253,16 +1321,16 @@ shift_expr: sum {
 	$$->addchild ($1);
 	$$->addchild ($3);
 	$$->typestring = "int"; //always
-	//to do: gen
+	
 	gen($$,$1, $3, SHL);
 }
 	| shift_expr ">>" sum	{
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	if (!check_number($1)
@@ -1281,7 +1349,7 @@ shift_expr: sum {
 	$$->addchild ($1);
 	$$->addchild ($3);
 	$$->typestring = "int"; //always
-	//to do: gen
+	
 	gen($$,$1, $3, SHR);
 }
 
@@ -1290,11 +1358,11 @@ sum : sum "+" term  {
 		$$->addchild ($1); $$->addchild($3);
 		// $$->typestring = $1->typestring;
 		if ($1->typestring == "") {
-			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+			dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 			exit(1);
 		}
 		if ($3->typestring == "") {
-			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+			dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 			exit(1);
 		}
 		
@@ -1321,11 +1389,11 @@ sum : sum "+" term  {
 		$$->addchild($3);
 		
 		if ($1->typestring == "") {
-			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+			dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 			exit(1);
 		}
 		if ($3->typestring == "") {
-			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+			dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 			exit(1);
 		}
 		
@@ -1360,11 +1428,11 @@ term: term "*" factor	{
 	$$->addchild($3);
 	
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	
@@ -1391,11 +1459,11 @@ term: term "*" factor	{
 	$$->addchild($3);
 	
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	
@@ -1420,11 +1488,11 @@ term: term "*" factor	{
 	$$->addchild ($1);
 	$$->addchild($3);
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	
@@ -1443,7 +1511,6 @@ term: term "*" factor	{
 		$$->typestring = "int";
 	}
 	
-	//to add: gen
 	gen($$,$1, $3, MOD);
 }
 	| term DOUBLESLASH factor {
@@ -1451,11 +1518,11 @@ term: term "*" factor	{
 	$$->addchild ($1);
 	$$->addchild($3);
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 		exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		exit(1);
 	}
 	
@@ -1474,7 +1541,6 @@ term: term "*" factor	{
 		$$->typestring = "int";
 	}
 	
-	//to add: gen
 	gen($$,$1, $3, FLOORDIV);
 }
 	| factor {
@@ -1488,7 +1554,7 @@ factor: "+" factor	{
 	$$ = new Node ("+");
 	$$->addchild($2);
 	if ($2->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $2->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $2->lineno, $2->production.c_str());
 		exit(1);
 	}
 	if (!check_number($2)) {
@@ -1497,13 +1563,13 @@ factor: "+" factor	{
 	}
 	
 	$$->typestring = $2->typestring;
-	//to add: gen //ignore
+	//no gen needed for this
 }
 	| "-" factor	{
 	$$ = new Node ("-");
 	$$->addchild($2);
 	if ($2->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $2->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $2->lineno, $2->production.c_str());
 		exit(1);
 	}
 	if (!check_number($2)) {
@@ -1512,7 +1578,7 @@ factor: "+" factor	{
 	}
 	
 	$$->typestring = $2->typestring;
-	//to add: gen
+	
 	gen($$,$2,NULL,NEG);
 
 }
@@ -1520,7 +1586,7 @@ factor: "+" factor	{
 	$$ = new Node ("~");
 	$$->addchild($2);
 	if ($2->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $2->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $2->lineno, $2->production.c_str());
 		exit(1);
 	}
 	if (!check_number($2) || $2->typestring != "int" && $2->typestring != "bool") {
@@ -1529,11 +1595,14 @@ factor: "+" factor	{
 	}
 	
 	$$->typestring = "int"; //always
+	
 	gen($$,$2,NULL,NOT_bit);
 }
 	| power {
 	if ($1->typestring == "")	{
-		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at factor: power production\n", $1->lineno);
+		dprintf(stderr_copy, 
+		"NameError at line %d: undefined variable %s, caught at factor: power production\n", 
+		$1->lineno, $1->production.c_str());
 		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 		exit(1);
 	}
@@ -1542,7 +1611,9 @@ factor: "+" factor	{
 power: primary {
 	current_scope = NULL;
 	if ($1->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: undefined variable, caught at power: primary production\n", $1->lineno);
+		dprintf(stderr_copy, 
+		"NameError at line %d: undefined variable %s, caught at power: primary production\n", 
+		$1->lineno, $1->production.c_str());
 		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 		exit(1);
 	}
@@ -1564,12 +1635,12 @@ power: primary {
 }
 	| primary "**" factor	{
 	if ($1->typestring == "") {
-			dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $1->lineno);
+			dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 			if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 			exit(1);
 	}
 	if ($3->typestring == "") {
-		dprintf(stderr_copy, "NameError at line %d: identifier undefined\n", $3->lineno);
+		dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $3->lineno, $3->production.c_str());
 		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 		exit(1);
 	}
@@ -1646,6 +1717,7 @@ primary: atom {
 			$$->typestring = top->get($1)->typestring;
 			$$->dimension = top->get($1)->dimension;
 		if ($1->production == top->thisname) {
+			//obv cannot declare type of self (it's already defined)
 			$$->isdecl = false;
 		}
 		current_scope = NULL;
@@ -1654,22 +1726,27 @@ primary: atom {
 	| primary "." NAME {
 		$$ = new Node (0, "", $3->typestring);
 		$$->isLeaf = false;
-		if (inside_init && $1->isLeaf && $1->production == top->thisname) {
-			$$->isdecl = true;	$$->islval = true;
+		$$->islval = true;
+		if (inside_init 
+		&& $1->isLeaf 
+		&& $1->production == top->thisname) {
+			$$->isdecl = true;
 		} else {
-			$$->isdecl = false; $$->islval = true;
+			$$->isdecl = false;
 		}
 
 		string this_ptr = top->thisname;
 		// CHECKING PRIMARY
 
 		if ($1->isLeaf) { // set typestring
-			if (top->get ($1)){
+			if (top->get($1)){
 				$1->typestring = top->gettype($1->production);
 			}
 			else if ($1->production == top->thisname) {
 				if (!Classsuite || !currently_defining_class) {
-					dprintf (stderr_copy, "Error at line %d: self pointer cannot be used outside class scope\n", (int)$1->lineno);
+					dprintf (stderr_copy, 
+					"Error at line %d: self pointer cannot be used outside class scope\n", 
+					(int)$1->lineno);
 					exit(63);
 				}
 				$1->typestring = currently_defining_class->name;
@@ -1681,41 +1758,90 @@ primary: atom {
 			}
 		}
 		if ($1->typestring == "") {
-			dprintf (stderr_copy, "Error at line %d: %s is undefined\n", (int)$3->lineno,$1->production.c_str());
+			dprintf (stderr_copy, 
+			"Error at line %d: %s is undefined\n", 
+			(int)$3->lineno,$1->production.c_str());
 			exit(55);
 		}
+		
 		current_scope = find_class($1->typestring);
+		
 		if (current_scope == NULL || $1->typestring == "class" || $1->typestring == "def") {
-			dprintf (stderr_copy, "Error at line %d: Object has invalid type, or is a function or class name\n", (int) $3->lineno);
+			dprintf (stderr_copy, 
+			"Error at line %d: Object has invalid type, or is a function or class name\n", 
+			(int) $3->lineno);
 			exit (56);
 		}
+		
 		if ($3->production == current_scope->thisname) {
-			dprintf (stderr_copy, "Error at line %d: self pointer %s cannot be referenced outside function scope\n", (int)$3->lineno, current_scope->thisname.c_str());
+			dprintf (stderr_copy, 
+			"Error at line %d: self pointer %s cannot be referenced outside function scope\n", 
+			(int)$3->lineno, current_scope->thisname.c_str());
 			exit(68);
 		}
-		if (current_scope->find_member_fn ($3->production)) {
-			$$->typestring = "def"; $$->islval = false;
+		
+// 		Node *t1 = $$;
+// 		Node *t2 = $1;
+// 		Node *t3 = $3;
+		
+// 		if (current_scope->find_member_fn($3->production)) {
+// 			$$->typestring = "def";
+// 			$$->islval = false;
+// 			current_scope = current_scope->find_member_fn($3->production);
+// 			$$->addr = $1->typestring +"." + $3->production;
+// 			 // the only case in which current_scope is truly global
+// 		} else if(current_scope->symbols.find($3->production) ==current_scope->symbols.end() 
+// 			   && !$$->isdecl) {
+// 			//if we couldn't find the production in the class's symbol table
+// 			//AND the thing IS a declarable
+// 			dprintf (stderr_copy, 
+// 			"Error at line %d: %s is not a member of class %s\n", 
+// 			(int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
+// 			exit(23);
+// 		} else if (!$$->isdecl && $$->typestring == "") {
+// 			//
+// 			printf("I tried calling\n");
+// 			top->print_st();
+// 			printf("Someone picked up\n");
+// 			current_scope->print_st();
+// 			dprintf (stderr_copy, 
+// 			"Error at line %d: %s is not a member of class %s\n", 
+// 			(int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
+// 			exit(23);
+// 		} else if ($$->typestring != "") {
+// 			gen($$,$1,$3,ATTR);
+// 		}
+		
+		if (current_scope->find_member_fn($3->production)) {
+			//method case, handle separately
+			$$->typestring = "def";
+			$$->islval = false;
 			current_scope = current_scope->find_member_fn($3->production);
 			$$->addr = $1->typestring +"." + $3->production;
 			 // the only case in which current_scope is truly global
-		} else if (current_scope->symbols.find(($3->production))!=current_scope->symbols.end()) {
-			$$->typestring = current_scope->symbols.find($3->production)->second->typestring;
-		}
-		else if(current_scope->symbols.find(($3->production))==current_scope->symbols.end() && !$$->isdecl){
-			dprintf (stderr_copy, "Error at line %d: %s is not a member of class %s\n", (int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
-			exit(23);
-		}
-		else if (!$$->isdecl && $$->typestring == "") {
-			dprintf (stderr_copy, "Error at line %d: %s is not a member of class %s\n", (int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
-			exit(23);
-		}
-		else if ($$->typestring != "") {
+		} else if ($$->isdecl) {
+			//this only happens in a self.something case so we just
+			//set the overall production to the last term, it'll get
+			//put later on
+			$$->lineno = $1->lineno;
+			$$->production = $3->production;
+		} else {
+			//a.b case
+			auto entry = current_scope->symbols.find(($3->production));
+			if (entry == current_scope->symbols.end()) {
+				//no prior declaration/definition found -> error
+				dprintf (stderr_copy, 
+				"Error at line %d: %s is not a member of class %s\n", 
+				(int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
+				exit(23);
+			}
+			//here: then we found a definition -> generate the temporary and set the typestrings/dimension
+			$$->typestring = entry->second->typestring;
+			$$->dimension = entry->second->dimension;
+			$$->lineno = $1->lineno;
+			$$->production = $3->production; //for puts/etc. 
 			gen($$,$1,$3,ATTR);
 		}
-
-
-		$$->lineno = $1->lineno;
-		$$->production = $3->production;
 		/*
 			$ new temp 
 			$$->addr = newtemp();
@@ -1766,7 +1892,7 @@ primary: atom {
 		$$->islval = true;
 		$$->isdecl = false;
 		$$->isLeaf = false; //should deref this to assign to/from it
-		$$->dimension = $1->dimension - 1;
+		$$->dimension = 0; //indexed, and we're only dealing with 1D arrays
 
 		gen($$, $1, $3, SUBSCRIPT);
 
@@ -1843,13 +1969,13 @@ primary: atom {
 			} else if (function_call_args[0]->typestring != "int" && function_call_args[0]->typestring != "bool" && function_call_args[0]->typestring != "float") {
 				dprintf (stderr_copy, "TypeError at line %d: first argument to range() is of incompatible type %s\n", (int)$1->lineno , $1->typestring.c_str());
 				exit (58);
-			} else if (function_call_args_dim[0] != false) {
+			} else if (function_call_args_dim[0] != 0) {
 				dprintf (stderr_copy, "TypeError at line %d: first argument to range() is of incompatible type %s[]\n", (int)$1->lineno , $1->typestring.c_str());
 				exit (58);
 			} else if (function_call_args.size() == 2 && function_call_args[1]->typestring != "int" && function_call_args[1]->typestring != "bool" && function_call_args[1]->typestring != "float") {
 				dprintf (stderr_copy, "TypeError at line %d: second argument to range() is of incompatible type %s\n", (int)$1->lineno , $1->typestring.c_str());
 				exit (58);
-			} else if (function_call_args.size() == 2 && function_call_args_dim[1] != false) {
+			} else if (function_call_args.size() == 2 && function_call_args_dim[1] != 0) {
 				dprintf (stderr_copy, "TypeError at line %d: second argument to range() is of incompatible type %s[]\n", (int)$1->lineno , $1->typestring.c_str());
 				exit (58);
 			}
@@ -1872,7 +1998,7 @@ primary: atom {
 				dprintf (stderr_copy, "Error at line %d: len() expects one argument, received %d\n",
 						(int)$1->lineno, (int)function_call_args.size());
 				exit (59);
-			} else if (function_call_args_dim[0] == false && function_call_args[0]->typestring != "str") {
+			} else if (function_call_args_dim[0] == 0 && function_call_args[0]->typestring != "str") {
 				dprintf (stderr_copy, "TypeError at line %d: argument to len() neither a string nor a list\n",
 						(int) $1->lineno);
 				exit (49);
@@ -1889,7 +2015,7 @@ primary: atom {
 				// cout << "twdfdvwfere\n";
 				// cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
 				if (function_call_args[iter]->typestring == (current_scope->arg_types)[iter]
-				 && function_call_args_dim[iter] == (current_scope->arg_dimensions)[iter]) {
+				 && check_array(function_call_args_dim[iter], (current_scope->arg_dimensions)[iter] )) {
 					continue;
 				}
 				
@@ -1904,7 +2030,7 @@ primary: atom {
 					|| 	(function_call_args[iter]->typestring == "int" 
 						&& current_scope->arg_types[iter] == "bool")
 					) 
-				&& (function_call_args_dim[iter] == (current_scope->arg_dimensions)[iter])) {
+				&& check_array(function_call_args_dim[iter], (current_scope->arg_dimensions)[iter])) {
 					continue;
 				}
 				if (function_call_args[iter]->typestring != current_scope->arg_types[iter])
@@ -2081,20 +2207,20 @@ primary: atom {
 				$$->typestring = top->find_member_fn($1->production)->return_type;
 				current_scope = top->find_member_fn($1->production);
 
-#if TEMPDEBUG
-				printf("typestring = %s\n", $$->typestring.c_str());
-				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
-#endif
+				#if TEMPDEBUG
+					printf("typestring = %s\n", $$->typestring.c_str());
+					printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
+				#endif
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
-#if TEMPDEBUG
-				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
-#endif
+				#if TEMPDEBUG
+					printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
+				#endif
 				$$->typestring = $1->production;
 				current_scope = globalSymTable->ctor.find($1->production)->second;
-#if TEMPDEBUG
-				// cout<<"return type of constructor "<<$$->typestring<<endl;
-#endif
+				#if TEMPDEBUG
+					// cout<<"return type of constructor "<<$$->typestring<<endl;
+				#endif
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
 				$$->typestring = current_scope->return_type;
@@ -2309,13 +2435,13 @@ arglist: test[obj]
 			list_init_inputs.push_back ($obj);
 		}
 		function_call_args.push_back ($obj);
-		function_call_args_dim.push_back ((bool) $obj->dimension);
+		function_call_args_dim.push_back ($obj->dimension);
 	}
 	| arglist "," test[obj] { $$ = new Node ("Multiple terms"); $$->addchild($1); $$->addchild($3);
 		if (list_init)
 			list_init_inputs.push_back ($obj);
 		function_call_args.push_back ($obj);
-		function_call_args_dim.push_back ((bool) $obj->dimension);
+		function_call_args_dim.push_back ($obj->dimension);
 	}
 
 
@@ -2370,7 +2496,7 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 			exit(49);
 		}
 		top->arg_types.push_back ($3->production);
-		top->arg_dimensions.push_back ((bool) $3->dimension);
+		top->arg_dimensions.push_back ($3->dimension);
 
 		$1->addr="t"+to_string(basecount);
 		$1->isLeaf=false;
@@ -2722,15 +2848,14 @@ int main(int argc, char** argv){
 	concatenating_string_plus = "\0";
 	
 	tac = fopen (outputfile, "w+");
-	graph = NULL;
-	if (graph) fprintf (graph, "strict digraph ast {\n");
+	
+	stdump = fopen ("symbol_table.csv", "w+");
+	fprintf (stdump, "LEXEME\tTYPE\tTOKEN\t\tLINE\tPARENT SCOPE\tOFFSET (for identifiers)\n");
+	globalSymTable->print_st(stdump);
+	
 	if(yyparse()!=0){
 		/* fprintf(stderr,"Error in parsing\n"); */
 		return 1;
-	}
-	if (graph) {
-		fprintf (graph, "}\n");
-		fclose (graph);
 	}
 	
 	char *line = NULL;
@@ -2761,9 +2886,6 @@ int main(int argc, char** argv){
 		unlink (".debuglog");
 		fclose (logs);
 	}
-	FILE* stdump = fopen ("symbol_table.csv", "w+");
-	fprintf (stdump, "LEXEME\tTYPE\tTOKEN\t\tLINE\tPARENT SCOPE\tOFFSET (for identifiers)\n");
-	globalSymTable->print_st(stdump);
 	fclose (stdump);
 	if (static_section != "Static section:\n")
 		// cout << static_section << endl;
@@ -2801,17 +2923,4 @@ void check(Node* n){
 	}
 }
 
-int check_number(Node* n) {
-	//return 1 if number, 0 if not
-	if (n->dimension != 0) {
-		dprintf(stderr_copy, "Error: found array where expected single type (see following message)\n");
-		return 0;
-	}
-	if (n->typestring != "bool"
-	 && n->typestring != "int"
-	 && n->typestring != "float"
-	 && n->typestring != "complex") {
-	 	return 0;
-	}
-	return 1;
-}
+

@@ -8,7 +8,6 @@ using namespace std;
 extern int nodecount;
 extern int tempcount;
 extern bool inside_init;
-extern FILE *graph;
 extern int yylineno;
 static FILE* tac = NULL;
 class SymbolTable;
@@ -337,7 +336,7 @@ class SymbolTable {
 		string thisname = "";
 		string return_type="None";
 		vector<string> arg_types; // for function, but class also ig
-		vector<bool> arg_dimensions;
+		vector<int> arg_dimensions;
 		bool fn_inside_class;
 
 		int redef =0;
@@ -410,7 +409,8 @@ class SymbolTable {
 			printf ("call to put source %s destination %s\n", type->production.c_str(), node->typestring.c_str());
 #endif
 			auto s= new Symbol();
-			s->typestring = type->production; node->typestring = type->production;
+			s->typestring = type->production;
+			node->typestring = type->production;
 			s->lineno = node->lineno;
 			s->isFunction = 0;
 			s->isClass = 0;
@@ -608,6 +608,54 @@ class SymbolTable {
 			}
 			for (itrc = this->ctor.begin(); itrc != this->ctor.end(); itrc++) {
 				itrc->second->print_st (st);
+			}
+		}
+		
+		void print_st (void) {
+			printf( "\n");
+			auto itrs = this->symbols.begin();
+			for (; itrs != this->symbols.end(); itrs++) {
+				// symbols
+				if (this->isGlobal) break;
+					printf( "%s,%s%s,%s,%d,%s,%d\n", itrs->first.c_str(), 
+							itrs->second->typestring.c_str(),
+							itrs->second->dimension ? "[]" : "",
+							"Identifier",
+							itrs->second->lineno,
+							this->isGlobal? "GLOBAL NAMESPACE" : 
+								((this->isClass? "CLASS ": "FUNCTION ") + this->name).c_str(),
+							(int)itrs->second->offset
+							);
+			}
+			auto itrc = this->children.begin();
+			for (; itrc!= this->children.end(); itrc++) {
+				if (itrc->second->parent == NULL)
+					continue;
+				if (this->isGlobal)
+					// classes and global functions names
+					printf( "%s,%s,%s,%d,%s\n", itrc->first.c_str(), 
+							itrc->second->isClass? "NA" : itrc->second->return_type.c_str(),
+							itrc->second->isClass? "Class," : "Function",
+							itrc->second->lineno,
+							"GLOBAL NAMESPACE"
+					);
+				else if (this->isClass) 
+					// class 
+					printf( "%s,%s,%s,%d,CLASS %s\n", itrc->first.c_str(), 
+							itrc->second->isClass? "NA" : itrc->second->return_type.c_str(),
+							itrc->second->isClass? "Class," : "Class Method",
+							itrc->second->lineno,
+							this->name.c_str()
+					);
+			}
+			itrc = this->children.begin();
+			for (; itrc!= this->children.end(); itrc++) {
+				if (itrc->second->parent == NULL)
+					continue;
+				itrc->second->print_st();
+			}
+			for (itrc = this->ctor.begin(); itrc != this->ctor.end(); itrc++) {
+				itrc->second->print_st();
 			}
 		}
 };

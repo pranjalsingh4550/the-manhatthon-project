@@ -566,19 +566,22 @@ class SymbolTable {
 		void print_st (FILE* st) {
 			fprintf (st, "\n");
 			auto itrs = this->symbols.begin();
+			fprintf (st, "Function: %s\n", label.c_str());
 			for (; itrs != this->symbols.end(); itrs++) {
 				// symbols
 				if (this->isGlobal) break;
-					fprintf (st, "%s,%s%s,%s,%d,%s,%d\n", itrs->first.c_str(), 
+					fprintf(st, "%s,%s%s,%s,%d,%s,%d,%s\n", itrs->first.c_str(), 
 							itrs->second->typestring.c_str(),
 							itrs->second->dimension ? "[]" : "",
 							"Identifier",
 							itrs->second->lineno,
 							this->isGlobal? "GLOBAL NAMESPACE" : 
 								((this->isClass? "CLASS ": "FUNCTION ") + this->name).c_str(),
-							(int)itrs->second->offset
+							(int)itrs->second->offset,
+							(itrs->second->name + "@" + this->label).c_str()
 							);
 			}
+			return ;
 			auto itrc = this->children.begin();
 			for (; itrc!= this->children.end(); itrc++) {
 				if (itrc->second->parent == NULL)
@@ -617,14 +620,15 @@ class SymbolTable {
 			for (; itrs != this->symbols.end(); itrs++) {
 				// symbols
 				if (this->isGlobal) break;
-					printf( "%s,%s%s,%s,%d,%s,%d\n", itrs->first.c_str(), 
+					printf( "%s,%s%s,%s,%d,%s,%d,%s\n", itrs->first.c_str(), 
 							itrs->second->typestring.c_str(),
 							itrs->second->dimension ? "[]" : "",
 							"Identifier",
 							itrs->second->lineno,
 							this->isGlobal? "GLOBAL NAMESPACE" : 
 								((this->isClass? "CLASS ": "FUNCTION ") + this->name).c_str(),
-							(int)itrs->second->offset
+							(int)itrs->second->offset,
+							(itrs->second->name + "@" + this->label).c_str()
 							);
 			}
 			auto itrc = this->children.begin();

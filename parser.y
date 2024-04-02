@@ -2243,7 +2243,7 @@ primary: atom {
 		
 		//for member functions
 		if (!$1->isLeaf
-		&&  $$->typestring == current_scope->name /*constructor case*/) {
+		||  $$->typestring == current_scope->name /*constructor case*/) {
 			string temp = newtemp();
 			fprintf(tac,"\tstackpointer -%d\n", 8);
 			fprintf(tac,"\tcall allocmem 1\n");
@@ -2368,7 +2368,7 @@ primary: atom {
 		}
 		int size = 0;
 		if (!$1->isLeaf
-		&&  $$->typestring == current_scope->name /*constructor case*/) {
+		||  $$->typestring == current_scope->name /*constructor case*/) {
 			string temp = newtemp();
 			fprintf(tac,"\tstackpointer -%d\n", 8);
 			fprintf(tac,"\tcall allocmem 1\n");

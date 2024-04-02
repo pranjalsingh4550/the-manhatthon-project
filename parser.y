@@ -266,7 +266,7 @@
 				// t_2 = $1->addr + offset
 #endif
 				string ult = newtemp();
-				s+=ult +" = (" + left + " + " + offset + ")\n\t";
+				s+=ult +" = " + left + " + " + offset + "\n\t";
 // 				string nc = newtemp();
 // 				s+=nc + " = *" + ult + "\n";
 // 				result->addr = nc;
@@ -284,7 +284,7 @@
 				
 				s += offset + " =  "  +right + "*"+ to_string(getwidth(leftop)) + "\n\t";
 				string ult = newtemp();
-				s+=ult +" = (" + left + " + " + offset + ")\n";
+				s+=ult +" = " + left + " + " + offset + "\n";
 // 				string nc = newtemp();
 // 				s+=nc + " = *" + ult + "\n";
 // 				result->addr = nc;
@@ -2376,7 +2376,7 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 	}
 
 suite:  simple_stmt[first] 
-	| NEWLINE  INDENT  stmts[third] DEDENT 
+	| NEWLINE  INDENT {resettemp();}stmts[third] DEDENT 
 /* when using multiple mid-rule actions avoid using $1, $2, $3 as its more rigid to code changes*/
 /* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */
 
@@ -2564,9 +2564,9 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom set_num_range_args_1 ")" handle_loop_condition ":" {inLoop++;}suite {inLoop--;} loop_end_jump_back jump_target_false_lower {
+for_stmt: "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom set_num_range_args_1 ")" handle_loop_condition ":" {inLoop++;}suite {inLoop--;basecount--;fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);} loop_end_jump_back jump_target_false_lower {
 	}
-	|  "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom "," atom set_num_range_args_2 ")" handle_loop_condition ":" {inLoop++;}suite{inLoop--;} loop_end_jump_back jump_target_false_lower {
+	|  "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom "," atom set_num_range_args_2 ")" handle_loop_condition ":" {inLoop++;}suite{inLoop--;basecount--;fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);} loop_end_jump_back jump_target_false_lower {
 	
 	}
 
@@ -2589,12 +2589,21 @@ set_num_range_args_1 : {
 set_num_range_args_2 : {
 		for_loop_range_first_arg = $<node>-1;
 		for_loop_range_second_arg = $<node>0;
-		fprintf (tac, "\n\t%s = %s\n", for_loop_iterator_node->addr.c_str(), for_loop_range_first_arg->addr.c_str());
+		// fprintf (tac, "\n\t%s = %s\n", for_loop_iterator_node->addr.c_str(), for_loop_range_first_arg->addr.c_str());
 	}
 
 handle_loop_condition : {
+		if(!for_loop_range_first_arg) {
+			fprintf(tac,"\tt%d = %s\n", basecount, "0");
+		}
+		else{
+			fprintf(tac,"\tt%d = %s\n", basecount, for_loop_range_first_arg->addr.c_str());
+		}
+		basecount++;
 		fprintf (tac, "%s:\n", get_next_label_upper("").c_str());
-		fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
+		string temp = "t"+to_string(basecount-1);
+		fprintf(tac, "\t%s = %s\n", top->getaddr(for_loop_iterator_node).c_str(), temp.c_str());
+		// fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
 		Node* test = $<node>-1;
 		int begin = 0, end = 0;
 		string loop_condition = newtemp();
@@ -2602,7 +2611,7 @@ handle_loop_condition : {
 		Node* dummy_test_condition_node2 = new Node (0);
 		dummy_test_condition_node->addr = loop_condition;
 		if (for_loop_range_first_arg) {
-			gen (dummy_test_condition_node, for_loop_range_first_arg, for_loop_iterator_node, GTE);
+			gen (dummy_test_condition_node, for_loop_iterator_node, for_loop_range_first_arg, GTE);
 			gen (dummy_test_condition_node2, for_loop_iterator_node, for_loop_range_second_arg, LT);
 			gen (dummy_test_condition_node, dummy_test_condition_node, dummy_test_condition_node2, AND_log);
 		} else {

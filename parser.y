@@ -2266,18 +2266,18 @@ insert_end_jump_label3: {
 	}
 
 jump_target_false_lower3: {
-		fprintf (tac, "\n:%s\n", get_current_label3().c_str());
+		fprintf (tac, "\n%s:\n", get_current_label3().c_str());
 	}
 
 upper_jump_target_reached3 : {
-		fprintf (tac, "\n:%s\n", get_current_label_upper3().c_str());
+		fprintf (tac, "\n%s:\n", get_current_label_upper3().c_str());
 	}
 
 
 
 
 
-while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false suite[action] loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
+while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false {inLoop++;}suite[action] {inLoop--;}loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
 
 begin_loop_condition : {
 		fprintf (tac, "\n:%s\n", get_next_label_upper("loop").c_str());
@@ -2291,7 +2291,7 @@ insert_jump_if_false : {
 				fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper($<node>-1).c_str(), get_next_label("").c_str());
 	}
 jump_target_false_lower : {
-		fprintf (tac, "\n:%s\n", get_current_label().c_str());
+		fprintf (tac, "\n%s:\n", get_current_label().c_str());
 	}
 
 arglist: test[obj]
@@ -2478,7 +2478,7 @@ functionstart:  {
 			currently_defining_class->children[$<node>0->production] = top;
 		}
 		top->lineno = $<node>0->lineno;
-		fprintf(tac, ":%s\n", top->label.c_str());
+		fprintf(tac, "%s:\n", top->label.c_str());
 		fprintf(tac, "\tbeginfunc\n");
 	}
 ;
@@ -2560,10 +2560,10 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom set_num_range_args_1 ")" handle_loop_condition ":" suite loop_end_jump_back jump_target_false_lower {
-		
+for_stmt: "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom set_num_range_args_1 ")" handle_loop_condition ":" {inLoop++;}suite {inLoop--;} loop_end_jump_back jump_target_false_lower {
 	}
-	|  "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom "," atom set_num_range_args_2 ")" handle_loop_condition ":" suite loop_end_jump_back jump_target_false_lower {
+	|  "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom "," atom set_num_range_args_2 ")" handle_loop_condition ":" {inLoop++;}suite{inLoop--;} loop_end_jump_back jump_target_false_lower {
+	
 	}
 
 set_itr_ptr : {

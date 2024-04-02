@@ -2688,6 +2688,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 			top->return_type = "None";
 	}suite[last] {
 	       	Funcsuite=0;
+		top->print_st (stdump);
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
 		$$->addchild($id, "Name");
@@ -2974,7 +2975,7 @@ int main(int argc, char** argv){
 		fprintf(stderr, "Error opening file\n");
 		exit(1);
 	}
-	fprintf (stdump, "LEXEME\tTYPE\tTOKEN\t\tLINE\tPARENT SCOPE\tOFFSET (for identifiers)\n");
+	fprintf (stdump, "LEXEME,TYPE,TOKEN,LINE,PARENT SCOPE,OFFSET (for identifiers),3AC REGISTER\n");
 	if(yyparse()!=0){
 		/* fprintf(stderr,"Error in parsing\n"); */
 		return 1;

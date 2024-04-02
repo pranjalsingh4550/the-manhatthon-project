@@ -221,7 +221,7 @@
 		if (op == ASSIGN
 		 && leftop->islval 
 		 && !leftop->isLeaf /*NOT isLeaf: addr is a temporary*/) {
-		 	dprintf(stderr_copy, "gen: assign special case\n");
+		 	// dprintf(stderr_copy, "gen: assign special case\n");
 			//direct assign to left will not work, will need to assign to deref of left i.e. SW
 			//this doesn't work for augmented assign, that is handled above
 			fprintf (tac, "\t*%s = %s\n", left.c_str(), right.c_str()); return;
@@ -1551,8 +1551,10 @@ power: primary {
 		//if islval is true and addr is a temporary, addr holds
 		//an address/pointer -> all that needs to be done is to
 		//dereference it
+		// dprintf(stderr_copy, "Production being lvalified: %s addr: %s\n", $1->production.c_str(), $1->addr.c_str());
 		$1->islval = false;
 		if (!$1->isLeaf /*NOT isLeaf: addr is a temporary*/) {
+			// dprintf(stderr_copy, "Leaf indicator\n");
 			gen($1, $1, NULL, DEREF);
 		}
 	}
@@ -1722,42 +1724,44 @@ primary: atom {
 
 	| primary "[" test "]"
 		{
-			$$->isdecl = false;
-			$$->islval = true;
-			if ($1->isLeaf && !top->has($1)) {
-				dprintf (stderr_copy, "Error undeclared object %s at line %d", $1->production.c_str(), $3->lineno);
+		// dprintf(stderr_copy, "Subindex indicator, primary: %s, test: %s\n", $1->production.c_str(), $3->production.c_str());
+		$$->isdecl = false;
+		$$->islval = true;
+		if ($1->isLeaf && !top->has($1)) {
+			dprintf (stderr_copy, "Error undeclared object %s at line %d", $1->production.c_str(), $3->lineno);
+			exit (1);
+		}
+		if ($1->dimension == 0) {
+			dprintf (stderr_copy, "Error at line %d: %s object is not subscriptable.\n",
+					yylineno, $1->typestring.c_str());
+			exit (1);
+		}
+		if ($3->typestring != "int") {
+			dprintf (stderr_copy, "Error at line %d: index is not an integer\n",
+					yylineno);
+			exit (1);
+		}
+		if($3->isConstant){
+			if($3->intVal > $1->dimension){
+				dprintf (stderr_copy, "Error at line %d: index out of bounds\n",
+					yylineno);
 				exit (1);
 			}
-			if ($1->dimension == 0) {
-				dprintf (stderr_copy, "Error at line %d: %s object is not subscriptable.\n",
-						yylineno, $1->typestring.c_str());
-				exit (1);
-			}
-			if ($3->typestring != "int") {
-				dprintf (stderr_copy, "Error at line %d: index is not an integer\n",
-						yylineno);
-				exit (1);
-			}
-			if($3->isConstant){
-				if($3->intVal > $1->dimension){
-					dprintf (stderr_copy, "Error at line %d: index out of bounds\n",
-						yylineno);
-					exit (1);
-				}
-			}
-			// if primary is out of bounds: run time error right?
-			// reminder: in 3ac, check bounds
-			$$ = new Node (0, $1->typestring, "");
-			if ($3->typestring != "int") {
-				dprintf (stderr_copy, "Error at line %d: array subscript cannot be of type %s, must be int\n",
-						yylineno, $3->typestring.c_str());
-				exit (74);
-			}
+		}
+		// if primary is out of bounds: run time error right?
+		// reminder: in 3ac, check bounds
+		$$ = new Node (0, $1->typestring, "");
+		if ($3->typestring != "int") {
+			dprintf (stderr_copy, "Error at line %d: array subscript cannot be of type %s, must be int\n",
+					yylineno, $3->typestring.c_str());
+			exit (74);
+		}
 		current_scope = NULL;
 		$$->lineno = $1->lineno;
 		$$->typestring = $1->typestring;
 		$$->islval = true;
 		$$->isdecl = false;
+		$$->isLeaf = false; //should deref this to assign to/from it
 		$$->dimension = $1->dimension - 1;
 
 		gen($$, $1, $3, SUBSCRIPT);
@@ -1989,7 +1993,7 @@ primary: atom {
 			} else {
 				fprintf(tac, "\tparam %s\n", function_call_args[iter]->addr.c_str());
 			}
-			string typestring = current_scope->arg_types[len-iter-1];
+			string typestring = function_call_args[iter]->typestring;
 			if (typestring == "bool" || typestring == "float" || typestring == "int") {
 				size += 8;
 			} else if (typestring == "complex" || typestring == "str") {

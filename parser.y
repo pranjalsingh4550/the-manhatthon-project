@@ -176,10 +176,10 @@
 		return find_class(typestring)->table_size;
 	}
 	void gen_ujump (string target) {
-		fprintf (tac, "\tUJUMP: %s\n", target.c_str());
+		fprintf (tac, "\tUJUMP\t%s\n", target.c_str());
 	}
 	void gen_branch (Node* condition, string target) {
-		fprintf (tac, "\tCJUMP_IF_FALSE (%s): %s\n", condition->addr.c_str(), target.c_str());
+		fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", condition->addr.c_str(), target.c_str());
 	}
 	void gen(Node*result, Node* leftop, Node* rightop,enum ir_operation op){
 		if (tac == NULL) tac = stdout;
@@ -282,7 +282,7 @@
 				string s="\t";
 				string offset = newtemp();
 				
-				s += offset + " =  "  +right + "*"+ to_string(getwidth(leftop)) + "\n\t";
+				s += offset + " =  "  +right + " * "+ to_string(getwidth(leftop)) + "\n\t";
 				string ult = newtemp();
 				s+=ult +" = " + left + " + " + offset + "\n";
 // 				string nc = newtemp();
@@ -330,7 +330,7 @@
 			case FLOORDIV:	fprintf(tac, "\t%s\t= %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case STREQ:		fprintf(tac, "\t%s\t= STREQ(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break;
 			case STRCMP:	fprintf(tac, "\t%s\t= STRCMP(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break; 
-			default: dprintf (stderr_copy,"Wrong op\n");exit(1);
+			default: dprintf (stderr_copy,"Wrong op at line no : %d\n",yylineno);exit(1);
 		}
 		return;
 			
@@ -719,7 +719,9 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			$$ = new Node ($operation->production);
 			$$->addchild($id);
 			$$->addchild($value);
-			gen($id,$id,$value,$operation->op);
+			gen($$,$id,$value,$operation->op);
+			fprintf(tac,"\t%s = %s\n", top->getaddr($id).c_str(), $$->addr.c_str());
+	
 	}
 	| primary[id] "=" test[value] {
 			/*
@@ -802,13 +804,13 @@ augassign: "+=" {$$ = new Node ("+="); $$->op = ADD;}
 		| "*=" {$$ = new Node ("*="); $$->op = MUL;}
 		| "/=" {$$ = new Node ("/="); $$->op = DIV;}
 		| DOUBLESLASHEQUAL {$$ = new Node ("//="); $$->op = DIV;}
-		| "%=" {$$ = new Node ("%="); ;}
-		| "&=" {$$ = new Node ("&="); }
-		| "|=" {$$ = new Node ("|="); }
-		| "^=" {$$ = new Node ("^="); }
-		| ">>=" {$$ = new Node (">>=");}
-		| "<<=" {$$ = new Node ("<<="); }
-		| "**=" {$$ = new Node ("**="); }
+		| "%=" {$$ = new Node ("%="); $$->op =MOD;}
+		| "&=" {$$ = new Node ("&="); $$->op = AND_bit;}
+		| "|=" {$$ = new Node ("|="); $$->op = OR_bit;}
+		| "^=" {$$ = new Node ("^="); $$->op = XOR;}
+		| ">>=" {$$ = new Node (">>=");$$->op = SHR;}
+		| "<<=" {$$ = new Node ("<<="); $$->op = SHL;}
+		| "**=" {$$ = new Node ("**="); $$->op = POW;}
 
 return_stmt: "return" test {
 			if($2->isConstant ){
@@ -2263,7 +2265,7 @@ new_jump_to_end3: {
 	}
 
 insert_jump_if_false3: {
-		fprintf (tac, "\tCJUMP_IF_FALSE (%s): %s\n",  dev_helper($<node>-1).c_str(), get_next_label3("").c_str());
+		fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n",  dev_helper($<node>-1).c_str(), get_next_label3("").c_str());
 	}
 
 
@@ -2286,7 +2288,7 @@ upper_jump_target_reached3 : {
 while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false {inLoop++;}suite[action] {inLoop--;}loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
 
 begin_loop_condition : {
-		fprintf (tac, "\n%s:\n", get_next_label_upper("loop").c_str());
+		fprintf (tac, "\n%s:\n", get_next_label_upper("").c_str());
 	}
 
 loop_end_jump_back : {
@@ -2338,6 +2340,7 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
 		basecount++;
 		resettemp();
+		function_params.push_back ($1);
 		top->put($1, currently_defining_class->name);
 	}
 	| typedarglist "," typedargument[last] { 
@@ -2373,6 +2376,7 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 		$1->isLeaf=false;
 		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
 		basecount++;
+		function_params.push_back ($1);
 		resettemp();
 		put ($1, $3);
 	}
@@ -2411,7 +2415,6 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	$$->addchild($last, "Body");
 			function_call_args_dim.clear();
 			function_call_args.clear();
-
 			basecount-=function_params.size();
 			function_params.clear();
 
@@ -2721,7 +2724,10 @@ int main(int argc, char** argv){
 	tac = fopen (outputfile, "w+");
 	graph = NULL;
 	if (graph) fprintf (graph, "strict digraph ast {\n");
-	yyparse();
+	if(yyparse()!=0){
+		/* fprintf(stderr,"Error in parsing\n"); */
+		return 1;
+	}
 	if (graph) {
 		fprintf (graph, "}\n");
 		fclose (graph);

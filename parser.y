@@ -49,7 +49,7 @@
 	vector<Node*> function_params;
 
 	#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-	#define TEMPDEBUG 0
+	#define TEMPDEBUG 1
 	
 	bool is_not_name (Node*);
 	
@@ -658,6 +658,23 @@ expr_stmt: primary[id] ":" typeclass[type] {
 		$$->addchild($type, "Type");
 	}
 	| primary[id] ":" typeclass[type] decl_set_curr_id "=" test[value] {
+	
+		if ($value->typestring == "") {
+			dprintf (stderr_copy, 
+			"Error at line %d: Invalid value on RHS of unknown type\n",
+			$id->lineno);
+			#if TEMPDEBUG
+			printf ("empty typestring: production is %s token %d\n", $value->production.c_str(), $value->token);
+			#endif
+			exit (96);
+		}
+	
+		if (!check_types($value->typestring, $type->production)) {
+			dprintf(stderr_copy, 
+			"TypeError on line %d: %s and %s are incompatible\n", 
+			$id->lineno, $type->production.c_str(), $value->typestring.c_str());
+			exit(1);
+		}
 		if ($id->isLeaf) {
 			if (is_not_name ($id)) {
 				dprintf (stderr_copy, "Error: assignment to non-identifier at line %d\n", $id->lineno);
@@ -667,23 +684,6 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
 						$id->lineno, $id->production.c_str());
 				exit(87);
-			}
-			if (!check_types($value->typestring, $type->production)) {
-				dprintf(stderr_copy, 
-				"TypeError on line %d: %s and %s are incompatible\n", 
-				$id->lineno, $id->typestring.c_str(), $type->production.c_str());
-				exit(1);
-			}
-			if ($value->typestring == "") {
-				dprintf (stderr_copy, "Error at line %d: Invalid value on RHS of unknown type\n",
-						$id->lineno);
-			
-			
-				#if TEMPDEBUG
-				printf ("empty typestring: production is %s token %d\n", $value->production.c_str(), $value->token);
-				#endif
-
-				exit (96);
 			}
 			/*
 				if($id is not lvalue) error

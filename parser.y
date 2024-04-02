@@ -49,7 +49,7 @@
 	vector<Node*> function_params;
 
 	#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-	#define TEMPDEBUG 1
+	#define TEMPDEBUG 0
 	
 	bool is_not_name (Node*);
 	
@@ -258,7 +258,10 @@
 		 	// dprintf(stderr_copy, "gen: assign special case\n");
 			//direct assign to left will not work, will need to assign to deref of left i.e. SW
 			//this doesn't work for augmented assign, that is handled above
-			fprintf (tac, "\t*%s = %s\n", left.c_str(), right.c_str()); return;
+			#if TEMPDEBUG
+			printf("special assign, leftaddr: %s, rightaddr: %s\n", leftop->addr.c_str(), rightop->addr.c_str());
+			#endif
+			fprintf (tac, "\t*%s = %s\n", leftop->addr.c_str(), right.c_str()); return;
 		}
 		switch(op){
 			case ASSIGN: {
@@ -787,6 +790,10 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				if($value is a leaf && $value is not a constant ) check if $value is in scope or not
 
 			*/
+			#if TEMPDEBUG
+			printf("1assignment: $id addr: %s $value addr: %s\n", $id->addr.c_str(), $value->addr.c_str());
+			#endif
+			
 			if ($id->typestring == "" && !$id->isLeaf) {
 				dprintf (stderr_copy, "Error at line %d: class attribute %s has not been defined\n",
 						(int)$id->lineno, $id->production.c_str());
@@ -836,9 +843,17 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				exit(1);
 			}
 			
+			#if TEMPDEBUG
+			printf("2assignment: $id addr: %s $value addr: %s\n", $id->addr.c_str(), $value->addr.c_str());
+			#endif
+			
 			$$ = new Node ("=");
 			$$->addchild($id);
 			$$->addchild($value);
+			
+			#if TEMPDEBUG
+			printf("3assignment: $id addr: %s $value addr: %s\n", $id->addr.c_str(), $value->addr.c_str());
+			#endif
 			
 			gen($$,$id,$value,ASSIGN);
 	}
@@ -1863,15 +1878,17 @@ primary: atom {
 				(int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
 				exit(23);
 			}
-			#if TEMPDEBUG
-				printf("a.b something: %s\n", $3->production.c_str());
-			#endif
 			//here: then we found a definition -> generate the temporary and set the typestrings/dimension
 			$$->typestring = entry->second->typestring;
 			$$->dimension = entry->second->dimension;
 			$$->lineno = $1->lineno;
-			$$->production = $3->production; //for puts/etc. 
+			$$->production = $3->production; 
+			//should NOT be having any puts if it is already declared
 			gen($$,$1,$3,ATTR);
+			#if TEMPDEBUG
+				printf("a.b something: %s\n", $3->production.c_str());
+				printf("typestring: %s addr: %s\n", $$->typestring.c_str(), $$->addr.c_str());
+			#endif
 		}
 		/*
 			$ new temp 
@@ -1938,7 +1955,9 @@ primary: atom {
 		$$->islval = false;
 		$$->isdecl = false;
 		if ($1->isLeaf && $1->production != "print" && $1->production != "len" && $1->production != "range") {
+			//i.e. not a member function or a builtin
 			if (find_fn ($1->production)) {
+				//if is a defined function
 				current_scope = find_fn($1->production);
 				$$->typestring = current_scope->return_type;
 // 					string temp =newtemp();
@@ -1957,17 +1976,19 @@ primary: atom {
 					
 					// fprintf(tac,"call %s, %s\n", );	
 					// fprintf(tac,"stackpointer -%d\n",)
-#if TEMPDEBUG
+				#if TEMPDEBUG
 				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
-#endif
-			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
-				current_scope = globalSymTable->ctor.find ($1->production)->second;
-				$1->addr+=".ctor";
-#if TEMPDEBUG
+				#endif
+			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) {
+				// call to constructor
+				current_scope = globalSymTable->ctor.find($1->production)->second;
+				$1->production+=".ctor";
+				#if TEMPDEBUG
 				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
-#endif
+				#endif
 				$$->typestring = $1->production;
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
+				//CONFIRM: this will never be used because it is already checked by find_fn
 				current_scope = globalSymTable->children.find ($1->production)->second;
 				$$->typestring = current_scope->return_type;
 			} else {
@@ -1980,10 +2001,10 @@ primary: atom {
 				dprintf (stderr_copy, "TypeError at line %d: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
 			} else { // valid function call
-#if TEMPDEBUG
+				#if TEMPDEBUG
 				printf ("valid function call to function %s\n",
 						current_scope ? current_scope->name.c_str() : "" );
-#endif
+				#endif
 			}
 		}
 		// printf("typestring = %s\n", $$->typestring.c_str());
@@ -1992,7 +2013,7 @@ primary: atom {
 		// check function_call_args
 		int iter;
 		
-		if ($1->production == "range" && $1->isLeaf) {
+		if ($1->production == "range" && $1->isLeaf) { //builtin range
 			if ((function_call_args.size() > 2 || function_call_args.size() < 1)) {
 				dprintf (stderr_copy, "Error at line %d: range() expects one or two arguments, received %d\n",
 						(int)$1->lineno, (int)function_call_args.size());
@@ -2011,7 +2032,7 @@ primary: atom {
 				exit (58);
 			}
 			$$->typestring = "";
-		} else if ($1->production == "print" && $1->isLeaf) {
+		} else if ($1->production == "print" && $1->isLeaf) { //builtin print
 			if (function_call_args.size() != 1) {
 				dprintf (stderr_copy, "Error at line %d: print() expects one argument, received %d\n",
 						(int)$1->lineno, (int)function_call_args.size());
@@ -2024,7 +2045,7 @@ primary: atom {
 			}
 			else
 				$$->typestring = "None";
-		} else if ($1->production == "len" && $$->isLeaf) {
+		} else if ($1->production == "len" && $$->isLeaf) { //builtin len
 			if (function_call_args.size() != 1) {
 				dprintf (stderr_copy, "Error at line %d: len() expects one argument, received %d\n",
 						(int)$1->lineno, (int)function_call_args.size());
@@ -2035,7 +2056,7 @@ primary: atom {
 				exit (49);
 			}
 			$$->typestring = "int";
-		} else { //i.e. user defined function, not len, range or print
+		} else { //i.e. user defined function: not len, range or print
 			if (function_call_args.size() != current_scope->arg_types.size()) {
 				dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
 					(int)$1->lineno, (int)current_scope->arg_types.size(),(int) function_call_args.size());
@@ -2043,8 +2064,6 @@ primary: atom {
 			}
 
 			for (iter = 0; iter< current_scope->arg_types.size(); iter ++) { 
-				// cout << "twdfdvwfere\n";
-				// cout << function_call_args[iter]->typestring << current_scope->arg_types[iter] << function_call_args_dim[iter] << current_scope->arg_dimensions[iter]<<endl;
 				if (function_call_args[iter]->typestring == (current_scope->arg_types)[iter]
 				 && check_array(function_call_args_dim[iter], (current_scope->arg_dimensions)[iter] )) {
 					continue;
@@ -2052,27 +2071,33 @@ primary: atom {
 				
 				if (    
 					(
-							(function_call_args[iter]->typestring == "int" 
-						&& current_scope->arg_types[iter] == "bool")
+						(function_call_args[iter]->typestring == "int" 
+					  && current_scope->arg_types[iter] == "bool")
 					|| 	(function_call_args[iter]->typestring == "int" 
-						&& current_scope->arg_types[iter] == "float")
+					  && current_scope->arg_types[iter] == "float")
 					|| 	(function_call_args[iter]->typestring == "bool" 
-						&& current_scope->arg_types[iter] == "int")
+					  && current_scope->arg_types[iter] == "int")
 					|| 	(function_call_args[iter]->typestring == "int" 
-						&& current_scope->arg_types[iter] == "bool")
+					  && current_scope->arg_types[iter] == "bool")
 					) 
 				&& check_array(function_call_args_dim[iter], (current_scope->arg_dimensions)[iter])) {
 					continue;
 				}
 				if (function_call_args[iter]->typestring != current_scope->arg_types[iter])
-					dprintf (stderr_copy, "TypeError at line %d: expected argument %d to be %s, received incompatible type %s\n",
-							(int) $1->lineno, iter+1, current_scope->arg_types[iter].c_str(), function_call_args[iter]->typestring.c_str());
+					dprintf (stderr_copy,
+					"TypeError at line %d: expected argument %d to be %s, received incompatible type %s\n",
+					(int) $1->lineno, 
+					iter+1,
+					current_scope->arg_types[iter].c_str(), 
+					function_call_args[iter]->typestring.c_str());
 				else //one is array, other is not
-					dprintf (stderr_copy, "TypeError at line %d: expected argument %d to be of type %s, received incompatible type %s\n",
-							(int) $1->lineno, iter+1,
-							(current_scope->arg_types[iter] +(current_scope->arg_dimensions[iter] ? "[]" : "")).c_str(),
-							(current_scope->arg_types[iter] +(function_call_args_dim[iter]? "[]" : "")).c_str()
-							);
+					dprintf(stderr_copy,
+					"TypeError at line %d: expected argument %d to be of type %s, received incompatible type %s\n",
+					(int) $1->lineno, 
+					iter+1,
+					(current_scope->arg_types[iter] +(current_scope->arg_dimensions[iter] ? "[]" : "")).c_str(),
+					(current_scope->arg_types[iter] +(function_call_args_dim[iter]? "[]" : "")).c_str()
+					);
 				exit(80);
 			}
 		}
@@ -2175,6 +2200,7 @@ primary: atom {
 			fprintf(tac,"\tparam %s\n",temp.c_str());	
 			size += 8;
 		}
+		
 		//move stackptr
 		fprintf(tac, "\tstackpointer -%d\n", size + 16);
 		//function call
@@ -2197,11 +2223,12 @@ primary: atom {
 			}
 		} else {
 			//not a built-in
-			if (current_scope->return_type != "None") {
+			if (current_scope->return_type != "None"
+			||  $$->typestring == current_scope->name /*constructor case*/) {
 				$$->addr = newtemp();
-				fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), $1->production.c_str(), len);
+				fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len);
 			} else {
-				fprintf(tac, "\tcall %s %d\n", $1->production.c_str(), len);
+				fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), len);
 			}
 		}
 		fprintf(tac, "\tstackpointer +%d\n", size + 16);
@@ -2243,14 +2270,13 @@ primary: atom {
 					printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
 				#endif
 				// fill 3ac for function call
-			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) { // call to constructor
-				#if TEMPDEBUG
-					printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
-				#endif
-				$$->typestring = $1->production;
+			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) {
+				// call to constructor
 				current_scope = globalSymTable->ctor.find($1->production)->second;
+				$$->typestring = $1->production;
+				$1->production+=".ctor";
 				#if TEMPDEBUG
-					// cout<<"return type of constructor "<<$$->typestring<<endl;
+				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 				#endif
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				current_scope = globalSymTable->children.find ($1->production)->second;
@@ -2267,14 +2293,19 @@ primary: atom {
 				dprintf (stderr_copy, "TypeError at line %d: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
 			} // valid function call
-#if TEMPDEBUG
+			#if TEMPDEBUG
 			printf ("valid function call to function %s\n",
 			current_scope ? current_scope->name.c_str() : "" );
-#endif
+			#endif
 		}
 		$$->islval = false;
 		$$->isdecl = false;
-		$$->typestring = ($$->typestring != "" ?  $$->typestring: current_scope->return_type);
+		if ($$->typestring == "")
+			$$->typestring = current_scope->return_type;
+			
+		#if TEMPDEBUG
+		printf("end typestr: %s\n", $$->typestring.c_str());
+		#endif
 		// printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
 		
@@ -2312,11 +2343,12 @@ primary: atom {
 			}
 		} else {
 			//not a built-in
-			if (current_scope->return_type != "None") {
+			if (current_scope->return_type != "None"
+			||  $$->typestring == current_scope->name /*constructor case*/) {
 				$$->addr = newtemp();
-				fprintf(tac, "\t%s = call %s\n", $$->addr.c_str(), $1->production.c_str());
+				fprintf(tac, "\t%s = call %s\n", $$->addr.c_str(), current_scope->label.c_str());
 			} else {
-				fprintf(tac, "\tcall %s\n", $1->production.c_str());
+				fprintf(tac, "\tcall %s\n", current_scope->label.c_str());
 			}
 		}
 		
@@ -2489,7 +2521,6 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		}
 		top->thisname=$1->production;
 		top->table_size = 8; // for self pointer
-		function_params.push_back ($1);
 		$$=$1;
 		
 		$1->addr="t"+to_string(basecount);
@@ -2595,7 +2626,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 			basecount-=function_params.size();
 			function_params.clear();			
 			
-			fprintf(tac, "\ret\n");
+			fprintf(tac, "\tret\n");
 			fprintf(tac, "\tendfunc\n\n");
 	}
 	| "def" NAME[id] functionstart "(" ")" ":" {

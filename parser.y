@@ -2242,8 +2242,14 @@ primary: atom {
 		
 		
 		//for member functions
-		if ($$->typestring == current_scope->name /*constructor case*/) {
+		if ($$->typestring+".ctor" == $1->production/*constructor case*/) {
+			#if 0
+				printf("typestring = %s\n", $$->typestring.c_str());
+				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
+			#endif
 			string temp = newtemp();
+			fprintf(tac,"\t%s = %d\n", temp.c_str(), getwidth($$->typestring));
+			fprintf(tac,"\tparam %s\n", temp.c_str());
 			fprintf(tac,"\tstackpointer -%d\n", 8);
 			fprintf(tac,"\tcall allocmem 1\n");
 			fprintf(tac,"\tstackpointer +%d\n", (int) top->table_size+8);
@@ -2296,6 +2302,7 @@ primary: atom {
 
 			update $result type as the return type of function
 		*/
+	
 		if ($1->production == "print" || $1->production == "len" || $1->production == "range") {
 			if ($1->production == "range")
 				dprintf (stderr_copy, "Error at line %d: range() expects one or two arguments, received zero\n",
@@ -2366,8 +2373,10 @@ primary: atom {
 			exit (60);
 		}
 		int size = 0;
-		if ($$->typestring == current_scope->name /*constructor case*/) {
+		if ($$->typestring + ".ctor" == $1->production /*constructor case*/) {
 			string temp = newtemp();
+			fprintf(tac,"\t%s = %d\n", temp.c_str(), getwidth($$->typestring));
+			fprintf(tac,"\tparam %s\n", temp.c_str());
 			fprintf(tac,"\tstackpointer -%d\n", 8);
 			fprintf(tac,"\tcall allocmem 1\n");
 			fprintf(tac,"\tstackpointer +%d\n", (int) top->table_size+8);

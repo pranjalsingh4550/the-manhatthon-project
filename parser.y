@@ -1696,6 +1696,8 @@ primary: atom {
 			current_scope = current_scope->find_member_fn($3->production);
 			$$->addr = $1->typestring +"." + $3->production;
 			 // the only case in which current_scope is truly global
+		} else if (current_scope->symbols.find(($3->production))!=current_scope->symbols.end()) {
+			$$->typestring = current_scope->symbols.find($3->production)->second->typestring;
 		}
 		else if(current_scope->symbols.find(($3->production))==current_scope->symbols.end() && !$$->isdecl){
 			dprintf (stderr_copy, "Error at line %d: %s is not a member of class %s\n", (int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());

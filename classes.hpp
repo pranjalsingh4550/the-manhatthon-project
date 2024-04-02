@@ -428,7 +428,7 @@ class SymbolTable {
 			s->dimension = type->dimension;
 			s->node= node;
 			if(node->isLeaf){
-				s->node->addr+="_"+name;
+				s->node->addr+="@"+name;
 			}
 			return 1;
 		}
@@ -455,7 +455,7 @@ class SymbolTable {
 			s->dimension = 0;
 			s->node= node;
 			if(node->isLeaf){
-				s->node->addr+="_"+name;
+				s->node->addr+="@"+name;
 			}
 			return 1;
 		}

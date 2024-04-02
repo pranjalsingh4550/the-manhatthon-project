@@ -2280,7 +2280,7 @@ upper_jump_target_reached3 : {
 while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false {inLoop++;}suite[action] {inLoop--;}loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
 
 begin_loop_condition : {
-		fprintf (tac, "\n:%s\n", get_next_label_upper("loop").c_str());
+		fprintf (tac, "\n%s:\n", get_next_label_upper("loop").c_str());
 	}
 
 loop_end_jump_back : {
@@ -2589,7 +2589,7 @@ set_num_range_args_2 : {
 	}
 
 handle_loop_condition : {
-		fprintf (tac, "%s\n", get_next_label_upper("for_loop").c_str());
+		fprintf (tac, "%s:\n", get_next_label_upper("").c_str());
 		fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
 		Node* test = $<node>-1;
 		int begin = 0, end = 0;
@@ -2606,7 +2606,7 @@ handle_loop_condition : {
 		}
 
 		// dummy_test_condition_node is the handle to the loop condition
-		fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper(dummy_test_condition_node).c_str(), get_next_label("for_loop").c_str());
+		fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper(dummy_test_condition_node).c_str(), get_next_label("").c_str());
 	}
 
 testlist: arglist

@@ -2227,7 +2227,7 @@ primary: atom {
 			if (cast) {
 				fprintf(tac, "\tparam %s\n", temp.c_str());
 			} else {
-				fprintf(tac, "\tparam %s\n", function_call_args[iter]->addr.c_str());
+				fprintf(tac, "\tparam %s\n", dev_helper(function_call_args[iter]).c_str());
 			}
 			string typestring = function_call_args[iter]->typestring;
 			size+=8;

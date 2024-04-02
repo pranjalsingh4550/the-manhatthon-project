@@ -332,7 +332,7 @@ class SymbolTable {
 		int isGlobal;
 		int lineno;
 		string name;
-		string label=name;
+		string label="";
 		string thisname = "";
 		string return_type="None";
 		vector<string> arg_types; // for function, but class also ig
@@ -428,7 +428,7 @@ class SymbolTable {
 			s->dimension = type->dimension;
 			s->node= node;
 			if(node->isLeaf){
-				s->node->addr+="@"+name;
+				s->node->addr+="@"+(label==""?name:label);
 			}
 			return 1;
 		}
@@ -455,7 +455,7 @@ class SymbolTable {
 			s->dimension = 0;
 			s->node= node;
 			if(node->isLeaf){
-				s->node->addr+="@"+name;
+				s->node->addr+="@"+(label==""?name:label);
 			}
 			return 1;
 		}

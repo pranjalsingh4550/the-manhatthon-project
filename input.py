@@ -1,28 +1,45 @@
-def bubbleSort(array: list[int]) -> None:
-    i: int = 0
-    for i in range(10):
-      swapped: bool = False
-      j: int = 0
-      for j in range(10, 20):
-        if array[j] > array[j + 1]:
-          temp: int = array[j]
-          array[j] = array[j + 1]
-          array[j + 1] = temp
-          swapped = True
-      if not swapped:
-        break
+class person ():
+  def __init__ (self,nameparam:str, advname:str, degree:str):
+    self.name :str= nameparam
+    self.advisor:str = advname;
+    # self.namelen:str = len(nameparam)
+    self.namelen:str = "len not working on strings"
+    self.degree:str = degree
+    if degree >= "BTech":
+      print ("Invalid degree")
+    print (degree)
+  def print_namelen_with(self):
+    print (self.namelen)
 
-def main():
-    data: list[int] = [-2, 45, 0, 11, -9]
-    # bubbleSort(data)
+class TA (person):
+  def __init__ (self,course:str, name:str):
+    self.course = course
+    self.name = name;
+    if name == "Binong": namelen = 7;
+    if name == "Binong":
+      advisor = "Debadatta Mishra, Swarnendu Biswas"
+    elif name[1] == "Dev":
+      advisor = "Binong"
+    else:
+      advname = "N/A"
+    if len(course) > 6:
+      print ("Invalid Course Code"); print (course)
+  def check_course_level(self)->None:
+    if self.course[2] >= "6":
+      print ("PG course")
+    elif self.course[2] == "4":
+      print ("Basket course: CS4xx series")
+    elif self.course[2] == "3":
+      print ("Basket A course or UG DC course")
+    elif self.course[2] == "2":
+      print ("UG Department Compulsory course")
+      print ("Possibilities: CS20(1|2|3), CS220, CS253")
+    elif self.course[2] == "1":
+      print ("Undergraduate Institute Core course")
 
-    # print('Sorted Array in Ascending Order:')
-    i: int = 0
-    # n:int= len(data)
-    for i in range(10):
-    #   print(data[i])
-        j:int = data[i]
-    
+# def main():
+#   a:int=5
 
-if __name__ == "__main__":
-    main()
+
+# if __name__ == "__main__":
+# 	main()

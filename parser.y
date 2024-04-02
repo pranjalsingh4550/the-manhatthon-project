@@ -46,8 +46,6 @@
 	Node* for_loop_iterator_node, *for_loop_range_second_arg, *for_loop_range_first_arg;
 	int label_count;
 
-
-
 	vector<Node*> function_params;
 
 	#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
@@ -633,7 +631,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 						$id->lineno);
 				exit (57);
 			} else if (!inside_init) {
-				dprintf (stderr_copy, "Error at line %d: class attributes cannot be declard outside the constructor\n",
+				dprintf (stderr_copy, "Error at line %d: class attributes cannot be declared outside the constructor\n",
 						$id->lineno);
 				exit (57);
 			} else if (currently_defining_class->symbols.find($id->production) != currently_defining_class->symbols.end()) {
@@ -734,6 +732,9 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			}
 			//put handles typestrings of id, type
 			currently_defining_class->put($id, $type);
+			//generate the right address using the thisname addr and the production in $id
+			auto thisname_entry = currently_defining_class->symbols.find(top->thisname);
+			gen($id, thisname_entry->second->node, $id, ATTR);
 		}
 		gen ($$,$id, $value, ASSIGN);
 		$$ = new Node ("Declaration");
@@ -819,7 +820,9 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			if (check_array($id->dimension, $value->dimension)) {
 				//edit dimension to value
 				$id->dimension = $value->dimension;
+				#if TEMPDEBUG
 				top->print_st();
+				#endif
 				//update symbol table if any
 				//FIX: object-wise symbol tables/dimensions for self.a : list[int] declaration without definition
 				Node *t1 = $id; 
@@ -1825,8 +1828,33 @@ primary: atom {
 			//put later on
 			$$->lineno = $1->lineno;
 			$$->production = $3->production;
+			#if TEMPDEBUG
+				printf("self something: %s\n", $3->production.c_str());
+				current_scope->print_st();
+			#endif
+			//check if the name has been put into the table already
+			//if not, leave it for now (this has been handled in 
+			//the assignment productions)
+			//if it is in the table, just use that address and then
+			//set isdecl to false
+			
+			auto entry = current_scope->symbols.find(($3->production));
+			if (entry != current_scope->symbols.end()) {
+				//i.e. already declared
+				//get addr of thisname from symbol table
+				auto thisname_entry = current_scope->symbols.find(top->thisname);
+				$1->addr = thisname_entry->second->node->addr;
+				#if TEMPDEBUG
+				printf("thisname addr: %s\n", $1->addr.c_str());
+				#endif
+				//remove isdecl
+				$$->isdecl = false;
+				//call genattr
+				gen($$,$1,$3,ATTR);
+			}
 		} else {
 			//a.b case
+			
 			auto entry = current_scope->symbols.find(($3->production));
 			if (entry == current_scope->symbols.end()) {
 				//no prior declaration/definition found -> error
@@ -1835,6 +1863,9 @@ primary: atom {
 				(int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
 				exit(23);
 			}
+			#if TEMPDEBUG
+				printf("a.b something: %s\n", $3->production.c_str());
+			#endif
 			//here: then we found a definition -> generate the temporary and set the typestrings/dimension
 			$$->typestring = entry->second->typestring;
 			$$->dimension = entry->second->dimension;
@@ -2468,6 +2499,7 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		resettemp();
 		function_params.push_back ($1);
 		top->put($1, currently_defining_class->name);
+		currently_defining_class->put($1, currently_defining_class->name);
 	}
 	| typedarglist "," typedargument[last] { 
 		$$ = new Node ("Multiple Terms"); 
@@ -2528,7 +2560,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 
 		basecount-=function_params.size();
 		function_params.clear();
-
+		
 		fprintf(tac, "\tendfunc\n\n");
 	}
 	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] {
@@ -2562,7 +2594,8 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 
 			basecount-=function_params.size();
 			function_params.clear();			
-
+			
+			fprintf(tac, "\ret\n");
 			fprintf(tac, "\tendfunc\n\n");
 	}
 	| "def" NAME[id] functionstart "(" ")" ":" {
@@ -2582,12 +2615,12 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	}
 
 functionstart:  {
-#if TEMPDEBUG
+		#if TEMPDEBUG
 		printf("start function scope\n");
 		printf("scope name= %s\n", $<node>0->production.c_str());
 		if (Classsuite)
 			printf ("class name in method def: %s\n", currently_defining_class->name.c_str());
-#endif
+		#endif
 		// if inside_init or classsuite = 0, add functions to globalSymTable
 		// else add to currently_defining_class
 		if (Classsuite && $<node>0->production == "__init__"){
@@ -2617,9 +2650,10 @@ functionstart:  {
 		fprintf(tac, "\tbeginfunc\n");
 	}
 ;
-classdef: "class" NAME classstart ":"{
-		function_call_args_dim.clear();
-		function_call_args.clear();}  suite[last] {
+classdef: "class" NAME classstart ":" {
+	function_call_args_dim.clear();
+	function_call_args.clear();
+} suite[last] {
 	Classsuite=0;
 	$$ = new Node ("Class");
 	$$->addchild($2, "Name");

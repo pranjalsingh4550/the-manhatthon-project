@@ -338,7 +338,9 @@
 
 	stack <string> jump_labels, jump_labels_upper;
 	string get_next_label (string description) {
-		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
+		string tmp =  "label"+to_string(label_count++)
+		//  + "_" + (currently_defining_class ? currently_defining_class->name : top->name)
+		 ;
 		if (description != "") tmp += "_" + description;
 		jump_labels.push (tmp);
 		return tmp;
@@ -349,7 +351,9 @@
 		return tmp;
 	}
 	string get_next_label_upper (string description) {
-		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
+		string tmp =  "label"+to_string(label_count++)
+		//  + "_" + (currently_defining_class ? currently_defining_class->name : top->name) 
+		;
 		if (description != "") tmp += "_" + description;
 		jump_labels_upper.push (tmp);
 		return tmp;
@@ -364,7 +368,9 @@
 	}
 	stack <string> jump_labels3, jump_labels_upper3;
 	string get_next_label3 (string description) {
-		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
+		string tmp = "label"+to_string(label_count++)
+		//  + "_" + (currently_defining_class ? currently_defining_class->name : top->name) 
+		;
 		if (description != "") tmp += "_" + description;
 		jump_labels3.push (tmp);
 		return tmp;
@@ -375,7 +381,9 @@
 		return tmp;
 	}
 	string get_next_label_upper3 (string description) {
-		string tmp = "label_" + to_string(label_count++) + "_" + (currently_defining_class ? currently_defining_class->name : top->name) ;
+		string tmp = "label" +to_string(label_count++) 
+		// + "_" + (currently_defining_class ? currently_defining_class->name : top->name) 
+		;
 		if (description != "") tmp += "_" + description;
 		jump_labels_upper3.push (tmp);
 		return tmp;
@@ -2110,7 +2118,45 @@ primary: atom {
 					(int)$1->lineno,(int) current_scope->arg_types.size(), 0);
 			exit (60);
 		}
-		$$->addr= "call "+ $1->addr;
+		int size = 0;
+		if (!$1->isLeaf) {
+			string temp = newtemp();
+			fprintf(tac,"\tstackpointer -%d\n", 8);
+			fprintf(tac,"\tcall allocmem 1\n");
+			fprintf(tac,"\tstackpointer +%d\n", (int) top->table_size+8);
+			fprintf(tac,"\t%s = popparam\n",temp.c_str());
+			fprintf(tac,"\tparam %s\n",temp.c_str());	
+			size += 8;
+		}
+
+		
+		fprintf(tac, "\tstackpointer -%d\n", size + 16);
+
+		if (!current_scope) {
+			//built-in: len, print, range
+			if ($1->production == "len") {
+				//returns something
+				$$->addr = newtemp();
+				fprintf(tac, "\t%s = call len 1\n", $$->addr.c_str());
+			} else if ($1->production == "range") {
+				//return something
+				//TO DO
+			} else if ($1->production == "print") {
+				//returns nothing
+				fprintf(tac, "\tcall print 1\n");
+			}
+		} else {
+			//not a built-in
+			if (current_scope->return_type != "None") {
+				$$->addr = newtemp();
+				fprintf(tac, "\t%s = call %s\n", $$->addr.c_str(), $1->production.c_str());
+			} else {
+				fprintf(tac, "\tcall %s\n", $1->production.c_str());
+			}
+		}
+		
+		fprintf(tac, "\tstackpointer +%d\n", size + 16);
+		// $$->addr= "call "+ $1->addr;
 		function_call_args.clear();
 		function_call_args_dim.clear();
 		current_scope = NULL;
@@ -2220,18 +2266,18 @@ insert_end_jump_label3: {
 	}
 
 jump_target_false_lower3: {
-		fprintf (tac, "\n:%s\n", get_current_label3().c_str());
+		fprintf (tac, "\n%s:\n", get_current_label3().c_str());
 	}
 
 upper_jump_target_reached3 : {
-		fprintf (tac, "\n:%s\n", get_current_label_upper3().c_str());
+		fprintf (tac, "\n%s:\n", get_current_label_upper3().c_str());
 	}
 
 
 
 
 
-while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false suite[action] loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
+while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false {inLoop++;}suite[action] {inLoop--;}loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
 
 begin_loop_condition : {
 		fprintf (tac, "\n:%s\n", get_next_label_upper("loop").c_str());
@@ -2245,7 +2291,7 @@ insert_jump_if_false : {
 				fprintf (tac, "\tCJUMP_IF_FALSE (%s):\t%s\n", dev_helper($<node>-1).c_str(), get_next_label("").c_str());
 	}
 jump_target_false_lower : {
-		fprintf (tac, "\n:%s\n", get_current_label().c_str());
+		fprintf (tac, "\n%s:\n", get_current_label().c_str());
 	}
 
 arglist: test[obj]
@@ -2432,7 +2478,7 @@ functionstart:  {
 			currently_defining_class->children[$<node>0->production] = top;
 		}
 		top->lineno = $<node>0->lineno;
-		fprintf(tac, ":%s\n", top->label.c_str());
+		fprintf(tac, "%s:\n", top->label.c_str());
 		fprintf(tac, "\tbeginfunc\n");
 	}
 ;
@@ -2514,10 +2560,10 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom set_num_range_args_1 ")" handle_loop_condition ":" suite loop_end_jump_back jump_target_false_lower {
-		
+for_stmt: "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom set_num_range_args_1 ")" handle_loop_condition ":" {inLoop++;}suite {inLoop--;} loop_end_jump_back jump_target_false_lower {
 	}
-	|  "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom "," atom set_num_range_args_2 ")" handle_loop_condition ":" suite loop_end_jump_back jump_target_false_lower {
+	|  "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom "," atom set_num_range_args_2 ")" handle_loop_condition ":" {inLoop++;}suite{inLoop--;} loop_end_jump_back jump_target_false_lower {
+	
 	}
 
 set_itr_ptr : {

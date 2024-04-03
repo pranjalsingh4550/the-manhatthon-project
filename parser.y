@@ -50,7 +50,7 @@
 	vector<Node*> function_params;
 
 	#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-	#define TEMPDEBUG 0
+	#define TEMPDEBUG 1
 	
 	bool is_not_name (Node*);
 	
@@ -941,7 +941,12 @@ return_stmt: "return" test {
 				}
 			}
 			else{
-				if($2->isLeaf&&!top->has($2)){
+				if($2->isLeaf && !top->has($2)){
+					#if TEMPDEBUG
+					Node *temp = $2;
+					printf("values: %d %d\n", $2->isLeaf, top->has($2));
+					#endif
+				
 					dprintf (stderr_copy, "Error at line %d: return value not declared\n", (int) $2->lineno);
 					exit(57);
 				}
@@ -2035,6 +2040,7 @@ primary: atom {
 		$$ = new Node (0, "", "");
 		$$->islval = false;
 		$$->isdecl = false;
+		$$->isLeaf = false;
 		if ($1->isLeaf && $1->production != "print" && $1->production != "len" && $1->production != "range") {
 			//i.e. not a member function or a builtin
 			if (find_fn ($1->production)) {
@@ -2058,7 +2064,7 @@ primary: atom {
 					// fprintf(tac,"call %s, %s\n", );	
 					// fprintf(tac,"stackpointer -%d\n",)
 				#if TEMPDEBUG
-				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
+				printf ("valid call to function %s in line %d, return type: %s\n", $1->production.c_str(), $1->lineno, $$->typestring.c_str());
 				#endif
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) {
 				// call to constructor
@@ -2127,7 +2133,7 @@ primary: atom {
 			}
 			else
 				$$->typestring = "None";
-		} else if ($1->production == "len" && $$->isLeaf) { //builtin len
+		} else if ($1->production == "len" && $1->isLeaf) { //builtin len
 			if (function_call_args.size() != 1) {
 				dprintf (stderr_copy, "Error at line %d: len() expects one argument, received %d\n",
 						(int)$1->lineno, (int)function_call_args.size());
@@ -2321,7 +2327,8 @@ primary: atom {
 			} else {
 				fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), len);
 			}
-		}
+		}		
+		
 		fprintf(tac, "\tstackpointer +%d\n", size + 16);
 		function_call_args.clear();
 		function_call_args_dim.clear();

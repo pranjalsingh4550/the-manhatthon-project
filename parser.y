@@ -303,7 +303,6 @@
 				}
 				string offset = newtemp();
 				// t_1 = symtable($1->typestring, $3->production)
-				s+= offset + " = symtable(" + leftop->typestring + ", " + rightop->production + ")\n\t"; 
 #if 1
 
 				int num_offset;
@@ -314,13 +313,13 @@
 					num_offset = local_table->table_size;
 				else
 					num_offset = local_table->symbols.find(rightop->production)->second->offset;
-				fprintf (tac, "\tabove attr offset = %d\n", num_offset);
 #endif
 #if TEMPDEBUG
 				printf("%s\n", rightop->production.c_str());
 				printf("%d %p\n", (int) top->table_size, top->get(rightop->production));
 				// t_2 = $1->addr + offset
 #endif
+				s+= offset + " = "+ to_string(num_offset)+" [ symtable(" + leftop->typestring + ", " + rightop->production + ") ]\n\t"; 
 				string ult = newtemp();
 				s+=ult +" = " + left + " + " + offset ;
 // 				string nc = newtemp();
@@ -329,6 +328,7 @@
 				result->addr = ult;
 				// // cout<<"nice "<<addr<<endl;
 				fprintf(tac, "%s\n", s.c_str());
+				// fprintf (tac, "\t\t= %d\n", num_offset);
 				return;
 			}
 			case SW:	{

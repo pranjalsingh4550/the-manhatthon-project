@@ -319,7 +319,7 @@
 				string s="\t";
 				string offset = newtemp();
 				
-				s += offset + " =  "  +right + " * "+ to_string(getwidth(leftop)) + "\n\t";
+				s += offset + " =  "  +right + " * 8\n\t";
 				string ult = newtemp();
 				s+=ult +" = " + left + " + " + offset + "\n";
 // 				string nc = newtemp();
@@ -1982,7 +1982,7 @@ primary: atom {
 			exit (1);
 		}
 		if($3->isConstant){
-			if($3->intVal > $1->dimension){
+			if($1->dimension != -1 && $3->intVal > $1->dimension){
 				dprintf (stderr_copy, "Error at line %d: index out of bounds\n",
 					yylineno);
 				exit (1);
@@ -2044,7 +2044,8 @@ primary: atom {
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) {
 				// call to constructor
 				current_scope = globalSymTable->ctor.find($1->production)->second;
-				$1->production+=".ctor";
+				// $1->production+=".ctor";
+				current_scope->label += ".ctor";
 				#if TEMPDEBUG
 				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 				#endif
@@ -2256,7 +2257,7 @@ primary: atom {
 		
 		
 		//for member functions
-		if ($$->typestring+".ctor" == $1->production/*constructor case*/) {
+		if ($$->typestring == $1->production/*constructor case*/) {
 			#if 0
 				printf("typestring = %s\n", $$->typestring.c_str());
 				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
@@ -2346,7 +2347,8 @@ primary: atom {
 				// call to constructor
 				current_scope = globalSymTable->ctor.find($1->production)->second;
 				$$->typestring = $1->production;
-				$1->production+=".ctor";
+				// $1->production+=".ctor";
+				current_scope->label += ".ctor";
 				#if TEMPDEBUG
 				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 				#endif
@@ -2387,7 +2389,7 @@ primary: atom {
 			exit (60);
 		}
 		int size = 0;
-		if ($$->typestring + ".ctor" == $1->production /*constructor case*/) {
+		if ($$->typestring == $1->production /*constructor case*/) {
 			string temp = newtemp();
 			fprintf(tac,"\t%s = %d\n", temp.c_str(), getwidth($$->typestring));
 			fprintf(tac,"\tparam %s\n", temp.c_str());
@@ -2802,12 +2804,12 @@ classstart: /*empty*/ {
 #if TEMPDEBUG
 	printf ("start class scope");
 	printf ("scope name %s\n", $<node>0->production.c_str());
+	printf("Checking parent class %s\n", $parent->production.c_str());
 #endif
 	if (currently_defining_class || Classsuite) {
 		dprintf (stderr_copy, "Error: Nested declaration of classes\n");
 		exit(43);
 	}
-	printf("Checking parent class %s\n", $parent->production.c_str());
 	//check if parent class exists/is a class
 	SymbolTable *parent = find_class($parent->production);
 	if (!parent) {

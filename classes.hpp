@@ -308,6 +308,7 @@ class Symbol {
 		ull size = 0;
 		ull offset=0;
 		int dimension=0;
+		int isGlobal = 0;
 		Node* node;
 		SymbolTable *nested_table;
 		Symbol(){
@@ -432,7 +433,7 @@ class SymbolTable {
 			}
 			return 1;
 		}
-		int put (Node* node, string type) {
+		int put (Node* node, string type,int globalflag=0) {
 #if TEMPDEBUG
 			printf ("call to put source %s destination %s\n", type.c_str(), node->typestring.c_str());
 #endif
@@ -454,6 +455,7 @@ class SymbolTable {
 			this->table_size += width;
 			s->dimension = 0;
 			s->node= node;
+			s->isGlobal = globalflag;
 			if(node->isLeaf){
 				s->node->addr+="@"+(label==""?name:label);
 			}
@@ -570,6 +572,7 @@ class SymbolTable {
 			for (; itrs != this->symbols.end(); itrs++) {
 				// symbols
 				if (this->isGlobal) break;
+					if(itrs->second->isGlobal)continue;
 					fprintf(st, "%s,%s%s,%s,%d,%s,%d,%s\n", itrs->first.c_str(), 
 							itrs->second->typestring.c_str(),
 							itrs->second->dimension ? "[]" : "",

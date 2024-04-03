@@ -597,6 +597,7 @@ global_stmt: "global" NAME[id] {
 			exit(87);
 		}
 		$id->addr= globalSymTable->get($id)->node->addr;
+		top->put($id, globalSymTable->get($id)->node->typestring,1);
 	} 
 	| global_stmt "," NAME[id]  { $$ = new Node ("Multiple Global"); $$->addchild($1); $$->addchild($3);
 
@@ -625,9 +626,15 @@ expr_stmt: primary[id] ":" typeclass[type] {
 		}
 		if ($id->isLeaf) {
 			if (top->symbols.find($id->production) != top->symbols.end()) {
-				dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
-						$id->lineno, $id->production.c_str());
-				exit(87);
+				if(!top->symbols[$id->production]->isGlobal){
+					dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
+							$id->lineno, $id->production.c_str());
+					exit(87);
+				}
+				else{
+					dprintf(stderr_copy,"annotated name '%s' can't be global\n",$id->production.c_str());
+					exit(87);
+				}
 			}
 			$id->typestring = $type->typestring;
 			//no need to check dimension here because this is type declaration
@@ -681,9 +688,15 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				exit(97);
 			}
 			if (top->local($id)) {
-				dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
-						$id->lineno, $id->production.c_str());
-				exit(87);
+				if(!top->symbols[$id->production]->isGlobal){
+					dprintf (stderr_copy, "Redeclaration error at line %d: identifier %s redeclared\n",
+							$id->lineno, $id->production.c_str());
+					exit(87);
+				}
+				else{
+					dprintf(stderr_copy,"annotated name '%s' can't be global\n",$id->production.c_str());
+					exit(87);
+				}
 			}
 			/*
 				if($id is not lvalue) error

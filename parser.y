@@ -2768,6 +2768,7 @@ functionstart:  {
 			currently_defining_class->children[$<node>0->production] = top;
 		}
 		top->lineno = $<node>0->lineno;
+		top->isFunction =1;
 		fprintf(tac, "%s:\n", top->label.c_str());
 		fprintf(tac, "\tbeginfunc\n");
 	}

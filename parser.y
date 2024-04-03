@@ -296,9 +296,10 @@
 			}
 			case ATTR: {
 				string s="\t";
-				if(leftop->isLeaf&&top->getnode(leftop->production)->isLeaf){
+				if(leftop->isLeaf
+				&& top->getnode(leftop->production)->isLeaf){
 					string obj= newtemp();
-					s+=obj +" = &(" + left +")\n\t";
+					s+=obj +" = " + left +"\n\t";
 					left = obj;
 				}
 				string offset = newtemp();
@@ -2289,11 +2290,13 @@ primary: atom {
 			}
 		} else {
 			//not a built-in
-			if (current_scope->return_type != "None"
-			||  $$->typestring == current_scope->name /*constructor case*/) {
+			if (current_scope->return_type != "None") {
 				$$->addr = newtemp();
 				fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len);
-			} else {
+			} else if ($$->typestring == current_scope->name /*constructor case*/){
+				$$->addr = newtemp();
+				fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len + 1);
+			}else {
 				fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), len);
 			}
 		}		
@@ -2701,9 +2704,15 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		}
 		suite[last] {
 	       	Funcsuite=0;
+<<<<<<< Updated upstream
 		if (inside_init) currently_defining_class->print_local_symbols(stdump);
 		top->print_local_symbols(stdump);
 		endscope(); inside_init = 0;
+=======
+			top->print_st(stdump);
+			endscope();
+			inside_init = 0;
+>>>>>>> Stashed changes
 	       	$$ = new Node ("Function Defn");
 	       	$$->addchild($id, "Name");
 	       	$$->addchild($param,"Parameters");
@@ -2714,7 +2723,11 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 			basecount-=function_params.size();
 			function_params.clear();			
 			
-			fprintf(tac, "\tret\n");
+			if ($id->production != "__init__") {
+				fprintf(tac, "\tret \n");
+			} else {
+				fprintf(tac, "\tret t%d\n", basecount);
+			}
 			fprintf(tac, "\tendfunc\n");
 	}
 	| "def" NAME[id] functionstart "(" ")" ":" {

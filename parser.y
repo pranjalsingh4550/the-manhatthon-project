@@ -2492,14 +2492,17 @@ atom: NAME {
 		// Node* $$ = new Node (0, "", "");
 		$$->addr= newtemp();
 		int thissize = find_class (currently_defining_identifier_typestring)->table_size;
-		fprintf (tac, "\t%s = ALLOC_HEAP (%lu)\n", dev_helper($$).c_str(), list_init_inputs.size() * thissize);
+		fprintf (tac, "\t%s = ALLOC_HEAP (%lu)\n", 
+		dev_helper($$).c_str(), list_init_inputs.size() * thissize);
 		for(auto itrv:list_init_inputs){
 			// 3ac to copy list to temp
 				gen ($$, itrv, (Node*) NULL, SW);
 				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
 			
 		}
-		fprintf(tac, "\t%s = %s - %lu\n", dev_helper($$).c_str(), dev_helper($$).c_str(), list_init_inputs.size());
+		fprintf(tac, "\t%s = %s - %lu\n", 
+		dev_helper($$).c_str(), dev_helper($$).c_str(), list_init_inputs.size() * thissize);
+		
 		$$->typestring = currently_defining_identifier_typestring;
 		$$->isLeaf = false;
 		$$->dimension = list_init_inputs.size();

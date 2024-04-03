@@ -50,7 +50,7 @@
 	vector<Node*> function_params;
 
 	#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-	#define TEMPDEBUG 0
+	#define TEMPDEBUG 1
 	
 	bool is_not_name (Node*);
 	
@@ -221,8 +221,13 @@
 		string left= leftop ? top->getaddr(leftop) : "";
 		string right= rightop ? top->getaddr(rightop) : "";
 		string resultaddr = result ? top->getaddr(result) : "";
+		//if not leafs, then addr contains the address corresponding to the field
+		//so don't get addr from symbol table
+		if (leftop && !leftop->isLeaf) left = leftop->addr;
+		if (rightop && !rightop->isLeaf) right = rightop->addr;
 		if (op != ASSIGN
 		&&  result == leftop
+		&&  result != NULL
 		&& 	result->islval
 		&&  !leftop->isLeaf /*NOT isLeaf -> addr is a temporary*/) {
 			// dprintf(stderr_copy, "gen: augassign special case isLeaf: %d\n", leftop->isLeaf);
@@ -254,6 +259,7 @@
 			return;
 		}
 		if (op == ASSIGN
+		 && leftop != NULL
 		 && leftop->islval 
 		 && !leftop->isLeaf /*NOT isLeaf: addr is a temporary*/) {
 		 	// dprintf(stderr_copy, "gen: assign special case\n");
@@ -262,7 +268,7 @@
 			#if TEMPDEBUG
 			printf("special assign, leftaddr: %s, rightaddr: %s\n", leftop->addr.c_str(), rightop->addr.c_str());
 			#endif
-			fprintf (tac, "\t*%s = %s\n", leftop->addr.c_str(), right.c_str()); return;
+			fprintf (tac, "\t*%s = %s\n", left.c_str(), right.c_str()); return;
 		}
 		switch(op){
 			case ASSIGN: {
@@ -1714,6 +1720,13 @@ power: primary {
 	$$ = $1;
 }
 	| primary "**" factor	{
+	#if TEMPDEBUG
+	printf("in factor, primary: %s factor: %s\n", $1->production.c_str(), $3->production.c_str());
+	Node *temp1 = $1;
+	Node *temp2 = $2;
+	#endif
+	
+	
 	if ($1->typestring == "") {
 			dprintf(stderr_copy, "NameError at line %d: identifier %s undefined\n", $1->lineno, $1->production.c_str());
 			if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
@@ -1814,7 +1827,12 @@ primary: atom {
 		} else {
 			$$->isdecl = false;
 		}
-
+		#if TEMPDEBUG
+		printf("Test print, inside primary.name, production: %s.%s\n", 
+		$1->production.c_str(), $3->production.c_str());
+		printf("Isdecl: %d\n", $$->isdecl);
+		printf("Factors: %d %d %s\n", inside_init, $1->isLeaf, top->thisname.c_str());
+		#endif
 		string this_ptr = top->thisname;
 		// CHECKING PRIMARY
 
@@ -2588,6 +2606,11 @@ arglist: test[obj]
 
 typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 	| NAME {/*this pointer in case inClass==1 otherwise error*/
+		
+		#if TEMPDEBUG
+		printf("Inside arglist, thisname setter, name is %s\n", $1->production.c_str());
+		#endif
+		
 		if (!Classsuite) {
 			dprintf (stderr_copy, "Error in line %d: Argument %s to function does not have a type hint\n", $1->lineno, $1->production.c_str());
 			exit (77);
@@ -2733,6 +2756,7 @@ functionstart:  {
 		printf("scope name= %s\n", $<node>0->production.c_str());
 		if (Classsuite)
 			printf ("class name in method def: %s\n", currently_defining_class->name.c_str());
+			printf("production: %s\n", $<node>0->production.c_str());
 		#endif
 		// if inside_init or classsuite = 0, add functions to globalSymTable
 		// else add to currently_defining_class

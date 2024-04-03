@@ -50,7 +50,7 @@
 	vector<Node*> function_params;
 
 	#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-	#define TEMPDEBUG 1
+	#define TEMPDEBUG 0
 	
 	bool is_not_name (Node*);
 	
@@ -80,7 +80,7 @@
 			}
 		}
 		offset = cur_symboltable->table_size;
-		cur_symboltable->table_size += size;
+		cur_symboltable->table_size += 8;
 
 	}
 	SymbolTable* find_fn (string name) { // returns SymbolTable* if name is a class, NULL otherwise
@@ -304,6 +304,18 @@
 				string offset = newtemp();
 				// t_1 = symtable($1->typestring, $3->production)
 				s+= offset + " = symtable(" + leftop->typestring + ", " + rightop->production + ")\n\t"; 
+#if 1
+
+				int num_offset;
+				SymbolTable* local_table = find_class(leftop->typestring);
+				if (!local_table)
+					exit(200);
+				else if (local_table->symbols.find(rightop->production) == local_table->symbols.end())
+					num_offset = local_table->table_size;
+				else
+					num_offset = local_table->symbols.find(rightop->production)->second->offset;
+				fprintf (tac, "\tabove attr offset = %d\n", num_offset);
+#endif
 #if TEMPDEBUG
 				printf("%s\n", rightop->production.c_str());
 				printf("%d %p\n", (int) top->table_size, top->get(rightop->production));
@@ -705,17 +717,6 @@ expr_stmt: primary[id] ":" typeclass[type] {
 					exit(87);
 				}
 			}
-			/*
-				if($id is not lvalue) error
-				if($id is already in current scope)error
-				if($type is not declared in GlobalSymTable->classes)error
-				if($value is a leaf && $value is not a constant ) check if $value is in scope or not
-				if($type and $value are not type compatible) error ( only int<->float and int <-> bool type mismatch are allowed give error otherwise)
-				
-				add $id to curent scope with type $type and node $id (put($id,$type));
-			*/
-			//must check dimension here because we have a value
-			//check type vs value dimension because id may not have a dimension yet
 			if (check_array($type->dimension, $value->dimension)) {
 				//edit dimension to value
 				$id->dimension = $value->dimension;
@@ -1882,39 +1883,7 @@ primary: atom {
 			(int)$3->lineno, current_scope->thisname.c_str());
 			exit(68);
 		}
-		
-// 		Node *t1 = $$;
-// 		Node *t2 = $1;
-// 		Node *t3 = $3;
-		
-// 		if (current_scope->find_member_fn($3->production)) {
-// 			$$->typestring = "def";
-// 			$$->islval = false;
-// 			current_scope = current_scope->find_member_fn($3->production);
-// 			$$->addr = $1->typestring +"." + $3->production;
-// 			 // the only case in which current_scope is truly global
-// 		} else if(current_scope->symbols.find($3->production) ==current_scope->symbols.end() 
-// 			   && !$$->isdecl) {
-// 			//if we couldn't find the production in the class's symbol table
-// 			//AND the thing IS a declarable
-// 			dprintf (stderr_copy, 
-// 			"Error at line %d: %s is not a member of class %s\n", 
-// 			(int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
-// 			exit(23);
-// 		} else if (!$$->isdecl && $$->typestring == "") {
-// 			//
-// 			printf("I tried calling\n");
-// 			top->print_st();
-// 			printf("Someone picked up\n");
-// 			current_scope->print_st();
-// 			dprintf (stderr_copy, 
-// 			"Error at line %d: %s is not a member of class %s\n", 
-// 			(int)$3->lineno, $3->production.c_str(), $1->typestring.c_str());
-// 			exit(23);
-// 		} else if ($$->typestring != "") {
-// 			gen($$,$1,$3,ATTR);
-// 		}
-		
+
 		if (current_scope->find_member_fn($3->production)) {
 			//method case, handle separately
 			$$->typestring = "def";
@@ -2290,7 +2259,7 @@ primary: atom {
 			string temp = newtemp();
 			fprintf(tac,"\t%s = %d\n", temp.c_str(), getwidth($$->typestring));
 			fprintf(tac,"\tparam %s\n", temp.c_str());
-			fprintf(tac,"\tstackpointer -%d\n", 8);
+			fprintf(tac,"\tstackpointer -%d\n", (int)top->table_size + 8);
 			fprintf(tac,"\tcall allocmem 1\n");
 			fprintf(tac,"\tstackpointer +%d\n", (int) top->table_size+8);
 			fprintf(tac,"\t%s = popparam\n",temp.c_str());
@@ -2630,7 +2599,6 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 			exit (76);
 		}
 		top->thisname=$1->production;
-		top->table_size = 8; // for self pointer
 		$$=$1;
 		
 		$1->addr="t"+to_string(basecount);
@@ -2641,6 +2609,9 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		function_params.push_back ($1);
 		top->put($1, currently_defining_class->name);
 		currently_defining_class->put($1, currently_defining_class->name);
+		currently_defining_class->table_size = 0;
+		if (currently_defining_class->parent_class) 
+			currently_defining_class->table_size = currently_defining_class->parent_class->table_size;
 	}
 	| typedarglist "," typedargument[last] { 
 		$$ = new Node ("Multiple Terms"); 
@@ -2690,7 +2661,8 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	top->return_type = $ret->production;
 }":" suite[last] {
 		Funcsuite=0;
-		top->print_st(stdump);
+		if (inside_init) currently_defining_class->print_local_symbols(stdump);
+		top->print_local_symbols(stdump);
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
 		$$->addchild($id, "Name");
@@ -2710,7 +2682,8 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		top->return_type = $returntype->production;
 	} ":" suite[last] {
 	       	Funcsuite=0;
-		top->print_st(stdump);
+		if (inside_init) currently_defining_class->print_local_symbols(stdump);
+		top->print_local_symbols(stdump);
 		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn"); $$->addchild($id, "Name");
 	       	$$->addchild($returntype, "Return type");
@@ -2728,7 +2701,8 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		}
 		suite[last] {
 	       	Funcsuite=0;
-		top->print_st(stdump);
+		if (inside_init) currently_defining_class->print_local_symbols(stdump);
+		top->print_local_symbols(stdump);
 		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn");
 	       	$$->addchild($id, "Name");
@@ -2747,7 +2721,8 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 			top->return_type = "None";
 	}suite[last] {
 	       	Funcsuite=0;
-		top->print_st (stdump);
+		if (inside_init) currently_defining_class->print_local_symbols(stdump);
+		top->print_local_symbols (stdump);
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
 		$$->addchild($id, "Name");
@@ -2867,6 +2842,7 @@ classstart: /*empty*/ {
 	}
 	currently_defining_class->table_size = parent->table_size;
 	currently_defining_class->lineno = $<node>0->lineno;
+	currently_defining_class->parent_class = parent;
 }
 
 compound_stmt: 
@@ -3035,7 +3011,7 @@ int main(int argc, char** argv){
 		fprintf(stderr, "Error opening file\n");
 		exit(1);
 	}
-	fprintf (stdump, "LEXEME,TYPE,TOKEN,LINE,PARENT SCOPE,OFFSET (for identifiers),3AC REGISTER\n");
+	fprintf (stdump, "LEXEME,TYPE,TOKEN,LINE,PARENT SCOPE,OFFSET (for identifiers),3AC LOCATION\n");
 	if(yyparse()!=0){
 		/* fprintf(stderr,"Error in parsing\n"); */
 		return 1;

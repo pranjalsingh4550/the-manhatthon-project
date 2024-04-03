@@ -338,6 +338,7 @@ class SymbolTable {
 		string return_type="None";
 		vector<string> arg_types; // for function, but class also ig
 		vector<int> arg_dimensions;
+		SymbolTable* parent_class = NULL;
 		bool fn_inside_class;
 
 		int redef =0;
@@ -359,8 +360,10 @@ class SymbolTable {
 			return false;
 		}
 		SymbolTable* find_class (string name) { // returns SymbolTable* if name is a class, NULL otherwise
+			#if 0
 			printf ("finding class %s. number of children %ld, symbols %ld\n", 
 					name.c_str(), this->children.size(), this->symbols.size());
+#endif
 			if (this->children.find(name) == this->children.end())
 				return NULL; // NOT FOUND
 			else if (this->children.find(name)->second->isFunction)
@@ -424,7 +427,7 @@ class SymbolTable {
 			else
 				printf ("Should not be here; someone forgot to check args to put()\n");
 			s->offset = table_size;
-			this->table_size += width;
+			this->table_size += 8;
 			this->size = this->size + 1;
 			s->dimension = type->dimension;
 			s->node= node;
@@ -452,7 +455,7 @@ class SymbolTable {
 			else
 				printf ("Should not be here; someone forgot to check args to put()\n");
 			s->offset = table_size;
-			this->table_size += width;
+			this->table_size += 8;
 			s->dimension = 0;
 			s->node= node;
 			s->isGlobal = globalflag;
@@ -565,14 +568,39 @@ class SymbolTable {
 			return "";
 		}
 
-		void print_st (FILE* st) {
-			fprintf (st, "\n");
+		void print_local_symbols (FILE* st) {
 			auto itrs = this->symbols.begin();
-			fprintf (st, "Function: %s\n", label.c_str());
+			fprintf (st, "\n");
+			if (this->isFunction) fprintf (st, "Function: %s\n", label.c_str());
+			if (this->isClass) fprintf (st, "Class: %s\n", name.c_str());
 			for (; itrs != this->symbols.end(); itrs++) {
 				// symbols
 				if (this->isGlobal) break;
 					if(itrs->second->isGlobal)continue;
+					if (itrs->second->name == "self") continue;
+					fprintf(st, "%s,%s%s,%s,%d,%s,%d,%s\n", itrs->first.c_str(), 
+							itrs->second->typestring.c_str(),
+							itrs->second->dimension ? "[]" : "",
+							"Identifier",
+							itrs->second->lineno,
+							this->isGlobal? "GLOBAL NAMESPACE" : 
+								((this->isClass? "CLASS ": "FUNCTION ") + this->name).c_str(),
+							(int)itrs->second->offset,
+							(this->isFunction ? (itrs->second->name + "@" + this->label) : "None").c_str()
+							);
+			}
+			return ;
+		}
+			
+		void print_st (FILE* st) {
+			fprintf (st, "\n");
+			auto itrs = this->symbols.begin();
+
+			if (this->isFunction) fprintf (st, "Function: %s\n", label.c_str());
+			for (; itrs != this->symbols.end(); itrs++) {
+				// symbols
+					// if (this->isGlobal) break;
+					// if(itrs->second->isGlobal)continue;
 					fprintf(st, "%s,%s%s,%s,%d,%s,%d,%s\n", itrs->first.c_str(), 
 							itrs->second->typestring.c_str(),
 							itrs->second->dimension ? "[]" : "",
@@ -584,12 +612,11 @@ class SymbolTable {
 							(itrs->second->name + "@" + this->label).c_str()
 							);
 			}
-			return ;
 			auto itrc = this->children.begin();
 			for (; itrc!= this->children.end(); itrc++) {
-				if (itrc->second->parent == NULL)
+				if (itrc->second->parent == NULL) // primitive types
 					continue;
-				if (this->isGlobal)
+				if (itrc->second->isClass) {
 					// classes and global functions names
 					fprintf (st, "%s,%s,%s,%d,%s\n", itrc->first.c_str(), 
 							itrc->second->isClass? "NA" : itrc->second->return_type.c_str(),
@@ -597,15 +624,24 @@ class SymbolTable {
 							itrc->second->lineno,
 							"GLOBAL NAMESPACE"
 					);
-				else if (this->isClass) 
-					// class 
-					fprintf (st, "%s,%s,%s,%d,CLASS %s\n", itrc->first.c_str(), 
-							itrc->second->isClass? "NA" : itrc->second->return_type.c_str(),
-							itrc->second->isClass? "Class," : "Class Method",
-							itrc->second->lineno,
-							this->name.c_str()
-					);
+					itrc->second->print_local_symbols(st);
+				}
 			}
+			for (; itrc!= this->children.end(); itrc++) {
+				if (itrc->second->parent == NULL) // primitive types
+					continue;
+				if (itrc->second->isFunction) {
+					// classes and global functions names
+					fprintf (st, "%s,%s,%s,%d,%s\n", itrc->first.c_str(), 
+							itrc->second->isClass? "NA" : itrc->second->return_type.c_str(),
+							itrc->second->isClass? "Class," : "Function",
+							itrc->second->lineno,
+							"GLOBAL NAMESPACE"
+					);
+					itrc->second->print_local_symbols(st);
+				}
+			}
+			return ;
 			itrc = this->children.begin();
 			for (; itrc!= this->children.end(); itrc++) {
 				if (itrc->second->parent == NULL)

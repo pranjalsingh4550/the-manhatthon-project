@@ -49,7 +49,7 @@
 	vector<Node*> function_params;
 
 	#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-	#define TEMPDEBUG 1
+	#define TEMPDEBUG 0
 	
 	bool is_not_name (Node*);
 	
@@ -1732,6 +1732,7 @@ power: primary {
 		 dprintf(stderr_copy, "TypeError at line %d: Invalid type of second summand for addition, type is %s\n",$2->lineno, $3->typestring.c_str());
 		 exit(69);
 	}
+	$$ = new Node ("**");
 	if ($1->typestring == "complex" || $3->typestring == "complex") {
 		$$->typestring = "complex";
 	} else if ($1->typestring == "float" || $3->typestring == "float"){
@@ -1739,7 +1740,6 @@ power: primary {
 	} else { //i.e. ints/bools + ints/bools => always int
 		$$->typestring = "int";
 	}
-	$$ = new Node ("**");
 	//edit $1's lval status and generate temporaries if needed
 	if ($1->islval) {
 		$1->islval = false;
@@ -1925,6 +1925,7 @@ primary: atom {
 				#endif
 				//remove isdecl
 				$$->isdecl = false;
+				$$->typestring = entry->second->typestring;
 				//call genattr
 				gen($$,$1,$3,ATTR);
 			}

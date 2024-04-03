@@ -35,8 +35,9 @@
 		tempcount++;
 		return temp;
 	}
-	void resettemp(){
+	void resettemp(int f=0){
 		tempcount=basecount;
+		if(!f)fprintf(tac,"\n");
 	}
 	SymbolTable *currently_defining_list;
 	string currently_defining_identifier_typestring;
@@ -303,7 +304,7 @@
 				// t_2 = $1->addr + offset
 #endif
 				string ult = newtemp();
-				s+=ult +" = " + left + " + " + offset + "\n\t";
+				s+=ult +" = " + left + " + " + offset ;
 // 				string nc = newtemp();
 // 				s+=nc + " = *" + ult + "\n";
 // 				result->addr = nc;
@@ -530,17 +531,17 @@ input: start
 start :{$$=new Node("Empty file");} | stmts[first] {$$= new Node("Start"); $$->addchild($first);}
 
 stmts : 
-	stmt {$$=$1; resettemp();}
-	| stmts[first] {resettemp();} stmt[last] { resettemp();$$ = new Node ("Statements"); $$->addchild($first); $$->addchild($last);}
+	stmt {$$=$1;}
+	| stmts[first] stmt[last] {$$ = new Node ("Statements"); $$->addchild($first); $$->addchild($last);}
 
 ;
 
 stmt:  simple_stmt 
-	| compound_stmt 
+	| compound_stmt {resettemp();}
 ;
 
-simple_stmt: small_stmt ";" NEWLINE 
-	| small_stmt NEWLINE 
+simple_stmt: small_stmt ";" NEWLINE {resettemp();}
+	| small_stmt NEWLINE {resettemp();}
 	| small_stmt[first]";" {resettemp();} simple_stmt[last] {$$ = new Node ("Inline Statement"); $$->addchild($first);$$->addchild($last);}
 ;
 
@@ -2045,7 +2046,7 @@ primary: atom {
 				// call to constructor
 				current_scope = globalSymTable->ctor.find($1->production)->second;
 				// $1->production+=".ctor";
-				current_scope->label += ".ctor";
+				current_scope->label = $1->production+".ctor";
 				#if TEMPDEBUG
 				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 				#endif
@@ -2348,7 +2349,7 @@ primary: atom {
 				current_scope = globalSymTable->ctor.find($1->production)->second;
 				$$->typestring = $1->production;
 				// $1->production+=".ctor";
-				current_scope->label += ".ctor";
+				current_scope->label =$1->production+".ctor";
 				#if TEMPDEBUG
 				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 				#endif
@@ -2603,7 +2604,7 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		$1->isLeaf=false;
 		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
 		basecount++;
-		resettemp();
+		resettemp(1);
 		function_params.push_back ($1);
 		top->put($1, currently_defining_class->name);
 		currently_defining_class->put($1, currently_defining_class->name);
@@ -2642,12 +2643,12 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
 		basecount++;
 		function_params.push_back ($1);
-		resettemp();
+		resettemp(1);
 		put ($1, $3);
 	}
 
 suite:  simple_stmt[first] 
-	| NEWLINE  INDENT {resettemp();}stmts[third] DEDENT 
+	| NEWLINE  INDENT {resettemp(1);}stmts[third] DEDENT 
 /* when using multiple mid-rule actions avoid using $1, $2, $3 as its more rigid to code changes*/
 /* use common non terminal (like functionstart here) to use mid-rule actions if getting reduce reduce error( which occurs if two rules have the same prefix till the code segment and the lookahead symbol after the code is also same)  */
 
@@ -2669,7 +2670,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		basecount-=function_params.size();
 		function_params.clear();
 		
-		fprintf(tac, "\tendfunc\n\n");
+		fprintf(tac, "\tendfunc\n");
 
 	}
 	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] {
@@ -2686,7 +2687,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 			basecount-=function_params.size();
 			function_params.clear();
 
-			fprintf(tac, "\tendfunc\n\n");
+			fprintf(tac, "\tendfunc\n");
 			
 	}
 	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" {
@@ -2707,7 +2708,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 			function_params.clear();			
 			
 			fprintf(tac, "\tret\n");
-			fprintf(tac, "\tendfunc\n\n");
+			fprintf(tac, "\tendfunc\n");
 	}
 	| "def" NAME[id] functionstart "(" ")" ":" {
 			top->return_type = "None";
@@ -2723,7 +2724,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 
 		basecount-=function_params.size();
 		function_params.clear();
-		fprintf(tac, "\tendfunc\n\n");
+		fprintf(tac, "\tendfunc\n");
 	}
 
 functionstart:  {

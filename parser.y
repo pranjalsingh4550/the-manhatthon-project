@@ -2704,15 +2704,9 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		}
 		suite[last] {
 	       	Funcsuite=0;
-<<<<<<< Updated upstream
 		if (inside_init) currently_defining_class->print_local_symbols(stdump);
 		top->print_local_symbols(stdump);
 		endscope(); inside_init = 0;
-=======
-			top->print_st(stdump);
-			endscope();
-			inside_init = 0;
->>>>>>> Stashed changes
 	       	$$ = new Node ("Function Defn");
 	       	$$->addchild($id, "Name");
 	       	$$->addchild($param,"Parameters");

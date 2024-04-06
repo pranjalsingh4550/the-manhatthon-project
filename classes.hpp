@@ -398,16 +398,6 @@ class SymbolTable {
 			}
 			return false;
 		}
-		/*
-		SymbolTable* has_suite(Node *node) {
-			if (this->isClass && this->member_functions.find(
-
-
-			if (this->classes.find(node->production) or parent scopes have productipon) // search recursively
-				return 2;
-			if (this->funco
-
-		  */
 		int put (Node* node, Node* type) {
 #if TEMPDEBUG
 			printf ("call to put source %s destination %s\n", type->production.c_str(), node->typestring.c_str());
@@ -700,6 +690,13 @@ class SymbolTable {
 			for (itrc = this->ctor.begin(); itrc != this->ctor.end(); itrc++) {
 				itrc->second->print_st();
 			}
+		}
+
+		void add_temp (string reg_name) {
+			// use a separate map?
+		}
+		void spill_regs() {
+			// how will we name regs in a stack 
 		}
 };
 class instruction {

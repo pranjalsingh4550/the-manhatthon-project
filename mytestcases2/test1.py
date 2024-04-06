@@ -1,5 +1,9 @@
 def add1(mylist:list[int]) -> None:
     i:int = 0
+    g:float
+    t:str
+    u:bool
+    uu:int
 
     for i in range(n):
         mylist[i]+=1
@@ -14,3 +18,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -74,3 +74,53 @@ The devil's list of bad constructs
 - constructs like for-break-else have 3 targets (condition, body, else, break_target). the body is reached via fall-through. The in-memory ir (naming it DevenIR) needs these many attributes. I think 3 is the max.
 - all other productions seem to be innocuous assignments.
 
+
+
+x86 
+
+//
+
+add attribute in fucttion table for max temps used
+
+create/maintain map : {return address, old base ptr, program variables, temps, callee-saved regs, caller saved regs} -> rbp offset
+
+our stack frame:
++----------------------------------------------------+
+|arguments - pushed by caller                        |
++----------------------------------------------------+
+|local vars to be initialised by current function    |
++----------------------------------------------------+
+|temporaries: rbp offsets designated by compiler     |
++----------------------------------------------------+
+|callee-saved registers - save all because we're lazy|
++----------------------------------------------------+
+|#ONLY IF this function calls another:               |
+|                                                    |
+|caller-saved registers                              |
+|current return address                              |
+|current rbp                                         |
++----------------------------------------------------+
+We won't store relevant temporaries in between program variables because
+(i) consistency with earlier created and dumped symbol table
+(ii) this allows space for temporaries to be reused
+
+function call procedure: (look up callq)
+	push return address to (rbp+table_size) 
+		callq contains a push %eip, -8(%rsp) so this is where we'll use rsp
+	push %rbp -> done in conventional programs at the beginning of functions
+	abi specifies arguments to be passed in 6 regs + caller stack:
+		-> we will NOT follow this. partly for consistency: function arguments
+		   are parts of the function stack frame, and have added it to table_size
+	# add %rsp, (8 + table_size + %rbp)
+	# callq <fnname>
+	# where to fill return value?
+
+function return procedure:
+	ret(q) contains %rip <- pop (stack). restore rbp before calling
+
+	# pop %rbp; ## confirm that it's rbp + offset zero
+	# retq;
+
+	I think return values can be filled in rax because it's always 8B
+
+

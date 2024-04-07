@@ -10,6 +10,7 @@ extern int tempcount;
 extern bool inside_init;
 extern int yylineno;
 static FILE* tac = NULL;
+extern FILE* x86asm;
 class SymbolTable;
 extern SymbolTable* top;
 extern SymbolTable* globalSymTable;
@@ -350,6 +351,7 @@ class SymbolTable {
 		map <string, SymbolTable*> ctor;	// contains all constructors
 		int size = 0;
 		unsigned long table_size = 0;
+		unsigned num_temps = 0;
 		bool has_children (string name) {
 			if (children.find(name) != children.end()) {
 				return false;
@@ -692,12 +694,49 @@ class SymbolTable {
 			}
 		}
 
-		void add_temp (string reg_name) {
-			// use a separate map?
+		void declare_temp (int index) {
+			/* when using t_* somewhere in TAC, let the ST know that we've used it
+			checks if the index exceeds the current max index 
+			this->num_temps = max (num_temps, index+1);
+			*/
 		}
-		void spill_regs() {
-			// how will we name regs in a stack 
+		void spill_caller_regs() {
+			/* rbx r12 r13 r14 r15-> push in opposite order. push/pop rbp at the ends
+			don't mess with rsp meanwhile
+		 */
+			
+			fprintf (x86asm, "\tpush %rbp\n");
+			fprintf (x86asm, "\tmov %rsp, %rbp\n");
+			fprintf (x86asm, "\tsub $0x%lx, %rsp\n", table_size+num_temps*8);
+			fprintf (x86asm, "\tpush %r15\n\tpush %r14\n\tpush %r13\n\tpush %r12\n\tpush %rbx\n");
+
 		}
+		void restore_caller_regs() {
+			// pop above 6 in opposite order
+			fprintf (x86asm, "\tpop %rbx\n\tpop %r12\n\tpop %r13\n\tpop %r14\n\tpop %r15\n");
+		}
+		void save_own_regs () {
+
+		}
+		int get_rbp_offset (string reg_name) {
+			// get rbp offset for: local_var@scope_name | t_* temporaries | saved registers
+			if (0) { // '@' in string name - local variable, not global or temporary
+				return symbols[name]->offset;
+			} else if (reg_name[0] == 't') {
+				// temporary
+				return this->table_size
+					+ stoi (reg_name.substr (2, reg_name.size())) * 8;
+			} else if (reg_name[0] == 'r') { // saved register
+				int reg_number;
+
+				return table_size + num_temps*8 + reg_number;
+			}
+			else {
+				exit(88);
+			}
+			return -1;
+		}
+
 };
 class instruction {
 	public:

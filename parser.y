@@ -14,6 +14,7 @@
 	int basecount=0;
 	FILE* inputfile = NULL;
 	FILE* stdump = NULL;
+	FILE* x86asm = NULL;
     extern int yylex();
     extern int yyparse();
     extern void debugprintf (const char *) ;

@@ -86,7 +86,8 @@ create/maintain map : {return address, old base ptr, program variables, temps, c
 
 our stack frame:
 +----------------------------------------------------+
-|arguments - pushed by caller                        |
+|caller's rbp - pushed by callee                     |
+|arguments - pushed by caller (with above -8 offset) |
 +----------------------------------------------------+
 |local vars to be initialised by current function    |
 +----------------------------------------------------+
@@ -98,7 +99,6 @@ our stack frame:
 |                                                    |
 |caller-saved registers                              |
 |current return address                              |
-|current rbp                                         |
 +----------------------------------------------------+
 We won't store relevant temporaries in between program variables because
 (i) consistency with earlier created and dumped symbol table

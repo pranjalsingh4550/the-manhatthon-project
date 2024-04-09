@@ -124,3 +124,16 @@ function return procedure:
 	I think return values can be filled in rax because it's always 8B
 
 
+-- callee
+## only rsp is set
+spill_caller()
+	**
+	**
+restore_caller()
+---
+
+---caller
+save_own_regs()
+callee()
+restore_own()
+---

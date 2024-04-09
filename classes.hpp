@@ -695,38 +695,85 @@ class SymbolTable {
 		}
 
 		void declare_temp (int index) {
-			/* when using t_* somewhere in TAC, let the ST know that we've used it
+			/* zero-based indexing
+			when using t_* somewhere in TAC, let the ST know that we've used it
 			checks if the index exceeds the current max index 
 			this->num_temps = max (num_temps, index+1);
 			*/
+			if (index + 1 > num_temps)
+				num_temps = index + 1;
 		}
 		void spill_caller_regs() {
-			/* rbx r12 r13 r14 r15-> push in opposite order. push/pop rbp at the ends
+			/* rbx r12 r13 r14 r15 rbp-> push in opposite order. push/pop rbp at the ends
 			don't mess with rsp meanwhile
 		 */
 			
-			fprintf (x86asm, "\tpush %rbp\n");
-			fprintf (x86asm, "\tmov %rsp, %rbp\n");
-			fprintf (x86asm, "\tsub $0x%lx, %rsp\n", table_size+num_temps*8);
-			fprintf (x86asm, "\tpush %r15\n\tpush %r14\n\tpush %r13\n\tpush %r12\n\tpush %rbx\n");
+			fprintf (x86asm, "subq $0x%lx, %rsp\n", table_size+num_temps*8);
+			fprintf (x86asm, "pushq %rbp\n");
+			fprintf (x86asm, "pushq %r15\n");
+			fprintf (x86asm, "pushq %r14\n");
+			fprintf (x86asm, "pushq %r13\n");
+			fprintf (x86asm, "pushq %r12\n");
+			fprintf (x86asm, "pushq %rbx\n");
 
 		}
 		void restore_caller_regs() {
 			// pop above 6 in opposite order
-			fprintf (x86asm, "\tpop %rbx\n\tpop %r12\n\tpop %r13\n\tpop %r14\n\tpop %r15\n");
+			// restore rsp because it may have been changed during calls to other functions
+			fprintf (x86asm, "movq %rbp, %rsp\n");
+			fprintf (x86asm, "subq $0x%lx, %rsp\n", table_size+num_temps*8 + 6*8);
+			fprintf (x86asm, "popq %rbx\n");
+			fprintf (x86asm, "popq %r12\n");
+			fprintf (x86asm, "popq %r13\n");
+			fprintf (x86asm, "popq %r14\n");
+			fprintf (x86asm, "popq %r15\n");
+			fprintf (x86asm, "popq %rbp\n");
+			fprintf (x86asm, "addq $0x%lx, %rsp\n", table_size+num_temps*8);
+			// now rbp is the old rbp, as specified by the Dev* ABI
+			// as per x86 retq, rsp must be the rsp at the time of entry
+			fprintf (x86asm, "retq");
 		}
-		void save_own_regs () {
+		void save_own_regs () { // before calling another function
+			// push in opposite order: rax, rcx, rdx, rdi, rsi, r8, r9, r10, r11
+			// check later: is rsp explicitly saved?
+			fprintf (x86asm, "movq %rbp, %rsp\n");
+			fprintf (x86asm, "addq 0x%lx, %rsp\n", table_size + num_temps*8 + 6*8);
+			fprintf (x86asm, "pushq %r11\n");
+			fprintf (x86asm, "pushq %r10\n");
+			fprintf (x86asm, "pushq %r9\n");
+			fprintf (x86asm, "pushq %r8\n");
+			fprintf (x86asm, "pushq %rsi\n");
+			fprintf (x86asm, "pushq %rdi\n");
+			fprintf (x86asm, "pushq %rdx\n");
+			fprintf (x86asm, "pushq %rcx\n");
+			fprintf (x86asm, "pushq %rax\n");
+
+		}
+		void restore_own_regs () { // after the above function returns
+			fprintf (x86asm, "movq %rbp, %rsp\n");
+			fprintf (x86asm, "addq 0x%lx, %rsp\n", table_size + num_temps*8 + 6*8 + 9*8);
+			fprintf (x86asm, "popq %rax\n");
+			fprintf (x86asm, "popq %rcx\n");
+			fprintf (x86asm, "popq %rdx\n");
+			fprintf (x86asm, "popq %rdi\n");
+			fprintf (x86asm, "popq %rsi\n");
+			fprintf (x86asm, "popq %r8\n");
+			fprintf (x86asm, "popq %r9\n");
+			fprintf (x86asm, "popq %r10\n");
+			fprintf (x86asm, "popq %r11\n");
+			fprintf (x86asm, "movq %rbp, %rsp\n"); // no reason, just being cautious
 
 		}
 		int get_rbp_offset (string reg_name) {
 			// get rbp offset for: local_var@scope_name | t_* temporaries | saved registers
-			if (0) { // '@' in string name - local variable, not global or temporary
+			if (reg_name.find('@') != string::npos) { // '@' in string name - local variable, not global or temporary
 				return symbols[name]->offset;
 			} else if (reg_name[0] == 't') {
 				// temporary
 				return this->table_size
 					+ stoi (reg_name.substr (2, reg_name.size())) * 8;
 			} else if (reg_name[0] == 'r') { // saved register
+				// shouldn't be using this function directly
 				int reg_number;
 
 				return table_size + num_temps*8 + reg_number;
@@ -735,6 +782,25 @@ class SymbolTable {
 				exit(88);
 			}
 			return -1;
+		}
+
+		void do_function_call (SymbolTable* callee, vector<Node *> args) {
+			// rsp -> rbp + table_size + 8*num_temps + 15*8 spilled regs
+			// x86 callq fills return address at rsp[0]
+			// fill args in rsp[-1], rsp[-2], etc.
+			fprintf (x86asm, "lea -%lx(%rbp), %rsp\n", 8 + 15*8 + table_size + num_temps*8);
+			for (auto arg: args) {
+				// use rcx as the temp register
+				if (arg->addr != "")
+					fprintf (x86asm, "mov -%ld(%rbp), %rcx\n", get_rbp_offset(arg->addr));
+				else
+					exit(printf ("internal error: addr not initialised\n"));
+				fprintf (x86asm, "pushq %rcx\n");
+			}
+			fprintf (x86asm, "lea -%lx(%rbp), %rsp\n", 15*8 + table_size + num_temps*8);
+			fprintf (x86asm, "callq %s\n",
+					);
+			return;
 		}
 
 };

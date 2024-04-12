@@ -720,6 +720,7 @@ class SymbolTable {
 		void restore_caller_regs() {
 			// pop above 6 in opposite order
 			// restore rsp because it may have been changed during calls to other functions
+			// finally, return
 			fprintf (x86asm, "movq %rbp, %rsp\n");
 			fprintf (x86asm, "subq $0x%lx, %rsp\n", table_size+num_temps*8 + 6*8);
 			fprintf (x86asm, "popq %rbx\n");
@@ -731,7 +732,7 @@ class SymbolTable {
 			fprintf (x86asm, "addq $0x%lx, %rsp\n", table_size+num_temps*8);
 			// now rbp is the old rbp, as specified by the Dev* ABI
 			// as per x86 retq, rsp must be the rsp at the time of entry
-			fprintf (x86asm, "retq");
+			fprintf (x86asm, "retq\n");
 		}
 		void save_own_regs () { // before calling another function
 			// push in opposite order: rax, rcx, rdx, rdi, rsi, r8, r9, r10, r11
@@ -767,11 +768,12 @@ class SymbolTable {
 		int get_rbp_offset (string reg_name) {
 			// get rbp offset for: local_var@scope_name | t_* temporaries | saved registers
 			if (reg_name.find('@') != string::npos) { // '@' in string name - local variable, not global or temporary
-				return symbols[name]->offset;
+			string var_name(reg_name.begin(),find(reg_name.begin(), reg_name.end(), '@'));
+				return symbols[var_name]->offset;
 			} else if (reg_name[0] == 't') {
 				// temporary
 				return this->table_size
-					+ stoi (reg_name.substr (2, reg_name.size())) * 8;
+					+ stoi (reg_name.substr (1, reg_name.size())) * 8;
 			} else if (reg_name[0] == 'r') { // saved register
 				// shouldn't be using this function directly
 				int reg_number;
@@ -783,12 +785,22 @@ class SymbolTable {
 			}
 			return -1;
 		}
+		void asm_load_value_r12(string name) {
+			fprintf (x86asm, "movq -%ld(%rbp), %r12\n", get_rbp_offset(name));
+		}
+		void asm_load_value_r13(string name) {
+			fprintf (x86asm, "movq -%ld(%rbp), %r13\n", get_rbp_offset(name));
+		}
+		void asm_store_value_r13 (string name) {
+			fprintf (x86asm, "movq %r13, -%ld(%rbp)\n", get_rbp_offset(name));
+		}
 
 		void do_function_call (SymbolTable* callee, vector<Node *> args) {
 			// rsp -> rbp + table_size + 8*num_temps + 15*8 spilled regs
 			// x86 callq fills return address at rsp[0]
 			// fill args in rsp[-1], rsp[-2], etc.
-			fprintf (x86asm, "lea -%lx(%rbp), %rsp\n", 8 + 15*8 + table_size + num_temps*8);
+			top->save_own_regs();
+			fprintf (x86asm, "lea -0x%lx(%rbp), %rsp\n", 8 + 15*8 + table_size + num_temps*8);
 			for (auto arg: args) {
 				// use rcx as the temp register
 				if (arg->addr != "")
@@ -797,9 +809,11 @@ class SymbolTable {
 					exit(printf ("internal error: addr not initialised\n"));
 				fprintf (x86asm, "pushq %rcx\n");
 			}
-			fprintf (x86asm, "lea -%lx(%rbp), %rsp\n", 15*8 + table_size + num_temps*8);
+			fprintf (x86asm, "lea -0x%lx(%rbp), %rsp\n", 15*8 + table_size + num_temps*8);
 			fprintf (x86asm, "callq %s\n",
+					callee->name.c_str()
 					);
+			top->restore_own_regs();
 			return;
 		}
 

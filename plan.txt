@@ -86,7 +86,6 @@ create/maintain map : {return address, old base ptr, program variables, temps, c
 
 our stack frame:
 +----------------------------------------------------+
-|caller's rbp - pushed by callee                     |
 |arguments - pushed by caller (with above -8 offset) |
 +----------------------------------------------------+
 |local vars to be initialised by current function    |
@@ -94,6 +93,7 @@ our stack frame:
 |temporaries: rbp offsets designated by compiler     |
 +----------------------------------------------------+
 |callee-saved registers - save all because we're lazy|
+|caller's rbp - pushed by callee                     |
 +----------------------------------------------------+
 |#ONLY IF this function calls another:               |
 |                                                    |
@@ -137,3 +137,45 @@ save_own_regs()
 callee()
 restore_own()
 ---
+
+12/04 - change in plan. we're trying to do things in a single pass.
+So table size changes: variables_in_scope +----------> variables_in_scope + #declared_temporaries
+temporaries and identifiers will be interleaved on the stack. and I think the new stack layout is:
+
++----------------------------------------------------------+
+|arguments - pushed by current function's caller           |
++----------------------------------------------------------+
+|callee-saved registers including rbp: 48B                 |
++----------------------------------------------------------+
+|local variables and temporaries in order of declaration   |
++----------------------------------------------------------+
+|caller-saved registers                                    |
+|upon a function call: ignore future vars and temps        |
+|caller-saved registers at this offset: 54B or whatever    |
+|(current) table_size + 48B                                |
++----------------------------------------------------------+
+|child function's arguments                                |
++----------------------------------------------------------+
+
+This comes with an additional benefit, that the stack pointer can be used blindly for populating segments 2, 3, 4 and 5, and 1 is saved by the caller
+So the routine is: upon declaration, pushq and upon redef/reuse "mov -%ld(%rbp), %r12".
+For calling:
+	pushq r8, r9, rest.
+	pushq arg1
+	pushq arg2
+	..
+	callq fn_name
+
+Upon entry:
+	pushq rbp, rbx, r12,...
+	# Now resume parsing
+
+For returning:
+	movq %rbp, %rsp # before popping parent's rbp off the stack
+	popq this, that and the rest
+	retq
+
+After child returns:
+	popq rest
+	mov %rax, -%ld(%rbp)
+

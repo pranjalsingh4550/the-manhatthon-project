@@ -144,10 +144,12 @@ temporaries and identifiers will be interleaved on the stack. and I think the ne
 
 +----------------------------------------------------------+
 |return address pushed by x86                             A|
-+----------------------------------------------------------+  <--- %rbp
++----------------------------------------------------------+
+|old rbp pushed on entry to function                       |
++----------------------------------------------------------+  <--- %rbp new
 |arguments - pushed by current function's caller          B|  
 +----------------------------------------------------------+
-|callee-saved registers including rbp: 48B                C|
+|callee-saved registers excluding rbp: 40B                C|
 +----------------------------------------------------------+
 |local variables and temporaries in order of declaration  D|
 +----------------------------------------------------------+

@@ -710,19 +710,19 @@ class SymbolTable {
 				#endif
 			}
 		}
-#define NUM_CALLEE_SAVED 6
+#define NUM_CALLEE_SAVED 5
 #define NUM_CALLER_SAVED 9
 #define ASMDEBUG 1
 		void spill_caller_regs() {
-			/* rbx r12 r13 r14 r15 rbp-> push in opposite order. push/pop rbp at the ends
+			/* rbx r12 r13 r14 r15 -> push in opposite order. push/pop rbp at the ends
 			don't mess with rsp meanwhile
+			rbp is pushed upon entry and restored upon exit
 		 */
 			#if ASMDEBUG
 			printf ("entry to caller_regs: rsp, rbp are %x %x\n");
 			#endif
 
 			// fprintf (x86asm, "subq $0x%lx, %%rsp\n", table_size); // not needed with new setup
-			fprintf (x86asm, "pushq %%rbp\n");
 			fprintf (x86asm, "pushq %%r15\n");
 			fprintf (x86asm, "pushq %%r14\n");
 			fprintf (x86asm, "pushq %%r13\n");
@@ -741,7 +741,6 @@ class SymbolTable {
 			fprintf (x86asm, "popq %%r13\n");
 			fprintf (x86asm, "popq %%r14\n");
 			fprintf (x86asm, "popq %%r15\n");
-			fprintf (x86asm, "popq %%rbp\n");
 			fprintf (x86asm, "addq $0x%lx, %%rsp\n", table_size+num_temps*8);
 			// now rbp is the old rbp, as specified by the Dev* ABI
 			// as per x86 retq, rsp must be the rsp at the time of entry
@@ -807,8 +806,9 @@ class SymbolTable {
 			fprintf (x86asm, "movq %%r13, -%ld(%%rbp)\n", get_rbp_offset(name));
 		}
 
-		void do_function_call (SymbolTable* callee, vector<Node *> args) {
+		void do_function_call (SymbolTable* callee, vector<Node *> args, string self_ptr) {
 			// handles function call as well as return from child
+			// self_ptr is empty if it isn't a class method
 
 			fprintf (x86asm, "movq -%ld(%%rbp), %rsp\n", table_size);
 			// begin activation record at this address
@@ -818,6 +818,11 @@ class SymbolTable {
 			// fill args in rsp[-1], rsp[-2], etc.
 
 			fprintf (x86asm, "sub $8, %%rsp\n"); // space for return address
+
+			if (self_ptr != "") {
+				fprintf (x86asm, "mov -%ld(%%rbp), %%rcx\n", get_rbp_offset(self_ptr));
+				fprintf (x86asm, "pushq %%rcx\n");
+			}
 
 			for (auto arg: args) {
 				// use rcx as the temp register
@@ -829,20 +834,34 @@ class SymbolTable {
 			}
 
 			// take rsp back to the empty slot
-			fprintf (x86asm, "addq $%ld, %%rsp\n", 8 * (1 + args.size()));
+			fprintf (x86asm, "addq $%ld, %%rsp\n", 8 * (1 + args.size())
+					+ ((self_ptr == "") ? 0 : 8)
+						);
 			fprintf (x86asm, "callq %s\n",
 					callee->name.c_str()
 					);
-			top->restore_own_regs();
+			restore_own_regs();
 			// not obligated to restore rsp
 			return;
 		}
 
 		void child_enter_function() {
+			fprintf (x86asm, "pushq %%rbp\n");
+			this->table_size += 8; // is this needed? because rbp is already shifted by 8
+			fprintf (x86asm, "mov %%rsp, %%rbp\n");
+			fprintf (x86asm, "subq $%ld, %%rsp\n", (this->arg_types.size() + /* 1 if ctor*/ 0) * 8); // i think arg_types already has the +1
+			spill_caller_regs();
 
 		}
 
 		void child_return() {
+
+			fprintf (x86asm, "mov %%rbp, %%rsp\n");
+			fprintf (x86asm, "subq $%ld, %%rsp\n", (this->arg_types.size() + NUM_CALLEE_SAVED) * 8);
+			restore_caller_regs();
+			fprintf (x86asm, "mov %%rbp, %%rsp\n");
+			fprintf (x86asm, "popq %%rbp\n");
+			fprintf (x86asm, "retq\n");
 
 		}
 

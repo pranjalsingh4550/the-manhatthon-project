@@ -365,122 +365,122 @@
 		switch(op){
 			case ADD:		fprintf(tac, "\t%s\t= %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12(left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "addq %r12, %r13\n");
+							fprintf (x86asm, "addq %%r12, %%r13\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case SUB:		fprintf(tac, "\t%s\t= %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "subq %r13, %r12\n");
+							fprintf (x86asm, "subq %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case MUL:		fprintf(tac, "\t%s\t= %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "mulq %r13, %r12\n");
+							fprintf (x86asm, "mulq %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case DIV:		fprintf(tac, "\t%s\t= %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case MOD:		fprintf(tac, "\t%s\t= %s %% %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case AND_log:	fprintf(tac, "\t%s\t= %s and %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case OR_log:	fprintf(tac, "\t%s\t= %s or %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case NOT_log:	fprintf(tac, "\t%s\t= not %s\n",resultaddr.c_str(), left.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case LT:		fprintf(tac, "\t%s\t= %s < %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case GT:		fprintf(tac, "\t%s\t= %s > %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case LTE:		fprintf(tac, "\t%s\t= %s <= %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case GTE:		fprintf(tac, "\t%s\t= %s >= %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case EQ:		fprintf(tac, "\t%s\t= %s == %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case NEQ:		fprintf(tac, "\t%s\t= %s != %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case OR_bit:	fprintf(tac, "\t%s\t= %s | %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case AND_bit:	fprintf(tac, "\t%s\t= %s & %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case NOT_bit:	fprintf(tac, "\t%s\t= ~%s\n",resultaddr.c_str(), left.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case XOR:		fprintf(tac, "\t%s\t= %s ^ %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case SHL:		fprintf(tac, "\t%s\t= %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case SHR:		fprintf(tac, "\t%s\t= %s >> %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case POW:		fprintf(tac, "\t%s\t= %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case NEG:		fprintf(tac, "\t%s\t= -%s\n",resultaddr.c_str(), left.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case FLOORDIV:	fprintf(tac, "\t%s\t= %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case STREQ:		fprintf(tac, "\t%s\t= STREQ(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break;
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %r13, %r12\n");
+							fprintf (x86asm, "- %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 			case STRCMP:	{
 					fprintf(tac,"\tparam %s\n",right.c_str());
@@ -2113,22 +2113,6 @@ primary: atom {
 				//if is a defined function
 				current_scope = find_fn($1->production);
 				$$->typestring = current_scope->return_type;
-// 					string temp =newtemp();
-// // 					int siz = find_class(current_scope->return_type)->size; 
-// // 					fprintf(tac,"param %d\n",siz);
-// 					//TO DO 
-// 					fprintf(tac,"stackpointer -%d\n", top->table_size);
-
-					//below: moved to end
-// 					fprintf(tac,"stackpointer -%d\n", 8);
-// 					fprintf(tac,"call allocmem 1\n");
-// 					fprintf(tac,"stackpointer +%d\n", (int) top->table_size+8);
-// 					fprintf(tac,"%s = popparam\n",temp.c_str());
-// 					fprintf(tac,"param %s\n",temp.c_str());
-
-					
-					// fprintf(tac,"call %s, %s\n", );	
-					// fprintf(tac,"stackpointer -%d\n",)
 				#if TEMPDEBUG
 				printf ("valid call to function %s in line %d, return type: %s\n", $1->production.c_str(), $1->lineno, $$->typestring.c_str());
 				#endif
@@ -2420,7 +2404,7 @@ primary: atom {
 				dprintf (stderr_copy, "Error at line %d: %s() expects one argument, received zero\n",
 						(int)$1->lineno, $1->production.c_str());
 		   exit (83);
-		}	   
+		}
 		$$ = new Node (0, "", "");
 		if ($1->isLeaf) {
 			if(is_not_name($1)){
@@ -2524,6 +2508,16 @@ primary: atom {
 		
 		fprintf(tac, "\tstackpointer +%d\n", size + 16);
 		// $$->addr= "call "+ $1->addr;
+
+		if (current_scope == NULL) {
+			printf ("handle this case: search key tehran\n");
+			exit(55);
+		}
+
+		// milestone 3 begins here
+		top->do_function_call(current_scope, function_call_args, "" ); // complete this later
+		current_scope->child_enter_function();
+		// if return val: fetch from rax
 		function_call_args.clear();
 		function_call_args_dim.clear();
 		current_scope = NULL;

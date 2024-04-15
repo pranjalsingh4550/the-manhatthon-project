@@ -719,7 +719,7 @@ class SymbolTable {
 			rbp is pushed upon entry and restored upon exit
 		 */
 			#if ASMDEBUG
-			printf ("entry to caller_regs: rsp, rbp are %x %x\n");
+			printf ("entry to caller_regs: rsp, rbp are %x %x\n", 0, 0);
 			#endif
 
 			// fprintf (x86asm, "subq $0x%lx, %%rsp\n", table_size); // not needed with new setup
@@ -777,7 +777,7 @@ class SymbolTable {
 			fprintf (x86asm, "movq %%rbp, %%rsp\n"); // no reason, just being cautious
 
 		}
-		int get_rbp_offset (string reg_name) {
+		long int get_rbp_offset (string reg_name) {
 			// get rbp offset for: local_var@scope_name | t_* temporaries | saved registers
 			if (reg_name.find('@') != string::npos) { // '@' in string name - local variable, not global or temporary
 			string var_name(reg_name.begin(),find(reg_name.begin(), reg_name.end(), '@'));
@@ -810,7 +810,7 @@ class SymbolTable {
 			// handles function call as well as return from child
 			// self_ptr is empty if it isn't a class method
 
-			fprintf (x86asm, "movq -%ld(%%rbp), %rsp\n", table_size);
+			fprintf (x86asm, "movq -%ld(%%rbp), %%rsp\n", table_size);
 			// begin activation record at this address
 
 			save_own_regs();

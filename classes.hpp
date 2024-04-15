@@ -808,9 +808,16 @@ class SymbolTable {
 		}
 
 		void do_function_call (SymbolTable* callee, vector<Node *> args) {
-			// rsp -> rbp + table_size + 8*num_temps + 15*8 spilled regs
+			// handles function call as well as return from child
+
+			fprintf (x86asm, "movq -%ld(%%rbp), %rsp\n", table_size);
+			// begin activation record at this address
+
+			save_own_regs();
 			// x86 callq fills return address at rsp[0]
 			// fill args in rsp[-1], rsp[-2], etc.
+
+			fprintf (x86asm, "sub $8, %%rsp\n"); // space for return address
 
 			for (auto arg: args) {
 				// use rcx as the temp register
@@ -820,12 +827,23 @@ class SymbolTable {
 					exit(printf ("internal error: addr not initialised\n"));
 				fprintf (x86asm, "pushq %%rcx\n");
 			}
-			fprintf (x86asm, "lea -0x%lx(%%rbp), %%rsp\n", 15*8 + table_size + num_temps*8);
+
+			// take rsp back to the empty slot
+			fprintf (x86asm, "addq $%ld, %%rsp\n", 8 * (1 + args.size()));
 			fprintf (x86asm, "callq %s\n",
 					callee->name.c_str()
 					);
 			top->restore_own_regs();
+			// not obligated to restore rsp
 			return;
+		}
+
+		void child_enter_function() {
+
+		}
+
+		void child_return() {
+
 		}
 
 };

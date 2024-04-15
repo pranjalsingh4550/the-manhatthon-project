@@ -143,31 +143,41 @@ So table size changes: variables_in_scope +----------> variables_in_scope + #dec
 temporaries and identifiers will be interleaved on the stack. and I think the new stack layout is:
 
 +----------------------------------------------------------+
-|arguments - pushed by current function's caller           |
+|return address pushed by x86                             A|
++----------------------------------------------------------+  <--- %rbp
+|arguments - pushed by current function's caller          B|  
 +----------------------------------------------------------+
-|callee-saved registers including rbp: 48B                 |
+|callee-saved registers including rbp: 48B                C|
 +----------------------------------------------------------+
-|local variables and temporaries in order of declaration   |
+|local variables and temporaries in order of declaration  D|
 +----------------------------------------------------------+
-|caller-saved registers                                    |
+|caller-saved registers                                   E|
 |upon a function call: ignore future vars and temps        |
 |caller-saved registers at this offset: 54B or whatever    |
 |(current) table_size + 48B                                |
 +----------------------------------------------------------+
-|child function's arguments                                |
+|return address pushed by x86                             F|
++----------------------------------------------------------+
+|child function's arguments                               G|
 +----------------------------------------------------------+
 
-This comes with an additional benefit, that the stack pointer can be used blindly for populating segments 2, 3, 4 and 5, and 1 is saved by the caller
+Many parts can be implemented almost blindly this way
 So the routine is: upon declaration, pushq and upon redef/reuse "mov -%ld(%rbp), %r12".
 For calling:
-	pushq r8, r9, rest.
+	pushq r8, r9, rest: E
+	pushq $0 #use this location later for return address : F
 	pushq arg1
 	pushq arg2
 	..
-	callq fn_name
+	addq (#args+1)*8, %rsp
+	callq fn_name: writes to F
 
 Upon entry:
-	pushq rbp, rbx, r12,...
+	mov %rbp, %rsp
+	addq (#args)*8, %rsp # move over G
+	pushq rbp, rbx, r12,... # part C
+	table_size += 48
+	
 	# Now resume parsing
 
 For returning:
@@ -177,5 +187,5 @@ For returning:
 
 After child returns:
 	popq rest
-	mov %rax, -%ld(%rbp)
+	mov %rax, -%ld(%rbp) -> return value of child saved in parent's activation record
 

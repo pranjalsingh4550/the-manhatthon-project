@@ -723,18 +723,18 @@ class SymbolTable {
 			#endif
 
 			// fprintf (x86asm, "subq $0x%lx, %%rsp\n", table_size); // not needed with new setup
-			fprintf (x86asm, "pushq %%r15\n");
+			fprintf (x86asm, "\npushq %%r15\n");
 			fprintf (x86asm, "pushq %%r14\n");
 			fprintf (x86asm, "pushq %%r13\n");
 			fprintf (x86asm, "pushq %%r12\n");
-			fprintf (x86asm, "pushq %%rbx\n");
+			fprintf (x86asm, "pushq %%rbx\n\n");
 
 		}
 		void restore_caller_regs() {
 			// pop above 6 in opposite order
 			// restore rsp because it may have been changed during calls to other functions
 			// finally, return
-			fprintf (x86asm, "movq %%rbp, %%rsp\n");
+			fprintf (x86asm, "\nmovq %%rbp, %%rsp\n");
 			fprintf (x86asm, "subq $0x%lx, %%rsp\n", NUM_CALLER_SAVED*8 + arg_types.size()*8);
 			fprintf (x86asm, "popq %%rbx\n");
 			fprintf (x86asm, "popq %%r12\n");
@@ -744,12 +744,12 @@ class SymbolTable {
 			fprintf (x86asm, "addq $0x%lx, %%rsp\n", table_size+num_temps*8);
 			// now rbp is the old rbp, as specified by the Dev* ABI
 			// as per x86 retq, rsp must be the rsp at the time of entry
-			fprintf (x86asm, "retq\n");
+			fprintf (x86asm, "retq\n\n");
 		}
 		void save_own_regs () { // before calling another function
 			// push in opposite order: rax, rcx, rdx, rdi, rsi, r8, r9, r10, r11
 			// check later: is rsp explicitly saved?
-			fprintf (x86asm, "movq %%rbp, %%rsp\n");
+			fprintf (x86asm, "\nmovq %%rbp, %%rsp\n");
 			fprintf (x86asm, "addq 0x%lx, %%rsp\n", table_size + num_temps*8 + 6*8);
 			fprintf (x86asm, "pushq %%r11\n");
 			fprintf (x86asm, "pushq %%r10\n");
@@ -759,11 +759,11 @@ class SymbolTable {
 			fprintf (x86asm, "pushq %%rdi\n");
 			fprintf (x86asm, "pushq %%rdx\n");
 			fprintf (x86asm, "pushq %%rcx\n");
-			fprintf (x86asm, "pushq %%rax\n");
+			fprintf (x86asm, "pushq %%rax\n\n");
 
 		}
 		void restore_own_regs () { // after the above function returns
-			fprintf (x86asm, "movq %%rbp, %%rsp\n");
+			fprintf (x86asm, "\nmovq %%rbp, %%rsp\n");
 			fprintf (x86asm, "addq 0x%lx, %%rsp\n", table_size + num_temps*8 + 6*8 + 9*8);
 			fprintf (x86asm, "popq %%rax\n");
 			fprintf (x86asm, "popq %%rcx\n");
@@ -774,7 +774,7 @@ class SymbolTable {
 			fprintf (x86asm, "popq %%r9\n");
 			fprintf (x86asm, "popq %%r10\n");
 			fprintf (x86asm, "popq %%r11\n");
-			fprintf (x86asm, "movq %%rbp, %%rsp\n"); // no reason, just being cautious
+			fprintf (x86asm, "movq %%rbp, %%rsp\n\n"); // no reason, just being cautious
 
 		}
 		long int get_rbp_offset (string reg_name) {

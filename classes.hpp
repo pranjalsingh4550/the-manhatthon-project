@@ -745,7 +745,6 @@ class SymbolTable {
 			fprintf (x86asm, "\taddq $0x%lx, %%rsp\n", this->arg_types.size()*8);
 			// now rbp is the old rbp, as specified by the Dev* ABI
 			// as per x86 retq, rsp must be the rsp at the time of entry
-			fprintf (x86asm, "\tretq\n\n");
 		}
 		void save_own_regs () { // before calling another function
 			// push in opposite order: rax, rcx, rdx, rdi, rsi, r8, r9, r10, r11

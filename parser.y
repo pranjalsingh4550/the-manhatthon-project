@@ -427,8 +427,8 @@
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case MUL:		fprintf(tac, "\t%s\t= %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
-							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "\tmulq %%r13, %%r12\n");
+							top->asm_load_value_r13(right);
+							fprintf (x86asm, "\timulq -%ld(%%rbp), %%r13\n", top->get_rbp_offset(left));
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case DIV:		fprintf(tac, "\t%s\t= %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
@@ -2604,7 +2604,7 @@ atom: NAME {
 		$$->addr = newtemp();
 
 		fprintf (tac, "\t<string literal> %s = ptr(\"%s\")\n", top->getaddr($$).c_str(), $$->production.c_str()) ;
-		static_section += "str_literal" + to_string (str_count ++) + ":\n\t\"";
+		static_section += "str_literal" + to_string (str_count ++) + ":\t.asciz,\"";
 		static_section += $$->production + "\"\n";
 	}
 	|"(" test ")"{$$=$2;}

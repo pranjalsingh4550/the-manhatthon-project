@@ -321,7 +321,7 @@
 					string obj= newtemp();
 					s+=obj +" = " + left +"\n\t";
 					top->asm_load_value_r12(left);
-					top->asm_store_value_r12(obj);
+					top->asm_store_value(12,obj);
 					left = obj;
 				}
 				string offset = newtemp();
@@ -344,7 +344,7 @@
 #endif
 				s+= offset + " = "+ to_string(num_offset)+" [ symtable(" + leftop->typestring + ", " + rightop->production + ") ]\n\t"; 
 
-				fprintf(x86asm,"\tmovq $%ld, -%ld(%%rbp)\n",num_offset,get_rbp_offset(offset));
+				fprintf(x86asm,"\tmovq $%ld, -%ld(%%rbp)\n",(long)num_offset,top->get_rbp_offset(offset));
 
 				string ult = newtemp();
 				s+=ult +" = " + left + " + " + offset ;
@@ -384,7 +384,7 @@
 				top->asm_load_value_r13(left);
 				fprintf (x86asm, "\taddq %%r13, %%r12\n");
 
-				top->asm_store_value_r12(ult);
+				top->asm_store_value(12,ult);
 // 				string nc = newtemp();
 // 				s+=nc + " = *" + ult + "\n";
 // 				result->addr = nc;
@@ -403,7 +403,7 @@
 				fprintf(x86asm, "\tmovq 0(%%r14), %%r15\n");
 
 				top->asm_store_value(15,resultaddr);
-				
+
 				result->addr = deref;
 				fprintf(tac, "%s", s.c_str());
 				return;
@@ -2587,6 +2587,7 @@ atom: NAME {
     | NUMBER {
 		$1->addr=newtemp();
 		//fprintf(x86asm,"askdjfashldfjl\n\n\n");
+		fprintf(tac,"\t%s = %s\n", $1->addr.c_str(),$1->production.c_str());
 		fprintf(x86asm,  "\tmov $%s, %%r13\n",$1->production.c_str());
 		top->asm_store_value_r13($1->addr);
 		$$=$1;

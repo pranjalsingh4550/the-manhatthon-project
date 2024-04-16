@@ -728,14 +728,15 @@ class SymbolTable {
 			fprintf (x86asm, "pushq %%r13\n");
 			fprintf (x86asm, "pushq %%r12\n");
 			fprintf (x86asm, "pushq %%rbx\n\n");
+			table_size += 8*NUM_CALLEE_SAVED;
 
 		}
 		void restore_caller_regs() {
 			// pop above 6 in opposite order
 			// restore rsp because it may have been changed during calls to other functions
 			// finally, return
-			fprintf (x86asm, "\nmovq %%rbp, %%rsp\n");
-			fprintf (x86asm, "subq $0x%lx, %%rsp\n", NUM_CALLER_SAVED*8 + arg_types.size()*8);
+			// fprintf (x86asm, "\nmovq %%rbp, %%rsp\n"); done by caller
+			// fprintf (x86asm, "subq $0x%lx, %%rsp\n", NUM_CALLER_SAVED*8 + arg_types.size()*8);
 			fprintf (x86asm, "popq %%rbx\n");
 			fprintf (x86asm, "popq %%r12\n");
 			fprintf (x86asm, "popq %%r13\n");
@@ -750,7 +751,7 @@ class SymbolTable {
 			// push in opposite order: rax, rcx, rdx, rdi, rsi, r8, r9, r10, r11
 			// check later: is rsp explicitly saved?
 			fprintf (x86asm, "\nmovq %%rbp, %%rsp\n");
-			fprintf (x86asm, "addq 0x%lx, %%rsp\n", table_size + num_temps*8 + 6*8);
+			fprintf (x86asm, "addq 0x%lx, %%rsp\n", table_size + num_temps*8 + NUM_CALLEE_SAVED*8);
 			fprintf (x86asm, "pushq %%r11\n");
 			fprintf (x86asm, "pushq %%r10\n");
 			fprintf (x86asm, "pushq %%r9\n");
@@ -763,8 +764,8 @@ class SymbolTable {
 
 		}
 		void restore_own_regs () { // after the above function returns
-			fprintf (x86asm, "\nmovq %%rbp, %%rsp\n");
-			fprintf (x86asm, "addq 0x%lx, %%rsp\n", table_size + num_temps*8 + 6*8 + 9*8);
+			// fprintf (x86asm, "\nmovq %%rbp, %%rsp\n"); this is the callee's responsibility
+			// fprintf (x86asm, "addq 0x%lx, %%rsp\n", table_size + num_temps*8 + 6*8 + 9*8);
 			fprintf (x86asm, "popq %%rax\n");
 			fprintf (x86asm, "popq %%rcx\n");
 			fprintf (x86asm, "popq %%rdx\n");
@@ -809,25 +810,27 @@ class SymbolTable {
 		void do_function_call (SymbolTable* callee, vector<Node *> args, string self_ptr) {
 			// handles function call as well as return from child
 			// self_ptr is empty if it isn't a class method
-
-			fprintf (x86asm, "movq -%ld(%%rbp), %%rsp\n", table_size);
+			fprintf (x86asm, "\t# begin procedure call routine\n");
+			fprintf (x86asm, "movq %%rbp, %%rsp\n");
+			if (table_size) // function has some args to make space for
+				fprintf (x86asm, "subq $%ld, %%rsp\n", table_size);
 			// begin activation record at this address
 
 			save_own_regs();
 			// x86 callq fills return address at rsp[0]
 			// fill args in rsp[-1], rsp[-2], etc.
 
-			fprintf (x86asm, "sub $8, %%rsp\n"); // space for return address
+			fprintf (x86asm, "sub $16, %%rsp\n"); // space for return address and rbp
 
 			if (self_ptr != "") {
-				fprintf (x86asm, "mov -%ld(%%rbp), %%rcx\n", get_rbp_offset(self_ptr));
+				fprintf (x86asm, "movq -%ld(%%rbp), %%rcx\n", get_rbp_offset(self_ptr));
 				fprintf (x86asm, "pushq %%rcx\n");
 			}
 
 			for (auto arg: args) {
 				// use rcx as the temp register
 				if (arg->addr != "")
-					fprintf (x86asm, "mov -%ld(%%rbp), %%rcx\n", get_rbp_offset(arg->addr));
+					fprintf (x86asm, "movq -%ld(%%rbp), %%rcx\n", get_rbp_offset(arg->addr));
 				else
 					exit(printf ("internal error: addr not initialised\n"));
 				fprintf (x86asm, "pushq %%rcx\n");
@@ -835,33 +838,38 @@ class SymbolTable {
 
 			// take rsp back to the empty slot
 			fprintf (x86asm, "addq $%ld, %%rsp\n", 8 * (1 + args.size())
-					+ ((self_ptr == "") ? 0 : 8)
 						);
 			fprintf (x86asm, "callq %s\n",
 					callee->name.c_str()
 					);
 			restore_own_regs();
 			// not obligated to restore rsp
+			fprintf (x86asm, "\t# end procedure call routine\n");
 			return;
 		}
 
 		void child_enter_function() {
+			fprintf (x86asm, "\t# begin procedure entry routine\n");
 			fprintf (x86asm, "pushq %%rbp\n");
 			this->table_size += 8; // is this needed? because rbp is already shifted by 8
-			fprintf (x86asm, "mov %%rsp, %%rbp\n");
-			fprintf (x86asm, "subq $%ld, %%rsp\n", (this->arg_types.size() + /* 1 if ctor*/ 0) * 8); // i think arg_types already has the +1
+			fprintf (x86asm, "movq %%rsp, %%rbp\n");
+			if (this->arg_types.size())
+				fprintf (x86asm, "subq $%ld, %%rsp\n", (this->arg_types.size()) * 8);
 			spill_caller_regs();
+			fprintf (x86asm, "\t# end procedure entry routine\n");
 
 		}
 
 		void child_return() {
 
-			fprintf (x86asm, "mov %%rbp, %%rsp\n");
+			fprintf (x86asm, "\t# begin activation record management\n");
+			fprintf (x86asm, "movq %%rbp, %%rsp\n");
 			fprintf (x86asm, "subq $%ld, %%rsp\n", (this->arg_types.size() + NUM_CALLEE_SAVED) * 8);
 			restore_caller_regs();
-			fprintf (x86asm, "mov %%rbp, %%rsp\n");
+			fprintf (x86asm, "movq %%rbp, %%rsp\n");
 			fprintf (x86asm, "popq %%rbp\n");
 			fprintf (x86asm, "retq\n");
+			fprintf (x86asm, "\t# end activation record management\n");
 
 		}
 
@@ -878,8 +886,10 @@ class instruction {
 		union {
 			long literal1;
 			double dliteral1;
+
 		};
 #define IR_OPERAND1 (instr->operand_is_int ? instr->literal1: instr->dliteral1 )
 #define IR_OPERAND2 (instr->operand_is_int ? instr->literal2: instr->dliteral2 )
 		// not convinced about this setup yet
+
 };

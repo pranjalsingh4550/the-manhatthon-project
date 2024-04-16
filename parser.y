@@ -33,6 +33,7 @@
 	string newtemp(){
 		string temp = "t";
 		temp += to_string(tempcount);
+		top->declare_temp(tempcount);
 		tempcount++;
 		return temp;
 	}
@@ -2752,6 +2753,7 @@ suite:  simple_stmt[first]
 
 funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" typeclass[ret] {
 	top->return_type = $ret->production;
+	top->child_enter_function();
 }":" suite[last] {
 		Funcsuite=0;
 		if (inside_init) currently_defining_class->print_local_symbols(stdump);
@@ -2768,11 +2770,13 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		basecount-=function_params.size();
 		function_params.clear();
 		
+		top->child_return();
 		fprintf(tac, "\tendfunc\n");
 
 	}
 	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] {
 		top->return_type = $returntype->production;
+		top->child_enter_function();
 	} ":" suite[last] {
 	       	Funcsuite=0;
 		if (inside_init) currently_defining_class->print_local_symbols(stdump);
@@ -2786,11 +2790,13 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 			basecount-=function_params.size();
 			function_params.clear();
 
+			top->child_return();
 			fprintf(tac, "\tendfunc\n");
 			
 	}
 	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" {
 			top->return_type = "None";
+			top->child_enter_function();
 		}
 		suite[last] {
 	       	Funcsuite=0;
@@ -2813,9 +2819,11 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 				fprintf(tac, "\tret t%d\n", basecount);
 			}
 			fprintf(tac, "\tendfunc\n");
+			top->child_return();
 	}
 	| "def" NAME[id] functionstart "(" ")" ":" {
 			top->return_type = "None";
+			top->child_enter_function();
 	}suite[last] {
 	       	Funcsuite=0;
 		if (inside_init) currently_defining_class->print_local_symbols(stdump);
@@ -2829,6 +2837,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 
 		basecount-=function_params.size();
 		function_params.clear();
+		top->child_return();
 		fprintf(tac, "\tendfunc\n");
 	}
 
@@ -2847,13 +2856,17 @@ functionstart:  {
 		}
 		Funcsuite = 1;
 
-		if (inside_init)
+		if (inside_init) {
 			top = new SymbolTable (globalSymTable, CTOR_ST, currently_defining_class->name);
-		else
+			fprintf (x86asm, "%s:\n", currently_defining_class->name.c_str());
+		}
+		else {
 			top = new SymbolTable (
 					top,
 					Classsuite?MEMBER_FN_ST:FUNCTION_ST,
 					$<node>0->production);
+			fprintf (x86asm, "%s:\n", $<node>0->production.c_str());
+		}
 		top->label=top->name;
 		if(currently_defining_class){
 			if(inside_init){
@@ -3108,6 +3121,9 @@ int main(int argc, char** argv){
 		fprintf (stderr, "Error opening file output.s\n");
 		return 1;
 	}
+
+
+	// entry routine
 	globalSymTable->spill_caller_regs();
 	fprintf (x86asm, "callq main\n");
 	globalSymTable->restore_caller_regs();

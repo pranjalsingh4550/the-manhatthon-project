@@ -2273,7 +2273,7 @@ primary: atom {
 				}
 			}
 			else if ($1->production == "len") {
-				len = 1;
+				len = 0; //avoid iteration in array later on
 				if (function_call_args_dim[0] == 0) {
 					dprintf (stderr_copy, "Error at line %d: argument to len() is not a list\n", (int) $1->lineno);
 					exit (54);
@@ -2332,58 +2332,66 @@ primary: atom {
 			// }
 		}
 		
-		
-		//for member functions
-		if ($$->typestring == $1->production/*constructor case*/) {
-			#if 0
-				printf("typestring = %s\n", $$->typestring.c_str());
-				printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
-			#endif
-			string temp = newtemp();
-			fprintf(tac,"\t%s = %d\n", temp.c_str(), getwidth($$->typestring));
-			fprintf(tac,"\tparam %s\n", temp.c_str());
-			fprintf(tac,"\tstackpointer -%d\n", (int)top->table_size + 8);
-			fprintf(tac,"\tcall allocmem 1\n");
-			fprintf(tac,"\tstackpointer +%d\n", (int) top->table_size+8);
-			fprintf(tac,"\t%s = popparam\n",temp.c_str());
-			fprintf(tac,"\tparam %s\n",temp.c_str());	
-			size += 8;
-		}
-		
-		//move stackptr
-		fprintf(tac, "\tstackpointer -%d\n", size + 16);
-		//function call
-		//if the function has no return type, don't allocate a temp for it and leave addr blank
-		//addr blank because should have no ops after this anyway
-		//if it has a return type, allocate a temp for it and assign to this node
-		//note: len has number of args (see above)
-		if (!current_scope) {
-			//built-in: len, print, range
-			if ($1->production == "len") {
-				//returns something
-				$$->addr = newtemp();
-				fprintf(tac, "\t%s = call len 1\n", $$->addr.c_str());
-			} else if ($1->production == "range") {
-				//return something
-				//TO DO
-			} else if ($1->production == "print") {
-				//returns nothing
-				fprintf(tac, "\tcall print 1\n");
-			}
-		} else {
-			//not a built-in
-			if (current_scope->return_type != "None") {
-				$$->addr = newtemp();
-				fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len);
-			} else if ($$->typestring == current_scope->name /*constructor case*/){
-				$$->addr = newtemp();
-				fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len + 1);
-			}else {
-				fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), len);
-			}
-		}		
-		
-		fprintf(tac, "\tstackpointer +%d\n", size + 16);
+		//this is the most convenient place to put this, honest!
+		if ($1->production != "len") {
+            //for member functions
+            if ($$->typestring == $1->production/*constructor case*/) {
+                #if 0
+                    printf("typestring = %s\n", $$->typestring.c_str());
+                    printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
+                #endif
+                string temp = newtemp();
+                fprintf(tac,"\t%s = %d\n", temp.c_str(), getwidth($$->typestring));
+                fprintf(tac,"\tparam %s\n", temp.c_str());
+                fprintf(tac,"\tstackpointer -%d\n", (int)top->table_size + 8);
+                fprintf(tac,"\tcall allocmem 1\n");
+                fprintf(tac,"\tstackpointer +%d\n", (int) top->table_size+8);
+                fprintf(tac,"\t%s = popparam\n",temp.c_str());
+                fprintf(tac,"\tparam %s\n",temp.c_str());	
+                size += 8;
+            }
+        
+            //move stackptr
+            fprintf(tac, "\tstackpointer -%d\n", size + 16);
+            //function call
+            //if the function has no return type, don't allocate a temp for it and leave addr blank
+            //addr blank because should have no ops after this anyway
+            //if it has a return type, allocate a temp for it and assign to this node
+            //note: len has number of args (see above)
+            if (!current_scope) {
+                //built-in: len, print, range
+                if ($1->production == "len") {
+                    //this isn't handled here, check the else block at the end
+                } else if ($1->production == "range") {
+                    //return something
+                    //TO DO
+                } else if ($1->production == "print") {
+                    //returns nothing
+                    fprintf(tac, "\tcall print 1\n");
+                }
+            } else {
+                //not a built-in
+                if (current_scope->return_type != "None") {
+                    $$->addr = newtemp();
+                    fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len);
+                } else if ($$->typestring == current_scope->name /*constructor case*/){
+                    $$->addr = newtemp();
+                    fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len + 1);
+                }else {
+                    fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), len);
+                }
+            }		
+        
+            fprintf(tac, "\tstackpointer +%d\n", size + 16);
+        } else {
+            //handle len here
+            //error checking has already been handled earlier
+            $$->addr = newtemp();
+            //new node for constant value of param
+            Node *param_length = new Node(NUMBER, (long int)function_call_args_dim[0]);
+            gen($$, $$, param_length, ASSIGN);
+        }
+        
 		function_call_args.clear();
 		function_call_args_dim.clear();
 
@@ -2399,13 +2407,14 @@ primary: atom {
 		*/
 	
 		if ($1->production == "print" || $1->production == "len" || $1->production == "range") {
-			if ($1->production == "range")
+			if ($1->production == "range") {
 				dprintf (stderr_copy, "Error at line %d: range() expects one or two arguments, received zero\n",
 						(int)$1->lineno);
-			else 
+			} else {
 				dprintf (stderr_copy, "Error at line %d: %s() expects one argument, received zero\n",
 						(int)$1->lineno, $1->production.c_str());
-		   exit (83);
+			}
+		    exit (83);
 		}
 		$$ = new Node (0, "", "");
 		if ($1->isLeaf) {
@@ -2486,17 +2495,10 @@ primary: atom {
 
 		if (!current_scope) {
 			//built-in: len, print, range
-			if ($1->production == "len") {
-				//returns something
-				$$->addr = newtemp();
-				fprintf(tac, "\t%s = call len 1\n", $$->addr.c_str());
-			} else if ($1->production == "range") {
-				//return something
-				//TO DO
-			} else if ($1->production == "print") {
-				//returns nothing
-				fprintf(tac, "\tcall print 1\n");
-			}
+			//these were already handled above, so if we've gotten here there is a problem
+			printf ("There might be an issue because this isn't supposed to happen \
+			\nhandle this case: search key tehran\n");
+			exit(69);
 		} else {
 			//not a built-in
 			if (current_scope->return_type != "None"
@@ -2511,8 +2513,9 @@ primary: atom {
 		fprintf(tac, "\tstackpointer +%d\n", size + 16);
 		// $$->addr= "call "+ $1->addr;
 
-		if (current_scope == NULL) {
+		if (!current_scope) {
 			printf ("handle this case: search key tehran\n");
+			//this is the builtin case, see above
 			exit(55);
 		}
 

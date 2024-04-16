@@ -30,4 +30,5 @@ tac.txt
 ignore.py
 output.s
 cscope.out
-
+test.c
+test.s

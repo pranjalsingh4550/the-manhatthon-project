@@ -12,6 +12,8 @@ parser: clean
 test: parser
 	./parser -input ignore.py
 
+do : test
+	gcc output.s
 temp:
 	./parser < input.py 2>output.txt
 

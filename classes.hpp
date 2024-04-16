@@ -800,6 +800,12 @@ class SymbolTable {
 			}
 			return -1;
 		}
+		void asm_load_value(int reg,string name){
+			fprintf (x86asm, "\tmovq -%ld(%%rbp), %%r%d\n", get_rbp_offset(name), reg);
+		}
+		void asm_store_value(int reg,string name){
+			fprintf (x86asm, "\tmovq %%r%d, -%ld(%%rbp)\n", reg, get_rbp_offset(name));
+		}
 		void asm_load_value_r12(string name) {
 			fprintf (x86asm, "\tmovq -%ld(%%rbp), %%r12\n", get_rbp_offset(name));
 		}

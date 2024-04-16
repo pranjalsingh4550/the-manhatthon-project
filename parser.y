@@ -220,6 +220,7 @@
 		fprintf (tac, "\tifFalse %s\tjmp %s\n", condition->addr.c_str(), target.c_str());
 	}
 	void gen(Node*result, Node* leftop, Node* rightop,enum ir_operation op){
+		fprintf(x86asm,"\t# gen Started\n\n");
 		if (tac == NULL) tac = stdout;
 		string left= leftop ? top->getaddr(leftop) : "";
 		string right= rightop ? top->getaddr(rightop) : "";
@@ -247,6 +248,11 @@
 			s += deref + " = *" + left + "\n";
 			fprintf(tac, "%s", s.c_str());
 			
+			top->asm_load_value(14,left);
+			
+			fprintf(x86asm, "\tmovq 0(%%r14), %%r15\n");
+
+			top->asm_store_value(15,deref);
 			//now deref has the temporary, so we use it in the calculation
 			string old_addr = result->addr;
 			leftop->addr = deref;
@@ -258,6 +264,11 @@
 			result->addr = old_addr;
 			result->islval = true;
 			fprintf (tac, "\t*%s = %s\n", old_addr.c_str(), right.c_str());
+
+			top->asm_load_value(14,right);
+			top->asm_load_value(15,old_addr);
+			fprintf(x86asm, "\tmovq %%r14, 0(%%r15)\n");
+
 			//we're done!
 			return;
 		}
@@ -271,12 +282,18 @@
 			#if TEMPDEBUG
 			printf("special assign, leftaddr: %s, rightaddr: %s\n", leftop->addr.c_str(), rightop->addr.c_str());
 			#endif
-			fprintf (tac, "\t*%s = %s\n", left.c_str(), right.c_str()); return;
+			fprintf (tac, "\t*%s = %s\n", left.c_str(), right.c_str());
+			top->asm_load_value(14,right);
+			top->asm_load_value(15,left);
+			fprintf(x86asm, "\tmovq %%r14, 0(%%r15)\n");
+		 	return;
 		}
 		switch(op){
 			case ASSIGN: {
 				if (leftop->typestring == rightop->typestring) {
 					fprintf(tac, "\t%s = %s\n", left.c_str(), right.c_str());
+					top->asm_load_value_r13(right);
+					top->asm_store_value_r13(left);
 					return;
 				}
 				//add typecasting instr if needed
@@ -2536,7 +2553,13 @@ atom: NAME {
 	$$ = $1;
 	$$->islval = true;
 }
-    | NUMBER
+    | NUMBER {
+		$1->addr=newtemp();
+		//fprintf(x86asm,"askdjfashldfjl\n\n\n");
+		fprintf(x86asm,  "\tmov $%s, %%r13\n",$1->production.c_str());
+		top->asm_store_value_r13($1->addr);
+		$$=$1;
+	}
     | STRING_plus {
 		$$ = $1;
 		$$->production = concatenating_string_plus;
@@ -3148,6 +3171,11 @@ int main(int argc, char** argv){
 
 
 	// entry routine
+	fprintf(x86asm,".data\n");
+	fprintf(x86asm,"\t\tinteger_format: .asciz,\"%%ld\\n\"\n");
+	fprintf(x86asm,".global main\n");
+	fprintf(x86asm,".text\n");
+
 	globalSymTable->spill_caller_regs();
 	fprintf (x86asm, "\tcallq main\n");
 	fprintf (x86asm, "\tcallq exit\n");

@@ -10,7 +10,7 @@ parser: clean
 	g++ -g -o parser lex.yy.c parser.tab.c -fmax-errors=6 
 
 test: parser
-	./parser -input ignore.py
+	./parser -input doubts/test.py
 
 do : test
 	gcc output.s

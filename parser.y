@@ -320,6 +320,8 @@
 				&& top->getnode(leftop->production)->isLeaf){
 					string obj= newtemp();
 					s+=obj +" = " + left +"\n\t";
+					top->asm_load_value_r12(left);
+					top->asm_store_value_r12(obj);
 					left = obj;
 				}
 				string offset = newtemp();
@@ -341,8 +343,19 @@
 				// t_2 = $1->addr + offset
 #endif
 				s+= offset + " = "+ to_string(num_offset)+" [ symtable(" + leftop->typestring + ", " + rightop->production + ") ]\n\t"; 
+
+				fprintf(x86asm,"\tmovq $%ld, -%ld(%%rbp)\n",num_offset,get_rbp_offset(offset));
+
 				string ult = newtemp();
 				s+=ult +" = " + left + " + " + offset ;
+
+				top->asm_load_value_r12(left);
+				top->asm_load_value_r13(offset);
+
+				fprintf(x86asm,"\taddq %%r12, %%r13\n");
+
+				top->asm_store_value_r13(ult);
+
 // 				string nc = newtemp();
 // 				s+=nc + " = *" + ult + "\n";
 // 				result->addr = nc;
@@ -353,26 +366,44 @@
 				return;
 			}
 			case SW:	{
-				fprintf (tac, "\t*%s = %s\n", resultaddr.c_str(), left.c_str()); return;
+				fprintf (tac, "\t*%s = %s\n", resultaddr.c_str(), left.c_str()); 
+
+				top->asm_load_value(14,left);
+				top->asm_store_value(15,resultaddr);
+				fprintf(x86asm, "\tmovq %%r14, 0(%%r15)\n");
+				return;
 			}
 			case SUBSCRIPT: {
 				string s="\t";
 				string offset = newtemp();
 				
 				s += offset + " =  "  +right + " * 8\n\t";
+				fprintf (x86asm, "\tmulq $8, %%r12\n");
 				string ult = newtemp();
 				s+=ult +" = " + left + " + " + offset + "\n";
+				top->asm_load_value_r13(left);
+				fprintf (x86asm, "\taddq %%r13, %%r12\n");
+
+				top->asm_store_value_r12(ult);
 // 				string nc = newtemp();
 // 				s+=nc + " = *" + ult + "\n";
 // 				result->addr = nc;
 				result->addr = ult;
-				fprintf(tac, "%s", s.c_str()); 
+				fprintf(tac, "%s", s.c_str());
 				return;
 			}
 			case DEREF: {
 				string s = "\t";
 				string deref = newtemp();
 				s += deref + " = *" + left + "\n";
+
+				top->asm_load_value(14,left);
+				top->asm_load_value(15,deref);
+
+				fprintf(x86asm, "\tmovq 0(%%r14), %%r15\n");
+
+				top->asm_store_value(15,resultaddr);
+				
 				result->addr = deref;
 				fprintf(tac, "%s", s.c_str());
 				return;

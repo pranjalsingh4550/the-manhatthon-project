@@ -2628,20 +2628,29 @@ new_jump_to_end3: {
 	}
 
 insert_jump_if_false3: {
-		fprintf (tac, "\tifFalse %s\tjmp %s\n",  dev_helper($<node>-1).c_str(), get_next_label3("").c_str());
+		string lbl = get_next_label3("");
+		fprintf (tac, "\tifFalse %s\tjmp %s\n",  dev_helper($<node>-1).c_str(), lbl.c_str());
+		fprintf (x86asm, "\tcmpq $0, -%ld(%%rbp)\n", top->get_rbp_offset(dev_helper($<node>-1)));
+		fprintf (x86asm, "\tje %s\n", lbl.c_str());
 	}
 
 
 insert_end_jump_label3: {
-		fprintf (tac, "\tjmp\t%s\n", jump_labels_upper3.top().c_str());
+		string lbl = jump_labels_upper3.top().c_str();
+		fprintf (tac, "\tjmp\t%s\n", lbl.c_str());
+		fprintf (x86asm, "\tjmp %s\n", lbl.c_str());
 	}
 
 jump_target_false_lower3: {
-		fprintf (tac, "\n%s:\n", get_current_label3().c_str());
+		string lbl = get_current_label3();							  
+		fprintf (tac, "\n%s:\n", lbl.c_str());
+		fprintf (x86asm, "%s:\n", lbl.c_str());
 	}
 
 upper_jump_target_reached3 : {
-		fprintf (tac, "\n%s:\n", get_current_label_upper3().c_str());
+		string lbl = get_current_label_upper3();
+		fprintf (tac, "%s:\n", lbl.c_str());
+		fprintf (x86asm, "%s:\n", lbl.c_str());
 	}
 
 
@@ -2651,18 +2660,27 @@ upper_jump_target_reached3 : {
 while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false {inLoop++;}suite[action] {inLoop--;}loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
 
 begin_loop_condition : {
-		fprintf (tac, "\n%s:\n", get_next_label_upper("").c_str());
+		string lbl = get_next_label_upper("");
+		fprintf (tac, "\n%s:\n", lbl.c_str());
+		fprintf (x86asm, "%s:\n", lbl.c_str());
 	}
 
 loop_end_jump_back : {
-		fprintf (tac, "\tjmp %s\n", get_current_label_upper().c_str());
+		string lbl = get_current_label_upper();
+		fprintf (tac, "\tjmp %s\n", lbl.c_str());
+		fprintf (x86asm, "\tjmp %s\n", lbl.c_str());
 	}
 
 insert_jump_if_false : {
-				fprintf (tac, "\tifFalse %s\tjmp %s\n", dev_helper($<node>-1).c_str(), get_next_label("").c_str());
+		string lbl = get_next_label("");
+		fprintf (tac, "\tifFalse %s\tjmp %s\n", dev_helper($<node>-1).c_str(), lbl.c_str());
+		fprintf (x86asm, "\tcmpq $0, -%ld(%%rbp)\n", top->get_rbp_offset(dev_helper($<node>-1).c_str()));
+		fprintf (x86asm, "\tje %s\n", lbl.c_str());
 	}
 jump_target_false_lower : {
-		fprintf (tac, "\n%s:\n", get_current_label().c_str());
+		string lbl = get_current_label();
+		fprintf (tac, "\n%s:\n", lbl.c_str());
+		fprintf (x86asm, "%s:\n", lbl.c_str());
 	}
 
 arglist: test[obj]

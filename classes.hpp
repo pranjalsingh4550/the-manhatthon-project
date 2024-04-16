@@ -856,7 +856,7 @@ class SymbolTable {
 			this->table_size += 8; // is this needed? because rbp is already shifted by 8
 			fprintf (x86asm, "\tmovq %%rsp, %%rbp\n");
 			if (this->arg_types.size())
-				fprintf (x86asm, "\tsubq $%ld, %%rsp\n\t\t# space for arguments filled earlier\n", (this->arg_types.size()) * 8);
+				fprintf (x86asm, "\tsubq $%ld, %%rsp\t# space for arguments filled earlier\n", (this->arg_types.size()) * 8);
 			spill_caller_regs();
 			fprintf (x86asm, "\t# end procedure entry routine\n\n");
 
@@ -865,8 +865,7 @@ class SymbolTable {
 		void child_return() {
 
 			fprintf (x86asm, "\t# begin procedure call routine\n");
-			fprintf (x86asm, "\tmovq %%rbp, %%rsp\n");
-			fprintf (x86asm, "\tsubq $%ld, %%rsp\n", (this->arg_types.size() + NUM_CALLEE_SAVED) * 8);
+			fprintf (x86asm, "\tleaq -%ld(%%rbp), %%rsp\n", (this->arg_types.size() + NUM_CALLEE_SAVED) * 8);
 			restore_caller_regs();
 			fprintf (x86asm, "\tmovq %%rbp, %%rsp\n");
 			fprintf (x86asm, "\tpopq %%rbp\n");
@@ -901,7 +900,17 @@ class SymbolTable {
 				fprintf (stderr, "TypeError at line %d: cannot print value of type %s\n", (int) arg->lineno, arg->typestring.c_str());
 				exit (103);
 			}
-			
+			this->systemV_ABI_call_begin();
+
+			if (arg->typestring == "str") // pointer is stored in the stack at address
+				fprintf (x86asm, "\tleaq string_format(%%rip), %%rdi\n");
+			else if (arg->typestring == "int")
+				fprintf (x86asm, "\tleaq int_format(%%rip), %%rdi\n");
+					
+			fprintf (x86asm, "\tleaq -%ld(%%rbp), %%rsi\n", this->get_rbp_offset(arg->addr));
+			fprintf (x86asm, "\tcallq printf\n");
+			this->systemV_ABI_call_end();
+			return ;
 			
 		}
 		

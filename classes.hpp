@@ -723,11 +723,11 @@ class SymbolTable {
 			#endif
 
 			// fprintf (x86asm, "subq $0x%lx, %%rsp\n", table_size); // not needed with new setup
-			fprintf (x86asm, "\npushq %%r15\n");
-			fprintf (x86asm, "pushq %%r14\n");
-			fprintf (x86asm, "pushq %%r13\n");
-			fprintf (x86asm, "pushq %%r12\n");
-			fprintf (x86asm, "pushq %%rbx\n\n");
+			fprintf (x86asm, "\n\tpushq %%r15\n");
+			fprintf (x86asm, "\tpushq %%r14\n");
+			fprintf (x86asm, "\tpushq %%r13\n");
+			fprintf (x86asm, "\tpushq %%r12\n");
+			fprintf (x86asm, "\tpushq %%rbx\n");
 			table_size += 8*NUM_CALLEE_SAVED;
 
 		}
@@ -737,45 +737,48 @@ class SymbolTable {
 			// finally, return
 			// fprintf (x86asm, "\nmovq %%rbp, %%rsp\n"); done by caller
 			// fprintf (x86asm, "subq $0x%lx, %%rsp\n", NUM_CALLER_SAVED*8 + arg_types.size()*8);
-			fprintf (x86asm, "popq %%rbx\n");
-			fprintf (x86asm, "popq %%r12\n");
-			fprintf (x86asm, "popq %%r13\n");
-			fprintf (x86asm, "popq %%r14\n");
-			fprintf (x86asm, "popq %%r15\n");
-			fprintf (x86asm, "addq $0x%lx, %%rsp\n", table_size+num_temps*8);
+			fprintf (x86asm, "\tpopq %%rbx\n");
+			fprintf (x86asm, "\tpopq %%r12\n");
+			fprintf (x86asm, "\tpopq %%r13\n");
+			fprintf (x86asm, "\tpopq %%r14\n");
+			fprintf (x86asm, "\tpopq %%r15\n");
+			fprintf (x86asm, "\taddq $0x%lx, %%rsp\n", table_size+num_temps*8);
 			// now rbp is the old rbp, as specified by the Dev* ABI
 			// as per x86 retq, rsp must be the rsp at the time of entry
-			fprintf (x86asm, "retq\n\n");
+			fprintf (x86asm, "\tretq\n\n");
 		}
 		void save_own_regs () { // before calling another function
 			// push in opposite order: rax, rcx, rdx, rdi, rsi, r8, r9, r10, r11
 			// check later: is rsp explicitly saved?
-			fprintf (x86asm, "\nmovq %%rbp, %%rsp\n");
-			fprintf (x86asm, "addq 0x%lx, %%rsp\n", table_size + num_temps*8 + NUM_CALLEE_SAVED*8);
-			fprintf (x86asm, "pushq %%r11\n");
-			fprintf (x86asm, "pushq %%r10\n");
-			fprintf (x86asm, "pushq %%r9\n");
-			fprintf (x86asm, "pushq %%r8\n");
-			fprintf (x86asm, "pushq %%rsi\n");
-			fprintf (x86asm, "pushq %%rdi\n");
-			fprintf (x86asm, "pushq %%rdx\n");
-			fprintf (x86asm, "pushq %%rcx\n");
-			fprintf (x86asm, "pushq %%rax\n\n");
+			
+			// fprintf (x86asm, "\nmovq %%rbp, %%rsp\n");
+			// fprintf (x86asm, "addq 0x%lx, %%rsp\n", table_size + num_temps*8 + NUM_CALLEE_SAVED*8);
+			// done by do_function_call()
+
+			fprintf (x86asm, "\tpushq %%r11\n");
+			fprintf (x86asm, "\tpushq %%r10\n");
+			fprintf (x86asm, "\tpushq %%r9\n");
+			fprintf (x86asm, "\tpushq %%r8\n");
+			fprintf (x86asm, "\tpushq %%rsi\n");
+			fprintf (x86asm, "\tpushq %%rdi\n");
+			fprintf (x86asm, "\tpushq %%rdx\n");
+			fprintf (x86asm, "\tpushq %%rcx\n");
+			fprintf (x86asm, "\tpushq %%rax\n\n");
 
 		}
 		void restore_own_regs () { // after the above function returns
 			// fprintf (x86asm, "\nmovq %%rbp, %%rsp\n"); this is the callee's responsibility
 			// fprintf (x86asm, "addq 0x%lx, %%rsp\n", table_size + num_temps*8 + 6*8 + 9*8);
-			fprintf (x86asm, "popq %%rax\n");
-			fprintf (x86asm, "popq %%rcx\n");
-			fprintf (x86asm, "popq %%rdx\n");
-			fprintf (x86asm, "popq %%rdi\n");
-			fprintf (x86asm, "popq %%rsi\n");
-			fprintf (x86asm, "popq %%r8\n");
-			fprintf (x86asm, "popq %%r9\n");
-			fprintf (x86asm, "popq %%r10\n");
-			fprintf (x86asm, "popq %%r11\n");
-			fprintf (x86asm, "movq %%rbp, %%rsp\n\n"); // no reason, just being cautious
+			fprintf (x86asm, "\tpopq %%rax\n");
+			fprintf (x86asm, "\tpopq %%rcx\n");
+			fprintf (x86asm, "\tpopq %%rdx\n");
+			fprintf (x86asm, "\tpopq %%rdi\n");
+			fprintf (x86asm, "\tpopq %%rsi\n");
+			fprintf (x86asm, "\tpopq %%r8\n");
+			fprintf (x86asm, "\tpopq %%r9\n");
+			fprintf (x86asm, "\tpopq %%r10\n");
+			fprintf (x86asm, "\tpopq %%r11\n");
+			fprintf (x86asm, "\tmovq %%rbp, %%rsp\n\n"); // no reason, just being cautious
 
 		}
 		long int get_rbp_offset (string reg_name) {
@@ -798,48 +801,47 @@ class SymbolTable {
 			return -1;
 		}
 		void asm_load_value_r12(string name) {
-			fprintf (x86asm, "movq -%ld(%%rbp), %%r12\n", get_rbp_offset(name));
+			fprintf (x86asm, "\tmovq -%ld(%%rbp), %%r12\n", get_rbp_offset(name));
 		}
 		void asm_load_value_r13(string name) {
-			fprintf (x86asm, "movq -%ld(%%rbp), %%r13\n", get_rbp_offset(name));
+			fprintf (x86asm, "\tmovq -%ld(%%rbp), %%r13\n", get_rbp_offset(name));
 		}
 		void asm_store_value_r13 (string name) {
-			fprintf (x86asm, "movq %%r13, -%ld(%%rbp)\n", get_rbp_offset(name));
+			fprintf (x86asm, "\tmovq %%r13, -%ld(%%rbp)\n", get_rbp_offset(name));
 		}
 
 		void do_function_call (SymbolTable* callee, vector<Node *> args, string self_ptr) {
 			// handles function call as well as return from child
 			// self_ptr is empty if it isn't a class method
-			fprintf (x86asm, "\t# begin procedure call routine\n");
-			fprintf (x86asm, "movq %%rbp, %%rsp\n");
-			if (table_size) // function has some args to make space for
-				fprintf (x86asm, "subq $%ld, %%rsp\n", table_size);
+			fprintf (x86asm, "\n\t# begin procedure call routine\n");
+			fprintf (x86asm, "\tmovq %%rbp, %%rsp\n");
+			fprintf (x86asm, "\tsubq $%ld, %%rsp\n", table_size);
 			// begin activation record at this address
 
 			save_own_regs();
 			// x86 callq fills return address at rsp[0]
 			// fill args in rsp[-1], rsp[-2], etc.
 
-			fprintf (x86asm, "sub $16, %%rsp\n"); // space for return address and rbp
+			fprintf (x86asm, "\tsub $16, %%rsp\n"); // space for return address and rbp
 
 			if (self_ptr != "") {
-				fprintf (x86asm, "movq -%ld(%%rbp), %%rcx\n", get_rbp_offset(self_ptr));
-				fprintf (x86asm, "pushq %%rcx\n");
+				fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", get_rbp_offset(self_ptr));
+				fprintf (x86asm, "\tpushq %%rcx\n");
 			}
 
 			for (auto arg: args) {
 				// use rcx as the temp register
 				if (arg->addr != "")
-					fprintf (x86asm, "movq -%ld(%%rbp), %%rcx\n", get_rbp_offset(arg->addr));
+					fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", get_rbp_offset(arg->addr));
 				else
 					exit(printf ("internal error: addr not initialised\n"));
-				fprintf (x86asm, "pushq %%rcx\n");
+				fprintf (x86asm, "\tpushq %%rcx\n");
 			}
 
 			// take rsp back to the empty slot
-			fprintf (x86asm, "addq $%ld, %%rsp\n", 8 * (1 + args.size())
+			fprintf (x86asm, "\taddq $%ld, %%rsp\n", 8 * (1 + args.size())
 						);
-			fprintf (x86asm, "callq %s\n",
+			fprintf (x86asm, "\tcallq %s\n",
 					callee->name.c_str()
 					);
 			restore_own_regs();
@@ -850,30 +852,62 @@ class SymbolTable {
 
 		void child_enter_function() {
 			fprintf (x86asm, "\t# begin procedure entry routine\n");
-			fprintf (x86asm, "pushq %%rbp\n");
+			fprintf (x86asm, "\tpushq %%rbp\n");
 			this->table_size += 8; // is this needed? because rbp is already shifted by 8
-			fprintf (x86asm, "movq %%rsp, %%rbp\n");
+			fprintf (x86asm, "\tmovq %%rsp, %%rbp\n");
 			if (this->arg_types.size())
-				fprintf (x86asm, "subq $%ld, %%rsp\n", (this->arg_types.size()) * 8);
+				fprintf (x86asm, "\tsubq $%ld, %%rsp\n\t\t# space for arguments filled earlier\n", (this->arg_types.size()) * 8);
 			spill_caller_regs();
-			fprintf (x86asm, "\t# end procedure entry routine\n");
+			fprintf (x86asm, "\t# end procedure entry routine\n\n");
 
 		}
 
 		void child_return() {
 
-			fprintf (x86asm, "\t# begin activation record management\n");
-			fprintf (x86asm, "movq %%rbp, %%rsp\n");
-			fprintf (x86asm, "subq $%ld, %%rsp\n", (this->arg_types.size() + NUM_CALLEE_SAVED) * 8);
+			fprintf (x86asm, "\t# begin procedure call routine\n");
+			fprintf (x86asm, "\tmovq %%rbp, %%rsp\n");
+			fprintf (x86asm, "\tsubq $%ld, %%rsp\n", (this->arg_types.size() + NUM_CALLEE_SAVED) * 8);
 			restore_caller_regs();
-			fprintf (x86asm, "movq %%rbp, %%rsp\n");
-			fprintf (x86asm, "popq %%rbp\n");
-			fprintf (x86asm, "retq\n");
+			fprintf (x86asm, "\tmovq %%rbp, %%rsp\n");
+			fprintf (x86asm, "\tpopq %%rbp\n");
+			fprintf (x86asm, "\tretq\n");
 			fprintf (x86asm, "\t# end activation record management\n");
 
 		}
 
+		void systemV_ABI_call_begin () {
+			
+			fprintf (x86asm, "\n\t# begin System V ABI procedure call routine\n");
+			fprintf (x86asm, "\tmovq %%rbp, %%rsp\n");
+			fprintf (x86asm, "\tsubq $%ld, %%rsp\n", table_size);
+			save_own_regs();
+
+			// begin activation record at this address
+		}
+		void systemV_ABI_call_end() {
+			// procedure calls preserve rbp and rsp
+			restore_own_regs();
+		}
+		void call_malloc(int size) {
+			this->systemV_ABI_call_begin();
+			fprintf (x86asm, "\tmovq $%d, %%rdx\n", size);
+			fprintf (x86asm, "\tcallq malloc\n");
+			// return value in rax
+			this->systemV_ABI_call_end();
+			return;
+		}
+		void call_printf (Node* arg) {
+			if (arg->typestring != "int" && arg->typestring != "str") {
+				fprintf (stderr, "TypeError at line %d: cannot print value of type %s\n", (int) arg->lineno, arg->typestring.c_str());
+				exit (103);
+			}
+			
+			
+		}
+		
 };
+
+
 class instruction {
 	public:
 		enum ir_operation instr;

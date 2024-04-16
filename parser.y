@@ -48,6 +48,7 @@
 	vector <int> function_call_args_dim;
 	Node* for_loop_iterator_node, *for_loop_range_second_arg, *for_loop_range_first_arg;
 	int label_count;
+	int str_count = 0;
 
 	vector<Node*> function_params;
 
@@ -2541,6 +2542,8 @@ atom: NAME {
 		$$->addr = newtemp();
 
 		fprintf (tac, "\t<string literal> %s = ptr(\"%s\")\n", top->getaddr($$).c_str(), $$->production.c_str()) ;
+		static_section += "str_literal" + to_string (str_count ++) + ":\n\t\"";
+		static_section += $$->production + "\"\n";
 	}
 	|"(" test ")"{$$=$2;}
     | "True"
@@ -3112,7 +3115,7 @@ int main(int argc, char** argv){
 		stderr_copy = 2;
 	}
 
-	static_section = "Static Section:\n" ;
+	static_section = "\t.text\n\t.section\t.rodata\n\n" ;
 	concatenating_string_plus = "\0";
 	
 	tac = fopen (outputfile, "w+");
@@ -3125,11 +3128,9 @@ int main(int argc, char** argv){
 
 	// entry routine
 	globalSymTable->spill_caller_regs();
-	fprintf (x86asm, "callq main\n");
-	globalSymTable->restore_caller_regs();
-	globalSymTable->spill_caller_regs();
-	fprintf (x86asm, "callq exit\n");
-	globalSymTable->restore_caller_regs();
+	fprintf (x86asm, "\tcallq main\n");
+	fprintf (x86asm, "\tcallq exit\n");
+	fprintf (x86asm, "\t# beginning of user functions\n");
 
 	stdump = fopen ("symbol_table.csv", "w+");
 	if(stdump == NULL){
@@ -3173,7 +3174,7 @@ int main(int argc, char** argv){
 	/* globalSymTable->print_st(stdump); */
 	fclose (stdump);
 	if (static_section != "Static section:\n")
-		// cout << static_section << endl;
+		fprintf (x86asm, "\n\n\n%s\n", static_section.c_str());
 	if (jump_labels_upper.size() != 0 || jump_labels.size() != 0)
 		printf ("Error stacks not empty\n");
     return 0;

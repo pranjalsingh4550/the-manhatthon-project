@@ -215,9 +215,12 @@
 	}
 	void gen_ujump (string target) {
 		fprintf (tac, "\tjmp %s\n", target.c_str());
+		fprintf (x86asm, "\tjmp %s\n", target.c_str());
 	}
 	void gen_branch (Node* condition, string target) {
 		fprintf (tac, "\tifFalse %s\tjmp %s\n", condition->addr.c_str(), target.c_str());
+		fprintf (x86asm, "\tcmpq $0, -%ld(%%rbp)\n", top->get_rbp_offset(condition->addr));
+		fprintf (x86asm, "\tje %s\n", target.c_str());
 	}
 	void gen(Node*result, Node* leftop, Node* rightop,enum ir_operation op){
 		fprintf(x86asm,"\t# gen Started\n\n");
@@ -384,17 +387,17 @@
 		switch(op){
 			case ADD:		fprintf(tac, "\t%s\t= %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12(left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "addq %%r12, %%r13\n");
+							fprintf (x86asm, "\taddq %%r12, %%r13\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case SUB:		fprintf(tac, "\t%s\t= %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "subq %%r13, %%r12\n");
+							fprintf (x86asm, "\tsubq %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case MUL:		fprintf(tac, "\t%s\t= %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "mulq %%r13, %%r12\n");
+							fprintf (x86asm, "\tmulq %%r13, %%r12\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case DIV:		fprintf(tac, "\t%s\t= %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
@@ -498,13 +501,14 @@
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case STREQ:		fprintf(tac, "\t%s\t= STREQ(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break;
-							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %%r13, %%r12\n");
-							top->asm_store_value_r13(resultaddr);
+							top->call_strcmp (right, left);
+							fprintf (x86asm, "\tmovq %%rax, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 			case STRCMP:	{
 					fprintf(tac,"\tparam %s\n",right.c_str());
 					fprintf(tac,"\tparam %s\n",left.c_str());
 					fprintf(tac,"\t%s\t= call STRCMP 2\n",resultaddr.c_str());break;
+					top->call_strcmp (right, left);
+
 				// fprintf(tac, "\t%s\t= STRCMP(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break; 
 				}
 			default: dprintf (stderr_copy,"Wrong op at line no : %d\n",yylineno);exit(1);
@@ -3041,14 +3045,22 @@ set_num_range_args_2 : {
 handle_loop_condition : {
 		if(!for_loop_range_first_arg) {
 			fprintf(tac,"\tt%d = %s\n", basecount, "0");
+			fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset("t" + to_string(basecount)));
 		}
 		else{
 			fprintf(tac,"\tt%d = %s\n", basecount, for_loop_range_first_arg->addr.c_str());
+			top->asm_load_value_r13 (for_loop_range_first_arg->addr);
+			top->asm_store_value_r13 ("t" + to_string (basecount));
 		}
 		basecount++;
-		fprintf (tac, "%s:\n", get_next_label_upper("").c_str());
+		string lbl = get_next_label_upper ("");
+		fprintf (tac, "%s:\n", lbl.c_str());
+		fprintf (x86asm, "%s:\n", lbl.c_str());
 		string temp = "t"+to_string(basecount-1);
 		fprintf(tac, "\t%s = %s\n", top->getaddr(for_loop_iterator_node).c_str(), temp.c_str());
+		top->asm_load_value_r13 (top->getaddr(for_loop_iterator_node));
+		top->asm_store_value_r13 (temp);
+
 		// fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
 		Node* test = $<node>-1;
 		int begin = 0, end = 0;
@@ -3065,7 +3077,10 @@ handle_loop_condition : {
 		}
 
 		// dummy_test_condition_node is the handle to the loop condition
-		fprintf (tac, "\tifFalse %s\tjmp %s\n", dev_helper(dummy_test_condition_node).c_str(), get_next_label("").c_str());
+		lbl = get_next_label("");
+		fprintf (tac, "\tifFalse %s\tjmp %s\n", dev_helper(dummy_test_condition_node).c_str(), lbl.c_str());
+		fprintf (x86asm, "\tcmpq $0, -%ld(%%rbp)\n", top->get_rbp_offset(dev_helper(dummy_test_condition_node)));
+		fprintf (x86asm, "\tje %s\n", lbl.c_str());
 	}
 
 testlist: arglist
@@ -3173,12 +3188,10 @@ int main(int argc, char** argv){
 	// entry routine
 	fprintf(x86asm,".data\n");
 	fprintf(x86asm,"\t\tinteger_format: .asciz,\"%%ld\\n\"\n");
+	fprintf (x86asm, "\t\tstring_format: .asciz,\"%%s\\n\"\n");
 	fprintf(x86asm,".global main\n");
 	fprintf(x86asm,".text\n");
 
-	globalSymTable->spill_caller_regs();
-	fprintf (x86asm, "\tcallq main\n");
-	fprintf (x86asm, "\tcallq exit\n");
 	fprintf (x86asm, "\t# beginning of user functions\n");
 
 	stdump = fopen ("symbol_table.csv", "w+");

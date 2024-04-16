@@ -742,7 +742,7 @@ class SymbolTable {
 			fprintf (x86asm, "\tpopq %%r13\n");
 			fprintf (x86asm, "\tpopq %%r14\n");
 			fprintf (x86asm, "\tpopq %%r15\n");
-			fprintf (x86asm, "\taddq $0x%lx, %%rsp\n", table_size+num_temps*8);
+			fprintf (x86asm, "\taddq $0x%lx, %%rsp\n", this->arg_types.size()*8);
 			// now rbp is the old rbp, as specified by the Dev* ABI
 			// as per x86 retq, rsp must be the rsp at the time of entry
 			fprintf (x86asm, "\tretq\n\n");
@@ -918,6 +918,12 @@ class SymbolTable {
 			this->systemV_ABI_call_end();
 			return ;
 			
+		}
+		void call_strcmp (string arg1, string arg2) {
+			systemV_ABI_call_begin();
+			fprintf (x86asm, "movq -%ld(%%rbp), %%rdi\n\tmovq -%ld(%%rbp), %%rsi\n", get_rbp_offset(arg1), get_rbp_offset(arg2));
+			fprintf (x86asm, "\tcallq strcmp\n");
+			systemV_ABI_call_end();
 		}
 		
 };

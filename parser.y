@@ -53,7 +53,7 @@
 	vector<Node*> function_params;
 
 	#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-	#define TEMPDEBUG 0
+	#define TEMPDEBUG 1
 	
 	bool is_not_name (Node*);
 	
@@ -1852,10 +1852,11 @@ factor: "+" factor	{
 	$$ = $1;
 }
 power: primary {
-	current_scope = NULL;
+    Node *t1 = $1;
+	// current_scope = NULL;
 	if ($1->typestring == "") {
 		dprintf(stderr_copy, 
-		"NameError at line %d: undefined variable %s\n", 
+		"NameError at line %d: undefined variable [%s]\n", 
 		$1->lineno, $1->production.c_str());
 		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 		exit(1);
@@ -1920,7 +1921,7 @@ power: primary {
 	}
 	$$->addchild($1);
 	$$->addchild($3);
-	current_scope = NULL;
+	// current_scope = NULL;
 	gen($$,$1, $3, POW);
 }
 
@@ -1977,6 +1978,7 @@ primary: atom {
 		$$ = new Node (0, "", $3->typestring);
 		$$->isLeaf = false;
 		$$->islval = true;
+		Node *tt = $$, *t1 = $1, *t3 = $3;
 		if (inside_init 
 		&& $1->isLeaf 
 		&& $1->production == top->thisname) {
@@ -2040,8 +2042,14 @@ primary: atom {
 			$$->typestring = "def";
 			$$->islval = false;
 			current_scope = current_scope->find_member_fn($3->production);
-			$$->addr = $1->typestring +"." + $3->production;
-			 // the only case in which current_scope is truly global
+			$$->production = $1->typestring +"." + $3->production;
+			//store addr of object passed as implicit paramater in method call
+			$$->addr = $1->addr;
+			// the only case in which current_scope is truly global
+			//also, push current object ($1) as argument
+			function_call_args.push_back($1);
+		    function_call_args_dim.push_back($1->dimension);
+			
 		} else if ($$->isdecl) {
 			//this only happens in a self.something case so we just
 			//set the overall production to the last term, it'll get
@@ -2152,16 +2160,24 @@ primary: atom {
 
 		}
 	| primary "(" testlist ")" {
+	    //we are expecting current_scope not to be null for member functions here!!!
+	    //so, use isLeaf to check if this is a member fn
 		/*
 			for i in range(primary->arg_types.size())
 				if(primary->arg_types[i] != testlist->children[i]->typestring) error
 			update $$->typestring as return type of function
 		*/
+		#if TEMPDEBUG
+		printf("entering primary ( testlist )\n");
+		#endif
+		bool isConstructor = false;
+		bool isMemberFn = false;
 		$$ = new Node (0, "", "");
 		$$->islval = false;
 		$$->isdecl = false;
 		$$->isLeaf = false;
-		if ($1->isLeaf && $1->production != "print" && $1->production != "len" && $1->production != "range") {
+		Node *tt = $$, *t1 = $1, *t3 = $3;
+		if ($1->isLeaf && !($1->production == "print" || $1->production == "len" || $1->production == "range")) {
 			//i.e. not a member function or a builtin
 			if (find_fn ($1->production)) {
 				//if is a defined function
@@ -2172,6 +2188,7 @@ primary: atom {
 				#endif
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) {
 				// call to constructor
+				isConstructor = true;
 				current_scope = globalSymTable->ctor.find($1->production)->second;
 				// $1->production+=".ctor";
 				current_scope->label = $1->production+".ctor";
@@ -2187,17 +2204,19 @@ primary: atom {
 				dprintf (stderr_copy, "Error at line %d: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
 				exit(44);
 			}
-		} else if ($1->production != "print" && $1->production != "len" && $1->production != "range" ) {
-		   // now we expect typestring to be set to def, symboltable to be available in current_scope
+		} else if (!($1->production == "print" || $1->production == "len" || $1->production == "range" )) {
+		    //i.e. this is a member function
+            // now we expect typestring to be set to def, symboltable to be available in current_scope
+            isMemberFn = true;
+            $$->typestring = current_scope->return_type;
 			if ($1->typestring != "def") {
 				dprintf (stderr_copy, "TypeError at line %d: Function call to object of type %s.\n", $2->lineno, $1->typestring.c_str());
 				exit(45);
-			} else { // valid function call
-				#if TEMPDEBUG
-				printf ("valid function call to function %s\n",
-						current_scope ? current_scope->name.c_str() : "" );
-				#endif
-			}
+			}// valid function call
+            #if TEMPDEBUG
+            printf ("valid function call to function %s\n",
+                    current_scope ? current_scope->name.c_str() : "" );
+            #endif
 		}
 		// printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
@@ -2244,6 +2263,10 @@ primary: atom {
 				exit (59);
 			} else if (function_call_args_dim[0] == 0 && function_call_args[0]->typestring != "str") {
 				dprintf (stderr_copy, "TypeError at line %d: argument to len() neither a string nor a list\n",
+						(int) $1->lineno);
+				exit (49);
+			} else if (function_call_args_dim[0] == -1) {
+			    dprintf (stderr_copy, "Error at line %d: argument to len() is an uninitialized list\n",
 						(int) $1->lineno);
 				exit (49);
 			}
@@ -2385,13 +2408,15 @@ primary: atom {
 		}
 		
 		//this is the most convenient place to put this, honest!
-		if ($1->production != "len") {
-            //for member functions
-            if ($$->typestring == $1->production/*constructor case*/) {
-                #if 0
-                    printf("typestring = %s\n", $$->typestring.c_str());
-                    printf ("valid call to function %s in line %d\n", $1->production.c_str(), $1->lineno);
-                #endif
+		if (!($1->production == "len" && $1->isLeaf)) {
+            //if this is a member function, push calling object onto list too
+            //address list reversed + object is 1st param => put object as last param
+            //addr of obj saved in $1->addr
+//             if (isMemberFn) {
+//                 fprintf(tac, "\tparam %s\n", $1->addr.c_str());
+//                 len++;
+//                 size+=8;
+            if (isConstructor) {
                 string temp = newtemp();
                 fprintf(tac,"\t%s = %d\n", temp.c_str(), getwidth($$->typestring));
                 fprintf(tac,"\tparam %s\n", temp.c_str());
@@ -2426,14 +2451,13 @@ primary: atom {
                 if (current_scope->return_type != "None") {
                     $$->addr = newtemp();
                     fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len);
-                } else if ($$->typestring == current_scope->name /*constructor case*/){
+                } else if (isConstructor){
                     $$->addr = newtemp();
                     fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len + 1);
                 }else {
                     fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), len);
                 }
-            }		
-        
+            }		        
             fprintf(tac, "\tstackpointer +%d\n", size + 16);
         } else {
             //handle len here
@@ -2446,10 +2470,12 @@ primary: atom {
         
 		function_call_args.clear();
 		function_call_args_dim.clear();
-
+		//consume current_scope, we're done with it
+        current_scope = NULL;
 
 	}
 	| primary "(" ")" {
+	//again, for member functions, current_scope should not be null here!
 		/*
 			if primary is constant then error
 			if primary is not in current scope then error
@@ -2457,8 +2483,9 @@ primary: atom {
 
 			update $result type as the return type of function
 		*/
-	
-		if ($1->production == "print" || $1->production == "len" || $1->production == "range") {
+	    bool isConstructor = false;
+	    bool isMemberFn = false;
+		if (($1->production == "print" || $1->production == "len" || $1->production == "range") && ($1->isLeaf)) {
 			if ($1->production == "range") {
 				dprintf (stderr_copy, "Error at line %d: range() expects one or two arguments, received zero\n",
 						(int)$1->lineno);
@@ -2475,6 +2502,7 @@ primary: atom {
 				exit(1);
 			}
 			if (top->find_member_fn ($1->production)) {
+			    isMemberFn = true;
 				// $1->typestring = "def";
 				$$->typestring = top->find_member_fn($1->production)->return_type;
 				current_scope = top->find_member_fn($1->production);
@@ -2486,6 +2514,7 @@ primary: atom {
 				// fill 3ac for function call
 			} else if (globalSymTable->ctor.find($1->production) != globalSymTable->ctor.end()) {
 				// call to constructor
+				isConstructor = true;
 				current_scope = globalSymTable->ctor.find($1->production)->second;
 				$$->typestring = $1->production;
 				// $1->production+=".ctor";
@@ -2500,7 +2529,7 @@ primary: atom {
 				current_scope = globalSymTable->find_member_fn($1->production);
 				$$->typestring = current_scope->return_type;
 			} else {
-				dprintf (stderr_copy, "Error at line %d: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
+				dprintf(stderr_copy, "Error at line %d: Call to undefined function %s.\n", $1->lineno, $1->production.c_str());
 				exit(44);
 			}
 		} else { // now we expect typestring to be set to def, symboltable to be available in current_scope
@@ -2523,14 +2552,29 @@ primary: atom {
 		#endif
 		// printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
-		
-		if (current_scope->arg_types.size()) {
-			dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
-					(int)$1->lineno,(int) current_scope->arg_types.size(), 0);
-			exit (60);
+
+		int size = current_scope->arg_types.size();
+		if (function_call_args.size() != size
+		|| (size > 0 
+		    &&  (   function_call_args_dim[0] != 0
+		        ||  function_call_args[0]->typestring != current_scope->arg_types[0]
+		    )
+		)) {
+		    dprintf(stderr_copy, "Something is terribly wrong, please check\n");
+		    exit(69);
 		}
-		int size = 0;
-		if ($$->typestring == $1->production /*constructor case*/) {
+		
+		if (size > 0) {
+		    //size should really only be 1 if we've entered here
+		    if (size != 1) {
+		        dprintf(stderr_copy, "Size not 1, is %d instead\n", size);
+		    }
+		    size *= 8;
+		    //push implicit param onto stack
+		    fprintf(tac, "\tparam %s\n", dev_helper(function_call_args[0]).c_str());
+		}
+		
+		if (isConstructor) {
 			string temp = newtemp();
 			fprintf(tac,"\t%s = %d\n", temp.c_str(), getwidth($$->typestring));
 			fprintf(tac,"\tparam %s\n", temp.c_str());
@@ -2554,22 +2598,20 @@ primary: atom {
 		} else {
 			//not a built-in
 			if (current_scope->return_type != "None"
-			||  $$->typestring == current_scope->name /*constructor case*/) {
+			||  isConstructor) {
 				$$->addr = newtemp();
-				fprintf(tac, "\t%s = call %s\n", $$->addr.c_str(), current_scope->label.c_str());
+				if (size) {
+				    fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), size / 8);
+				} else {
+				    fprintf(tac, "\t%s = call %s\n", $$->addr.c_str(), current_scope->label.c_str());
+				}
 			} else {
-				fprintf(tac, "\tcall %s\n", current_scope->label.c_str());
+				fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), size / 8);
 			}
 		}
 		
 		fprintf(tac, "\tstackpointer +%d\n", size + 16);
 		// $$->addr= "call "+ $1->addr;
-
-		if (!current_scope) {
-			printf ("handle this case: search key tehran\n");
-			//this is the builtin case, see above
-			exit(55);
-		}
 
 		// milestone 3 begins here
 		top->do_function_call(current_scope, function_call_args, "" ); // complete this later
@@ -2749,7 +2791,7 @@ arglist: test[obj]
 			list_init_inputs.push_back ($obj);
 		}
 		function_call_args.push_back ($obj);
-		function_call_args_dim.push_back ($obj->dimension);
+		function_call_args_dim.push_back($obj->dimension);
 	}
 	| arglist "," test[obj] { $$ = new Node ("Multiple terms"); $$->addchild($1); $$->addchild($3);
 		if (list_init)
@@ -2777,6 +2819,15 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		}
 		top->thisname=$1->production;
 		$$=$1;
+		
+		if (!inside_init) {
+            //adding implicit object argument for method calls
+            //NOT for constructors
+            //type: class itself
+            //dimension: must be 0
+            top->arg_types.push_back(currently_defining_class->name);
+            top->arg_dimensions.push_back(0);
+		}
 		
 		$1->addr="t"+to_string(basecount);
 		$1->isLeaf=false;
@@ -2883,26 +2934,28 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		}
 		suite[last] {
 	       	Funcsuite=0;
-		if (inside_init) currently_defining_class->print_local_symbols(stdump);
+		if (inside_init)
+		    currently_defining_class->print_local_symbols(stdump);
 		top->print_local_symbols(stdump);
-		endscope(); inside_init = 0;
-	       	$$ = new Node ("Function Defn");
-	       	$$->addchild($id, "Name");
-	       	$$->addchild($param,"Parameters");
-	       	$$->addchild($last, "Body");
-			function_call_args_dim.clear();
-			function_call_args.clear();
+		endscope();
+		inside_init = 0;
+        $$ = new Node ("Function Defn");
+        $$->addchild($id, "Name");
+        $$->addchild($param,"Parameters");
+        $$->addchild($last, "Body");
+        function_call_args_dim.clear();
+        function_call_args.clear();
 
-			basecount-=function_params.size();
-			function_params.clear();			
-			
-			if ($id->production != "__init__") {
-				fprintf(tac, "\tret \n");
-			} else {
-				fprintf(tac, "\tret t%d\n", basecount);
-			}
-			fprintf(tac, "\tendfunc\n");
-			top->child_return();
+        basecount-=function_params.size();
+        function_params.clear();			
+        
+        if ($id->production != "__init__") {
+            fprintf(tac, "\tret \n");
+        } else {
+            fprintf(tac, "\tret t%d\n", basecount);
+        }
+        fprintf(tac, "\tendfunc\n");
+        top->child_return();
 	}
 	| "def" NAME[id] functionstart "(" ")" ":" {
 			top->return_type = "None";

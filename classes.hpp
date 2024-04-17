@@ -714,7 +714,7 @@ class SymbolTable {
 			}
 		}
 #define NUM_CALLEE_SAVED 5
-#define NUM_CALLER_SAVED 9
+#define NUM_CALLER_SAVED 8
 #define ASMDEBUG 1
 		void spill_caller_regs() {
 			/* rbx r12 r13 r14 r15 -> push in opposite order. push/pop rbp at the ends
@@ -765,13 +765,13 @@ class SymbolTable {
 			fprintf (x86asm, "\tpushq %%rdi\n");
 			fprintf (x86asm, "\tpushq %%rdx\n");
 			fprintf (x86asm, "\tpushq %%rcx\n");
-			fprintf (x86asm, "\tpushq %%rax\n\n");
+			// fprintf (x86asm, "\tpushq %%rax\n\n");
 
 		}
 		void restore_own_regs () { // after the above function returns
 			// fprintf (x86asm, "\nmovq %%rbp, %%rsp\n"); this is the callee's responsibility
 			// fprintf (x86asm, "addq 0x%lx, %%rsp\n", table_size + num_temps*8 + 6*8 + 9*8);
-			fprintf (x86asm, "\tpopq %%rax\n");
+			// fprintf (x86asm, "\tpopq %%rax\n");
 			fprintf (x86asm, "\tpopq %%rcx\n");
 			fprintf (x86asm, "\tpopq %%rdx\n");
 			fprintf (x86asm, "\tpopq %%rdi\n");
@@ -850,10 +850,11 @@ class SymbolTable {
 			fprintf (x86asm, "\taddq $%ld, %%rsp\n", 8 * (2 + args.size())
 						);
 			fprintf (x86asm, "\tcallq %s\n",
-					callee->name.c_str()
+					callee->label.c_str()
 					);
 			restore_own_regs();
 			// not obligated to restore rsp
+
 			fprintf (x86asm, "\t# end procedure call routine\n");
 			return;
 		}
@@ -876,7 +877,10 @@ class SymbolTable {
 			fprintf (x86asm, "\tleaq -%ld(%%rbp), %%rsp\n", (this->arg_types.size() + NUM_CALLEE_SAVED) * 8);
 			restore_caller_regs();
 			fprintf (x86asm, "\tmovq %%rbp, %%rsp\n");
-			fprintf (x86asm, "\tpopq %%rbp\n");
+			fprintf (x86asm, "\tpopq %%rbp\n");\
+			if(name=="main"){
+				fprintf(x86asm,"\tmovq $0, %%rax\n");
+			}
 			fprintf (x86asm, "\tretq\n");
 			fprintf (x86asm, "\t# end activation record management\n");
 

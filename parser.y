@@ -737,7 +737,7 @@ small_stmt: expr_stmt
 			dprintf (stderr_copy, "Error at line %d: return is not inside a function\n", (int) yylineno);
 			exit(57);
 		}
-	} return_stmt {$$=$2;}
+	} return_stmt[ret] {$$=$ret;}
 
 	| "break" {
 		/*check if current scope is loop or not by top->isLoop*/
@@ -1121,9 +1121,8 @@ return_stmt: "return" test {
 				}
 			}
 			$1->addchild($2,"Data"); $$=$1;	
-
 			fprintf(tac, "\tret %s\n", top->getaddr($2).c_str());
-			fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rax\n", top->get_rbp_offset($2->addr));
+			fprintf (x86asm, "\n\tmovq -%ld(%%rbp), %%rax\n", top->get_rbp_offset(top->getaddr($2)));
 	}
 	| "return" {
 			if(top->return_type != "None"){
@@ -1219,6 +1218,9 @@ comparison: expr {
 		}
 		if ($1->typestring == "str") {
 				$$->typestring = "bool";
+				if($1->production=="__name__" && $3->production=="__main__"){
+					return 0;
+				}
 				gen($$,$1,$3,STRCMP);
 				gen($$,$$,NULL,NOT_log);
 				// string temp =newtemp();
@@ -2469,9 +2471,11 @@ primary: atom {
                 if (current_scope->return_type != "None") {
                     $$->addr = newtemp();
                     fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len);
+					fprintf(x86asm, "\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset($$->addr));
                 } else if (isConstructor){
                     $$->addr = newtemp();
                     fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len + 1);
+					fprintf(x86asm, "\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset($$->addr));
                 }else {
                     fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), len);
                 }
@@ -2613,26 +2617,26 @@ primary: atom {
 			printf ("There might be an issue because this isn't supposed to happen \
 			\nhandle this case: search key tehran\n");
 			exit(69);
-		} else {
+		}
 			//not a built-in
-			if (current_scope->return_type != "None"
-			||  isConstructor) {
-				$$->addr = newtemp();
-				if (size) {
-				    fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), size / 8);
-				} else {
-				    fprintf(tac, "\t%s = call %s\n", $$->addr.c_str(), current_scope->label.c_str());
-				}
+		top->do_function_call(current_scope, function_call_args, "" ); // complete this later
+		if (current_scope->return_type != "None"
+		||  isConstructor) {
+			$$->addr = newtemp();
+			if (size) {
+				fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), size / 8);
 			} else {
-				fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), size / 8);
+				fprintf(tac, "\t%s = call %s\n", $$->addr.c_str(), current_scope->label.c_str());
 			}
+			fprintf(x86asm, "\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset($$->addr));
+		} else {
+			fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), size / 8);
 		}
 		
 		fprintf(tac, "\tstackpointer +%d\n", size + 16);
 		// $$->addr= "call "+ $1->addr;
 
 		// milestone 3 begins here
-		top->do_function_call(current_scope, function_call_args, "" ); // complete this later
 		// if return val: fetch from rax
 		function_call_args.clear();
 		function_call_args_dim.clear();
@@ -2821,7 +2825,8 @@ jump_target_false_lower : {
 	}
 
 arglist: test[obj]
-	{
+	{	
+		$obj= top->getnode($obj->production);
 		if (list_init) { // NUMBER, STRING, CLASS, BOOL, NONE
 			// base of the list is a static region in memory but we don't know the length yet. so store in a vector for now
 			list_init_inputs.push_back ($obj);
@@ -2830,6 +2835,7 @@ arglist: test[obj]
 		function_call_args_dim.push_back($obj->dimension);
 	}
 	| arglist "," test[obj] { $$ = new Node ("Multiple terms"); $$->addchild($1); $$->addchild($3);
+		$obj= top->getnode($obj->production);
 		if (list_init)
 			list_init_inputs.push_back ($obj);
 		function_call_args.push_back ($obj);
@@ -2928,6 +2934,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		Funcsuite=0;
 		if (inside_init) currently_defining_class->print_local_symbols(stdump);
 		top->print_local_symbols(stdump);
+		top->child_return();
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
 		$$->addchild($id, "Name");
@@ -2940,7 +2947,6 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		basecount-=function_params.size();
 		function_params.clear();
 		
-		top->child_return();
 		fprintf(tac, "\tendfunc\n");
 
 	}
@@ -2951,6 +2957,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	Funcsuite=0;
 		if (inside_init) currently_defining_class->print_local_symbols(stdump);
 		top->print_local_symbols(stdump);
+			top->child_return();
 		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn"); $$->addchild($id, "Name");
 	       	$$->addchild($returntype, "Return type");
@@ -2960,7 +2967,6 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 			basecount-=function_params.size();
 			function_params.clear();
 
-			top->child_return();
 			fprintf(tac, "\tendfunc\n");
 			
 	}
@@ -2973,6 +2979,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		if (inside_init)
 		    currently_defining_class->print_local_symbols(stdump);
 		top->print_local_symbols(stdump);
+        top->child_return();
 		endscope();
 		inside_init = 0;
         $$ = new Node ("Function Defn");
@@ -2991,7 +2998,6 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
             fprintf(tac, "\tret t%d\n", basecount);
         }
         fprintf(tac, "\tendfunc\n");
-        top->child_return();
 	}
 	| "def" NAME[id] functionstart "(" ")" ":" {
 			top->return_type = "None";
@@ -3000,6 +3006,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	       	Funcsuite=0;
 		if (inside_init) currently_defining_class->print_local_symbols(stdump);
 		top->print_local_symbols (stdump);
+		top->child_return();
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
 		$$->addchild($id, "Name");
@@ -3009,7 +3016,6 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 
 		basecount-=function_params.size();
 		function_params.clear();
-		top->child_return();
 		fprintf(tac, "\tendfunc\n");
 	}
 
@@ -3326,7 +3332,7 @@ int main(int argc, char** argv){
 		/* fprintf(stderr,"Error in parsing\n"); */
 		return 1;
 	}
-	
+	/* return 0; */
 	char *line = NULL;
 	size_t n = 0;
 	FILE* logs;

@@ -787,15 +787,10 @@ class SymbolTable {
 			// get rbp offset for: local_var@scope_name | t_* temporaries | saved registers
 			if (reg_name.find('@') != string::npos) { // '@' in string name - local variable, not global or temporary
 			string var_name(reg_name.begin(),find(reg_name.begin(), reg_name.end(), '@'));
-				return symbols[var_name]->offset;
+				return symbols[var_name]->offset+8;
 			} else if (reg_name[0] == 't') {
 				// temporary
-				return temp_variable_offsets[stoi (reg_name.substr (1, reg_name.size()))];
-			} else if (reg_name[0] == 'r') { // saved register
-				// shouldn't be using this function directly
-				int reg_number;
-
-				return table_size + num_temps*8 + reg_number;
+				return temp_variable_offsets[stoi (reg_name.substr (1, reg_name.size()))]+8;
 			}
 			else {
 				exit(88);
@@ -917,7 +912,7 @@ class SymbolTable {
 				exit (103);
 			}
 			this->systemV_ABI_call_begin();
-			arg->addr += "@" + top->name;
+			// arg->addr += "@" + top->name;
 
 			if (arg->typestring == "str") // pointer is stored in the stack at address
 				fprintf (x86asm, "\tleaq string_format(%%rip), %%rdi\n");

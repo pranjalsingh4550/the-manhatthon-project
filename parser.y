@@ -2921,6 +2921,7 @@ arglist: test[obj]
 			// base of the list is a static region in memory but we don't know the length yet. so store in a vector for now
 			list_init_inputs.push_back ($obj);
 		}
+
 		function_call_args.push_back ($obj);
 		function_call_args_dim.push_back($obj->dimension);
 	}
@@ -2967,8 +2968,9 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		resettemp(1);
 		function_params.push_back ($1);
 		top->put($1, currently_defining_class->name);
-		top->getnode($1->production) ->addr= "t"+to_string(basecount-1);
 		currently_defining_class->put($1, currently_defining_class->name);
+		$1->addr="t"+to_string(basecount-1);
+		top->getnode($1->production) ->addr= "t"+to_string(basecount-1);
 		currently_defining_class->table_size = 0;
 		if (currently_defining_class->parent_class) 
 			currently_defining_class->table_size = currently_defining_class->parent_class->table_size;
@@ -3009,6 +3011,7 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 		function_params.push_back ($1);
 		resettemp(1);
 		put ($1, $3);
+		$1->addr="t"+to_string(basecount-1);
 		top->getnode($1->production) ->addr= "t"+to_string(basecount-1);
 	}
 
@@ -3127,7 +3130,8 @@ functionstart:  {
 
 		if (inside_init) {
 			top = new SymbolTable (globalSymTable, CTOR_ST, currently_defining_class->name);
-			fprintf (x86asm, "%s:\n", currently_defining_class->name.c_str());
+			string temp =currently_defining_class->name + ".ctor";
+			fprintf (x86asm, "%s:\n", temp.c_str());
 		}
 		else {
 			top = new SymbolTable (

@@ -785,13 +785,12 @@ class SymbolTable {
 		}
 		long int get_rbp_offset (string reg_name) {
 			// get rbp offset for: local_var@scope_name | t_* temporaries | saved registers
-			// +8 added in return value because memory is addressed at the lower end, and stack grows downwards
 			if (reg_name.find('@') != string::npos) { // '@' in string name - local variable, not global or temporary
 			string var_name(reg_name.begin(),find(reg_name.begin(), reg_name.end(), '@'));
-				return symbols[var_name]->offset + 8;
+				return symbols[var_name]->offset+8;
 			} else if (reg_name[0] == 't') {
 				// temporary
-				return temp_variable_offsets[stoi (reg_name.substr (1, reg_name.size()))] + 8;
+				return temp_variable_offsets[stoi (reg_name.substr (1, reg_name.size()))]+8;
 			}
 			else {
 				exit(88);
@@ -913,6 +912,7 @@ class SymbolTable {
 				exit (103);
 			}
 			this->systemV_ABI_call_begin();
+			// arg->addr += "@" + top->name;
 
 			if (arg->typestring == "str") // pointer is stored in the stack at address
 				fprintf (x86asm, "\tleaq string_format(%%rip), %%rdi\n");
@@ -964,3 +964,4 @@ class instruction {
 		// not convinced about this setup yet
 
 };
+>>>>>>> 4ee7bbf0f81fda6d3dad5590a93f650ff5aa6f08

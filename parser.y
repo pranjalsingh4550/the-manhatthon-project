@@ -213,6 +213,62 @@
 	int getwidth(string typestring) {
 		return find_class(typestring)->table_size;
 	}
+	
+	stack <string> jump_labels, jump_labels_upper;
+	string get_next_label (string description) {
+		string tmp =  "label"+to_string(label_count++)
+		//  + "_" + (currently_defining_class ? currently_defining_class->name : top->name)
+		 ;
+		if (description != "") tmp += "_" + description;
+		jump_labels.push (tmp);
+		return tmp;
+	}
+	string get_current_label () {
+		string tmp = jump_labels.top();
+		jump_labels.pop();
+		return tmp;
+	}
+	string get_next_label_upper (string description) {
+		string tmp =  "label"+to_string(label_count++)
+		//  + "_" + (currently_defining_class ? currently_defining_class->name : top->name) 
+		;
+		if (description != "") tmp += "_" + description;
+		jump_labels_upper.push (tmp);
+		return tmp;
+	}
+	string get_current_label_upper () {
+		string tmp = jump_labels_upper.top();
+		jump_labels_upper.pop();
+		return tmp;
+	}
+	stack <string> jump_labels3, jump_labels_upper3;
+	string get_next_label3 (string description) {
+		string tmp = "label"+to_string(label_count++)
+		//  + "_" + (currently_defining_class ? currently_defining_class->name : top->name) 
+		;
+		if (description != "") tmp += "_" + description;
+		jump_labels3.push (tmp);
+		return tmp;
+	}
+	string get_current_label3 () {
+		string tmp = jump_labels3.top();
+		jump_labels3.pop();
+		return tmp;
+	}
+	string get_next_label_upper3 (string description) {
+		string tmp = "label" +to_string(label_count++) 
+		// + "_" + (currently_defining_class ? currently_defining_class->name : top->name) 
+		;
+		if (description != "") tmp += "_" + description;
+		jump_labels_upper3.push (tmp);
+		return tmp;
+	}
+	string get_current_label_upper3 () {
+		string tmp = jump_labels_upper3.top();
+		jump_labels_upper3.pop();
+		return tmp;
+	}
+	
 	void gen_ujump (string target) {
 		fprintf (tac, "\tjmp %s\n", target.c_str());
 		fprintf (x86asm, "\tjmp %s\n", target.c_str());
@@ -516,11 +572,75 @@
 							fprintf (x86asm, "\tsarq %%r13, %%r12\n");
 							top->asm_store_value(12,resultaddr);
 							break;
-			case POW:		fprintf(tac, "\t%s\t= %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+			case POW:		{ fprintf(tac, "\t%s\t= %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+			                /* template
+			                
+			                
+			                int power(int a (base), int b (exponent)) {
+                                int k = 1;
+                                if (b == 0) return 1;
+                                while (b > 1) {
+                                    if (b%2) {
+                                        k *= a;
+                                    }
+                                    a *= a;
+                                }
+                                return k*a;
+                            }
+			                
+			                
+			                    r12, r13 have base, exponent
+			                    
+			                    mov $0x1, r14
+                                cmp $0x0, r13 //is b 0?
+                                jne loop //if b isn't 0 jump into the loop
+                                mov $0x1, r12
+                                j out
+                            loop:
+                                cmp $0x1, r13 //is b > 1?
+                                je out //if it isn't, go to out
+                                test $0x1, r13 //is b odd?
+                                je mul //if b isn't odd, go to mul directly
+                                imul r12, r14 // k*a
+                            mul:
+                                imul r12, r12 //a*a
+                                sarq 1, r13 //b /= 2
+                                j loop //back to start of loop
+
+                            out:
+                                imul r14, r12
+                                mov r12, r13
+                                store r13
+			                */
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %%r13, %%r12\n");
+							// fprintf (x86asm, "- %%r13, %%r12\n");
+				            fprintf(x86asm, "\tmovq $0x1, %%r14\n");
+							fprintf(x86asm, "\tcmp $0, %%r13\n");							
+							string loop = get_next_label("power_loop");
+							fprintf(x86asm, "\tjne %s\n", loop.c_str());
+							fprintf(x86asm, "\tmovq $0x1, %%r12\n");
+							string out = get_next_label("power_out");
+							fprintf(x86asm, "\tjmp %s\n", out.c_str());
+							fprintf(x86asm, "%s:\n", loop.c_str());
+							fprintf(x86asm, "\tcmp $0x1, %%r13\n");
+							fprintf(x86asm, "\tje %s\n", out.c_str());
+							fprintf(x86asm, "\ttest $0x1, %%r13\n");							
+							string mul = get_next_label("power_mul");
+							fprintf(x86asm, "\tje %s\n", mul.c_str());
+							fprintf(x86asm, "\timulq %%r12, %%r14\n");
+							fprintf(x86asm, "%s: \n", mul.c_str());
+							fprintf(x86asm, "\timulq %%r12, %%r12\n");
+							fprintf(x86asm, "\tsarq $0x1, %%r13\n");
+							fprintf(x86asm, "\tjmp %s\n", loop.c_str());
+							fprintf(x86asm, "%s:\n", out.c_str());
+							fprintf(x86asm, "\timul %%r14, %%r12\n");						
+							fprintf(x86asm, "\tmov %%r12, %%r13\n");
 							top->asm_store_value_r13(resultaddr);
-							break;
+							//get rid of labels
+							get_current_label(); //mul
+							get_current_label(); //out
+							get_current_label(); //loop
+							break; }
 			case NEG:		fprintf(tac, "\t%s\t= -%s\n",resultaddr.c_str(), left.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "- %%r13, %%r12\n");
@@ -547,63 +667,9 @@
 		return;
 			
 	}
-
-	stack <string> jump_labels, jump_labels_upper;
-	string get_next_label (string description) {
-		string tmp =  "label"+to_string(label_count++)
-		//  + "_" + (currently_defining_class ? currently_defining_class->name : top->name)
-		 ;
-		if (description != "") tmp += "_" + description;
-		jump_labels.push (tmp);
-		return tmp;
-	}
-	string get_current_label () {
-		string tmp = jump_labels.top();
-		jump_labels.pop();
-		return tmp;
-	}
-	string get_next_label_upper (string description) {
-		string tmp =  "label"+to_string(label_count++)
-		//  + "_" + (currently_defining_class ? currently_defining_class->name : top->name) 
-		;
-		if (description != "") tmp += "_" + description;
-		jump_labels_upper.push (tmp);
-		return tmp;
-	}
-	string get_current_label_upper () {
-		string tmp = jump_labels_upper.top();
-		jump_labels_upper.pop();
-		return tmp;
-	}
+	
 	string dev_helper(Node* n) {
 		return top->getaddr (n);
-	}
-	stack <string> jump_labels3, jump_labels_upper3;
-	string get_next_label3 (string description) {
-		string tmp = "label"+to_string(label_count++)
-		//  + "_" + (currently_defining_class ? currently_defining_class->name : top->name) 
-		;
-		if (description != "") tmp += "_" + description;
-		jump_labels3.push (tmp);
-		return tmp;
-	}
-	string get_current_label3 () {
-		string tmp = jump_labels3.top();
-		jump_labels3.pop();
-		return tmp;
-	}
-	string get_next_label_upper3 (string description) {
-		string tmp = "label" +to_string(label_count++) 
-		// + "_" + (currently_defining_class ? currently_defining_class->name : top->name) 
-		;
-		if (description != "") tmp += "_" + description;
-		jump_labels_upper3.push (tmp);
-		return tmp;
-	}
-	string get_current_label_upper3 () {
-		string tmp = jump_labels_upper3.top();
-		jump_labels_upper3.pop();
-		return tmp;
 	}
 	void generic_if(string test) {
 		string lbl2 = get_next_label_upper3("internal_false");
@@ -2755,9 +2821,21 @@ STRING_plus: STRING {
 		concatenating_string_plus = concatenating_string_plus + $2->production;
 		 $$ = new Node ("Multi String"); $$->addchild($1); $$->addchild($2);}
 
-if_stmt: "if" test new_jump_to_end3 insert_jump_if_false3 ":" suite[ifsuite] insert_end_jump_label3 jump_target_false_lower3 upper_jump_target_reached3 { $$ = new Node ("If Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then");
-		 }
-	|  "if" test new_jump_to_end3 insert_jump_if_false3 ":" suite[ifsuite] insert_end_jump_label3 jump_target_false_lower3 elif_block[elifsuite] {$$ = new Node ("If Else Block"); $$->addchild($2, "If"); $$->addchild($ifsuite, "Then"); $$->addchild($elifsuite, "Else"); }
+if_stmt:    "if" test new_jump_to_end3 insert_jump_if_false3 
+            ":" suite[ifsuite] insert_end_jump_label3 
+            jump_target_false_lower3 upper_jump_target_reached3 {
+                $$ = new Node ("If Block");
+                $$->addchild($2, "If");
+                $$->addchild($ifsuite, "Then");
+		}
+	|       "if" test new_jump_to_end3 insert_jump_if_false3 
+	        ":" suite[ifsuite] insert_end_jump_label3 
+	        jump_target_false_lower3 elif_block[elifsuite] {
+	            $$ = new Node ("If Else Block");
+	            $$->addchild($2, "If");
+	            $$->addchild($ifsuite, "Then");
+	            $$->addchild($elifsuite, "Else");
+	    }
 
 elif_block:
 	"else" ":" suite upper_jump_target_reached3 	{ $$ = $3;}
@@ -2802,18 +2880,19 @@ upper_jump_target_reached3 : {
 
 
 
-while_stmt: "while" begin_loop_condition test[condition] ":" insert_jump_if_false {inLoop++;}suite[action] {inLoop--;}loop_end_jump_back jump_target_false_lower {$$ = new Node ("While"); $$->addchild($condition, "Condition"); $$->addchild($action, "Do");}
+while_stmt: "while" begin_loop_condition test[condition] ":" 
+            insert_jump_if_false { inLoop++; }
+            suite[action] { inLoop--; }
+            loop_end_jump_back jump_target_false_lower {
+                $$ = new Node ("While"); 
+                $$->addchild($condition, "Condition"); 
+                $$->addchild($action, "Do");
+            }
 
 begin_loop_condition : {
 		string lbl = get_next_label_upper("");
 		fprintf (tac, "\n%s:\n", lbl.c_str());
 		fprintf (x86asm, "%s:\n", lbl.c_str());
-	}
-
-loop_end_jump_back : {
-		string lbl = get_current_label_upper();
-		fprintf (tac, "\tjmp %s\n", lbl.c_str());
-		fprintf (x86asm, "\tjmp %s\n", lbl.c_str());
 	}
 
 insert_jump_if_false : {
@@ -2822,6 +2901,13 @@ insert_jump_if_false : {
 		fprintf (x86asm, "\tcmpq $0, -%ld(%%rbp)\n", top->get_rbp_offset(dev_helper($<node>-1).c_str()));
 		fprintf (x86asm, "\tje %s\n", lbl.c_str());
 	}
+
+loop_end_jump_back : {
+		string lbl = get_current_label_upper();
+		fprintf (tac, "\tjmp %s\n", lbl.c_str());
+		fprintf (x86asm, "\tjmp %s\n", lbl.c_str());
+	}
+
 jump_target_false_lower : {
 		string lbl = get_current_label();
 		fprintf (tac, "\n%s:\n", lbl.c_str());
@@ -2834,6 +2920,7 @@ arglist: test[obj]
 			// base of the list is a static region in memory but we don't know the length yet. so store in a vector for now
 			list_init_inputs.push_back ($obj);
 		}
+
 		function_call_args.push_back ($obj);
 		function_call_args_dim.push_back($obj->dimension);
 	}
@@ -2874,13 +2961,15 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		}
 		
 		$1->addr="t"+to_string(basecount);
-		$1->isLeaf=false;
+		// $1->isLeaf=false;
 		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
 		basecount++;
 		resettemp(1);
 		function_params.push_back ($1);
 		top->put($1, currently_defining_class->name);
 		currently_defining_class->put($1, currently_defining_class->name);
+		$1->addr="t"+to_string(basecount-1);
+		top->getnode($1->production) ->addr= "t"+to_string(basecount-1);
 		currently_defining_class->table_size = 0;
 		if (currently_defining_class->parent_class) 
 			currently_defining_class->table_size = currently_defining_class->parent_class->table_size;
@@ -2915,12 +3004,14 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 		top->arg_dimensions.push_back ($3->dimension);
 
 		$1->addr="t"+to_string(basecount);
-		$1->isLeaf=false;
+		// $1->isLeaf=false;
 		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
 		basecount++;
 		function_params.push_back ($1);
 		resettemp(1);
 		put ($1, $3);
+		$1->addr="t"+to_string(basecount-1);
+		top->getnode($1->production) ->addr= "t"+to_string(basecount-1);
 	}
 
 suite:  simple_stmt[first] 
@@ -3038,7 +3129,8 @@ functionstart:  {
 
 		if (inside_init) {
 			top = new SymbolTable (globalSymTable, CTOR_ST, currently_defining_class->name);
-			fprintf (x86asm, "%s:\n", currently_defining_class->name.c_str());
+			string temp =currently_defining_class->name + ".ctor";
+			fprintf (x86asm, "%s:\n", temp.c_str());
 		}
 		else {
 			top = new SymbolTable (
@@ -3143,17 +3235,30 @@ compound_stmt:
 	| funcdef
 	| classdef
 
-for_stmt: "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom set_num_range_args_1 ")" handle_loop_condition ":" {inLoop++;}suite {inLoop--;basecount--;fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);} loop_end_jump_back jump_target_false_lower {
-	}
-	|  "for" NAME[iter] set_itr_ptr "in" begin_for_loop NAME check_name_is_range "(" atom "," atom set_num_range_args_2 ")" handle_loop_condition ":" {inLoop++;}suite{inLoop--;basecount--;fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);} loop_end_jump_back jump_target_false_lower {
-	
-	}
+for_stmt:   
+        "for" NAME[iter] set_itr_ptr "in" NAME check_name_is_range 
+        "(" atom set_num_range_args_1 ")" 
+        handle_loop_condition ":" { inLoop++; }
+        suite {
+            inLoop--;
+            basecount--;
+            fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);
+        } loop_end_jump_back
+         jump_target_false_lower {}
+	|   "for" NAME[iter] set_itr_ptr "in" NAME check_name_is_range 
+	    "(" atom "," atom set_num_range_args_2 ")" 
+	    handle_loop_condition ":" { inLoop++; }
+	    suite {
+	        inLoop--;
+	        basecount--;
+	        fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);
+	    } loop_end_jump_back jump_target_false_lower {}
 
 set_itr_ptr : {
-		for_loop_iterator_node = $<node>0;
-	}
-begin_for_loop : {
-	}
+    //set for loop iterator node to current top of stack i.e. NAME[iter] in previous
+	for_loop_iterator_node = $<node>0;
+}
+
 check_name_is_range : {
 			if ($<node>0->production != "range") {
 				dprintf (stderr_copy, "Error in loop statement at line %d: Expected iterator \"range\" in statement, received %s\n",
@@ -3162,16 +3267,23 @@ check_name_is_range : {
 			}
 		}
 set_num_range_args_1 : {
+        //range(n) equivalent to range(0, n)
 		for_loop_range_first_arg = NULL;
-		for_loop_range_second_arg = $<node>0;
+		for_loop_range_second_arg = $<node>0; //i.e. atom in  for loop
+		//note that atom can ALSO BE A NAME. 
 		}
 set_num_range_args_2 : {
-		for_loop_range_first_arg = $<node>-1;
-		for_loop_range_second_arg = $<node>0;
+        //range(a, b) case
+		for_loop_range_first_arg = $<node>-1; //i.e. first atom
+		for_loop_range_second_arg = $<node>0; //i.e. second atom
 		// fprintf (tac, "\n\t%s = %s\n", for_loop_iterator_node->addr.c_str(), for_loop_range_first_arg->addr.c_str());
 	}
 
 handle_loop_condition : {
+        //generate start of for loop
+        #if TEMPDEBUG
+        printf("starting for loop generation...\n");
+        #endif
 		if(!for_loop_range_first_arg) {
 			fprintf(tac,"\tt%d = %s\n", basecount, "0");
 			fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset("t" + to_string(basecount)));
@@ -3190,7 +3302,7 @@ handle_loop_condition : {
 		top->asm_load_value_r13 (top->getaddr(for_loop_iterator_node));
 		top->asm_store_value_r13 (temp);
 
-		// fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
+		fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
 		Node* test = $<node>-1;
 		int begin = 0, end = 0;
 		string loop_condition = newtemp();
@@ -3211,6 +3323,7 @@ handle_loop_condition : {
 		fprintf (x86asm, "\tcmpq $0, -%ld(%%rbp)\n", top->get_rbp_offset(dev_helper(dummy_test_condition_node)));
 		fprintf (x86asm, "\tje %s\n", lbl.c_str());
 	}
+
 
 testlist: arglist
         | arglist ","

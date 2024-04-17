@@ -2759,13 +2759,12 @@ primary: atom {
 
 //default value for islval is false
 atom: NAME {
-	if(top->getnode($1->production)!=NULL){
-		$$ = top->getnode($1->production);
-	}
-	else{
-		$$ = $1;
-	}
-	$$->islval = true;
+		if (top->getnode ($1->production) == NULL) {
+			$$ = $1;
+		} else {
+			  $$ = top->getnode($1->production);
+		}
+		$$->islval = true;
 }
     | NUMBER {
 		$1->addr=newtemp();

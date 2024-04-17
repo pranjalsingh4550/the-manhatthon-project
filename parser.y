@@ -2196,6 +2196,7 @@ primary: atom {
 				//if is a defined function
 				current_scope = find_fn($1->production);
 				$$->typestring = current_scope->return_type;
+				top->do_function_call (current_scope, function_call_args, "");
 				#if TEMPDEBUG
 				printf ("valid call to function %s in line %d, return type: %s\n", $1->production.c_str(), $1->lineno, $$->typestring.c_str());
 				#endif
@@ -2209,6 +2210,7 @@ primary: atom {
 				printf ("line %d valid call to constructor %s\n", $1->lineno, $1->production.c_str());
 				#endif
 				$$->typestring = $1->production;
+
 			} else if (globalSymTable->children.find($1->production) != globalSymTable->children.end()) {
 				//CONFIRM: this will never be used because it is already checked by find_fn
 				current_scope = globalSymTable->children.find ($1->production)->second;

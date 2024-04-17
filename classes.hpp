@@ -888,12 +888,16 @@ class SymbolTable {
 			fprintf (x86asm, "\tmovq %%rbp, %%rsp\n");
 			fprintf (x86asm, "\tsubq $%ld, %%rsp\n", table_size);
 			save_own_regs();
+			fprintf (x86asm, "\tmovq %%rsp, %%rbx\n");
+			fprintf (x86asm, "\tandq $8, %%rbx\n");
+			fprintf (x86asm, "\tsubq %%rbx, %%rsp \t# aligning to 16B\n");
 
 			// begin activation record at this address
 		}
 		void systemV_ABI_call_end() {
 			// procedure calls preserve rbp and rsp
 			restore_own_regs();
+			fprintf (x86asm, "\taddq %%rbx, %%rsp # undoing 16B alignment if needed\n");
 		}
 		void call_malloc(int size) {
 			this->systemV_ABI_call_begin();

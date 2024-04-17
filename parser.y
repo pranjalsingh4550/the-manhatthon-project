@@ -2648,8 +2648,12 @@ primary: atom {
 
 //default value for islval is false
 atom: NAME {
-	$$ = $1;
-	$$->islval = true;
+		if (top->getnode ($1->production) == NULL) {
+			$$ = $1;
+		} else {
+			  $$ = top->getnode($1->production);
+		}
+		$$->islval = true;
 }
     | NUMBER {
 		$1->addr=newtemp();
@@ -2826,7 +2830,6 @@ jump_target_false_lower : {
 
 arglist: test[obj]
 	{	
-		$obj= top->getnode($obj->production);
 		if (list_init) { // NUMBER, STRING, CLASS, BOOL, NONE
 			// base of the list is a static region in memory but we don't know the length yet. so store in a vector for now
 			list_init_inputs.push_back ($obj);
@@ -2835,7 +2838,6 @@ arglist: test[obj]
 		function_call_args_dim.push_back($obj->dimension);
 	}
 	| arglist "," test[obj] { $$ = new Node ("Multiple terms"); $$->addchild($1); $$->addchild($3);
-		$obj= top->getnode($obj->production);
 		if (list_init)
 			list_init_inputs.push_back ($obj);
 		function_call_args.push_back ($obj);

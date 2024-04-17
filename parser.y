@@ -2648,7 +2648,12 @@ primary: atom {
 
 //default value for islval is false
 atom: NAME {
-	$$ = $1;
+	if(top->getnode($1->production)!=NULL){
+		$$ = top->getnode($1->production);
+	}
+	else{
+		$$ = $1;
+	}
 	$$->islval = true;
 }
     | NUMBER {
@@ -2826,7 +2831,6 @@ jump_target_false_lower : {
 
 arglist: test[obj]
 	{	
-		$obj= top->getnode($obj->production);
 		if (list_init) { // NUMBER, STRING, CLASS, BOOL, NONE
 			// base of the list is a static region in memory but we don't know the length yet. so store in a vector for now
 			list_init_inputs.push_back ($obj);
@@ -2835,7 +2839,6 @@ arglist: test[obj]
 		function_call_args_dim.push_back($obj->dimension);
 	}
 	| arglist "," test[obj] { $$ = new Node ("Multiple terms"); $$->addchild($1); $$->addchild($3);
-		$obj= top->getnode($obj->production);
 		if (list_init)
 			list_init_inputs.push_back ($obj);
 		function_call_args.push_back ($obj);
@@ -2872,12 +2875,13 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		}
 		
 		$1->addr="t"+to_string(basecount);
-		$1->isLeaf=false;
+		// $1->isLeaf=false;
 		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
 		basecount++;
 		resettemp(1);
 		function_params.push_back ($1);
 		top->put($1, currently_defining_class->name);
+		top->getnode($1->production) ->addr= "t"+to_string(basecount-1);
 		currently_defining_class->put($1, currently_defining_class->name);
 		currently_defining_class->table_size = 0;
 		if (currently_defining_class->parent_class) 
@@ -2913,12 +2917,13 @@ typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addch
 		top->arg_dimensions.push_back ($3->dimension);
 
 		$1->addr="t"+to_string(basecount);
-		$1->isLeaf=false;
+		// $1->isLeaf=false;
 		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
 		basecount++;
 		function_params.push_back ($1);
 		resettemp(1);
 		put ($1, $3);
+		top->getnode($1->production) ->addr= "t"+to_string(basecount-1);
 	}
 
 suite:  simple_stmt[first] 

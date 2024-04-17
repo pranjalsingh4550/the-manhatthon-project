@@ -381,7 +381,7 @@
 				string offset = newtemp();
 				
 				s += offset + " =  "  +right + " * 8\n\t";
-				fprintf (x86asm, "\tmulq $8, %%r12\n");
+				fprintf (x86asm, "\timulq $8, %%r12\n");
 				string ult = newtemp();
 				s+=ult +" = " + left + " + " + offset + "\n";
 				top->asm_load_value_r13(left);
@@ -2685,10 +2685,10 @@ atom: NAME {
 	}
     | "None" 
 	| "[" list_start testlist "]" {
-		 $$ = $3;
-		 string temp;
-		 temp +="[  ] Contained\n";
-		 temp += $3->production;
+		$$ = $3;
+		string temp;
+		temp +="[  ] Contained\n";
+		temp += $3->production;
 	 	$$->rename(temp);
 		list_init = false;
 		// lists are the ONLY way to increase the refcounts of objects, so we cannot store lists of pointers to possibly stack objects. Copy the damn thing.
@@ -2702,16 +2702,20 @@ atom: NAME {
 		int thissize = find_class (currently_defining_identifier_typestring)->table_size;
 		fprintf (tac, "\t%s = ALLOC_HEAP (%lu)\n", 
 		dev_helper($$).c_str(), list_init_inputs.size() * thissize);
-		// top->call_malloc (
+
+		string ret = newtemp();
+		top->call_malloc (list_init_inputs.size() * 8);
+		fprintf (x86asm, "\tmovq %%rax, -%ld(%%rbp)\n", top->get_rbp_offset(ret));
 		for(auto itrv:list_init_inputs){
 			// 3ac to copy list to temp
 				gen ($$, itrv, (Node*) NULL, SW);
 				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
-			
+				fprintf (x86asm, "\taddq $8, -%ld(%%rbp)\n", top->get_rbp_offset(ret));
 		}
 		fprintf(tac, "\t%s = %s - %lu\n", 
 		dev_helper($$).c_str(), dev_helper($$).c_str(), list_init_inputs.size() * thissize);
-		
+		fprintf (x86asm, "\tsubq $%ld, -%ld(%%rbp)\n", list_init_inputs.size()*8, top->get_rbp_offset(ret));
+
 		$$->typestring = currently_defining_identifier_typestring;
 		$$->isLeaf = false;
 		$$->dimension = list_init_inputs.size();

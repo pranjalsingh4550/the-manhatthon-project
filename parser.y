@@ -605,6 +605,19 @@
 		jump_labels_upper3.pop();
 		return tmp;
 	}
+	void generic_if(string test) {
+		string lbl2 = get_next_label_upper3("internal_false");
+		string lbl = get_next_label3 ("internal");
+		fprintf (x86asm, "\t movq -%lx(%%rbp), %%rax\n", top->get_rbp_offset(test));
+		fprintf (x86asm, "\tcmpq $0, %%rax\n");
+		fprintf (x86asm, "\tjmp	%s\n", lbl.c_str());
+	}
+	void generic_else() {
+		fprintf (x86asm, "%s:\n", get_current_label3().c_str());
+	}
+	void generic_exit() {
+		fprintf (x86asm, "%s:\n", get_current_label_upper3().c_str());
+	}
 
 %}
 
@@ -2254,8 +2267,10 @@ primary: atom {
 						(int) $1->lineno, (function_call_args[0]->typestring + (function_call_args_dim[0]? "[]" : "")).c_str());
 				exit (83);
 			}
-			else
-				$$->typestring = "None";
+
+			$$->typestring = "None";
+			top->call_printf (function_call_args[0]);
+
 		} else if ($1->production == "len" && $1->isLeaf) { //builtin len
 			if (function_call_args.size() != 1) {
 				dprintf (stderr_copy, "Error at line %d: len() expects one argument, received %d\n",
@@ -2615,7 +2630,6 @@ primary: atom {
 
 		// milestone 3 begins here
 		top->do_function_call(current_scope, function_call_args, "" ); // complete this later
-		current_scope->child_enter_function();
 		// if return val: fetch from rax
 		function_call_args.clear();
 		function_call_args_dim.clear();
@@ -2634,7 +2648,7 @@ atom: NAME {
 		$1->addr=newtemp();
 		//fprintf(x86asm,"askdjfashldfjl\n\n\n");
 		fprintf(tac,"\t%s = %s\n", $1->addr.c_str(),$1->production.c_str());
-		fprintf(x86asm,  "\tmov $%s, %%r13\n",$1->production.c_str());
+		fprintf(x86asm,  "\tmovq $%s, %%r13\n",$1->production.c_str());
 		top->asm_store_value_r13($1->addr);
 		$$=$1;
 	}
@@ -2648,10 +2662,24 @@ atom: NAME {
 		fprintf (tac, "\t<string literal> %s = ptr(\"%s\")\n", top->getaddr($$).c_str(), $$->production.c_str()) ;
 		static_section += "str_literal" + to_string (str_count ++) + ":\t.asciz,\"";
 		static_section += $$->production + "\"\n";
+		fprintf (x86asm, "\tleaq str_literal%d(%%rip), %%rbx\n", str_count-1);
+		fprintf (x86asm, "\tmovq %%rbx, -%ld(%%rbp)\n", top->get_rbp_offset($$->addr));
 	}
 	|"(" test ")"{$$=$2;}
-    | "True"
-    | "False" 
+    | "True" {
+		$1->addr=newtemp();
+		fprintf(tac,"\t%s = 1\n", $1->addr.c_str());
+		fprintf(x86asm,  "\tmovq $1, %%r13\n");
+		top->asm_store_value_r13($1->addr);
+		$$=$1;
+	}
+    | "False" {
+		$1->addr=newtemp();
+		fprintf(tac,"\t%s = 0\n", $1->addr.c_str());
+		fprintf(x86asm,  "\tmovq $0, %%r13\n");
+		top->asm_store_value_r13($1->addr);
+		$$=$1;
+	}
     | "None" 
 	| "[" list_start testlist "]" {
 		 $$ = $3;
@@ -3260,6 +3288,7 @@ int main(int argc, char** argv){
 	}
 
 	static_section = "\t.text\n\t.section\t.rodata\n\n" ;
+	static_section += "\t\ttrue_string:\t.asciz,\"True\"\n\t\tfalse_string:\t.asciz,\"False\"\n";
 	concatenating_string_plus = "\0";
 	
 	tac = fopen (outputfile, "w+");

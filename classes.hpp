@@ -14,6 +14,9 @@ extern FILE* x86asm;
 class SymbolTable;
 extern SymbolTable* top;
 extern SymbolTable* globalSymTable;
+extern void generic_if (string);
+extern void generic_else (void);
+extern void generic_exit (void);
 
 enum ir_operation {
 	UJUMP,
@@ -844,7 +847,7 @@ class SymbolTable {
 			}
 
 			// take rsp back to the empty slot
-			fprintf (x86asm, "\taddq $%ld, %%rsp\n", 8 * (1 + args.size())
+			fprintf (x86asm, "\taddq $%ld, %%rsp\n", 8 * (2 + args.size())
 						);
 			fprintf (x86asm, "\tcallq %s\n",
 					callee->name.c_str()
@@ -901,18 +904,29 @@ class SymbolTable {
 			return;
 		}
 		void call_printf (Node* arg) {
-			if (arg->typestring != "int" && arg->typestring != "str") {
+			if (arg->typestring != "int" && arg->typestring != "str" && arg->typestring != "bool") {
 				fprintf (stderr, "TypeError at line %d: cannot print value of type %s\n", (int) arg->lineno, arg->typestring.c_str());
 				exit (103);
 			}
 			this->systemV_ABI_call_begin();
+			arg->addr += "@" + top->name;
 
 			if (arg->typestring == "str") // pointer is stored in the stack at address
 				fprintf (x86asm, "\tleaq string_format(%%rip), %%rdi\n");
 			else if (arg->typestring == "int")
-				fprintf (x86asm, "\tleaq int_format(%%rip), %%rdi\n");
+				fprintf (x86asm, "\tleaq integer_format(%%rip), %%rdi\n");
+			else if (arg->typestring == "bool") {
+				fprintf (x86asm, "\tleaq string_format(%%rip), %%rdi\n");
+
+				generic_if (arg->addr);
+				fprintf (x86asm, "\tmovq true_string(%%rip), %%rsi\n");
+				generic_else ();
+				fprintf (x86asm, "\tmovq false_string(%%rip), %%rsi\n");
+				generic_exit();
+			}
+
 					
-			fprintf (x86asm, "\tleaq -%ld(%%rbp), %%rsi\n", this->get_rbp_offset(arg->addr));
+			fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rsi\n", this->get_rbp_offset(arg->addr));
 			fprintf (x86asm, "\tcallq printf\n");
 			this->systemV_ABI_call_end();
 			return ;

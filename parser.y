@@ -488,33 +488,33 @@
 							break;
 			case OR_bit:	fprintf(tac, "\t%s\t= %s | %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %%r13, %%r12\n");
+							fprintf (x86asm, "\torq %%r12, %%r13\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case AND_bit:	fprintf(tac, "\t%s\t= %s & %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %%r13, %%r12\n");
+							fprintf (x86asm, "\tandq %%r12, %%r13\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case NOT_bit:	fprintf(tac, "\t%s\t= ~%s\n",resultaddr.c_str(), left.c_str());
-							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %%r13, %%r12\n");
+							top->asm_load_value_r13 (left);
+							fprintf (x86asm, "\tnotq %%r13\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case XOR:		fprintf(tac, "\t%s\t= %s ^ %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %%r13, %%r12\n");
-							top->asm_store_value_r13(resultaddr);
+							fprintf (x86asm, "\txorq %%r13, %%r12\n");
+							top->asm_store_value(12,resultaddr);
 							break;
 			case SHL:		fprintf(tac, "\t%s\t= %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %%r13, %%r12\n");
-							top->asm_store_value_r13(resultaddr);
+							fprintf (x86asm, "\tsalq %%r13, %%r12\n");
+							top->asm_store_value(12,resultaddr);
 							break;
 			case SHR:		fprintf(tac, "\t%s\t= %s >> %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %%r13, %%r12\n");
-							top->asm_store_value_r13(resultaddr);
+							fprintf (x86asm, "\tsarq %%r13, %%r12\n");
+							top->asm_store_value(12,resultaddr);
 							break;
 			case POW:		fprintf(tac, "\t%s\t= %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
@@ -1123,6 +1123,7 @@ return_stmt: "return" test {
 			$1->addchild($2,"Data"); $$=$1;	
 
 			fprintf(tac, "\tret %s\n", top->getaddr($2).c_str());
+			fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rax\n", top->get_rbp_offset($2->addr));
 	}
 	| "return" {
 			if(top->return_type != "None"){
@@ -2701,6 +2702,7 @@ atom: NAME {
 		int thissize = find_class (currently_defining_identifier_typestring)->table_size;
 		fprintf (tac, "\t%s = ALLOC_HEAP (%lu)\n", 
 		dev_helper($$).c_str(), list_init_inputs.size() * thissize);
+		// top->call_malloc (
 		for(auto itrv:list_init_inputs){
 			// 3ac to copy list to temp
 				gen ($$, itrv, (Node*) NULL, SW);

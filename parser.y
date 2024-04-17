@@ -29,7 +29,7 @@
 	bool inside_init = false;
 	bool list_init = false;
 	string class_name_saved_for_init;
-	SymbolTable* top, *globalSymTable, *current_scope, *currently_defining_class;
+	SymbolTable* top, *globalSymTable, *current_scope, *saved_scope, *currently_defining_class;
 	string newtemp(){
 		string temp = "t";
 		temp += to_string(tempcount);
@@ -2038,7 +2038,21 @@ on entry to primary "." NAME: if primary is a leaf, nothing is set.
 	else: primary->typestring is set to the correct value. current_scope points to the SymbolTable in which we need to search for primary->typestring
 */
 
+//these two: see later [in primary ( testlist )]
+save_current_scope: /*empty*/ {
+    #if TEMPDEBUG
+    printf("saving current scope, addr is %p\n", current_scope);
+    #endif
+    saved_scope = current_scope;
+    current_scope = NULL;
+}
 
+load_current_scope: /*empty*/ {
+    #if TEMPDEBUG
+    printf("loading current scope, addr is %p\n", saved_scope);
+    #endif
+    current_scope = saved_scope;
+}
 
 //whenever islval is true, if addr is a temporary, then it is a pointer
 primary: atom {
@@ -2241,16 +2255,18 @@ primary: atom {
 		gen($$, $1, $3, SUBSCRIPT);
 
 		}
-	| primary "(" testlist ")" {
+	| primary "(" save_current_scope testlist load_current_scope  ")" {
 	    //we are expecting current_scope not to be null for member functions here!!!
 	    //so, use isLeaf to check if this is a member fn
+	    //note: save_current_scope saves current_scope to saved_scope and
+	    //then sets current_scope to NULL to prevent interference 
 		/*
 			for i in range(primary->arg_types.size())
 				if(primary->arg_types[i] != testlist->children[i]->typestring) error
 			update $$->typestring as return type of function
 		*/
 		#if TEMPDEBUG
-		printf("entering primary ( testlist )\n");
+		printf("entering primary %s ( testlist )\n", $1->production.c_str());
 		#endif
 		bool isConstructor = false;
 		bool isMemberFn = false;
@@ -2258,14 +2274,16 @@ primary: atom {
 		$$->islval = false;
 		$$->isdecl = false;
 		$$->isLeaf = false;
-		Node *tt = $$, *t1 = $1, *t3 = $3;
+		
+		$<node>3 = $4; //redefine so I don't have to ctrl-f change stuff
+		Node *tt = $$, *t1 = $1, *t3 = $<node>3;
 		if ($1->isLeaf && !($1->production == "print" || $1->production == "len" || $1->production == "range")) {
 			//i.e. not a member function or a builtin
 			if (find_fn ($1->production)) {
 				//if is a defined function
 				current_scope = find_fn($1->production);
 				$$->typestring = current_scope->return_type;
-				top->do_function_call (current_scope, function_call_args, "");
+				// top->do_function_call (current_scope, function_call_args);
 				#if TEMPDEBUG
 				printf ("valid call to function %s in line %d, return type: %s\n", $1->production.c_str(), $1->lineno, $$->typestring.c_str());
 				#endif
@@ -2340,7 +2358,7 @@ primary: atom {
 			}
 
 			$$->typestring = "None";
-			top->call_printf (function_call_args[0]);
+			// top->call_printf (function_call_args[0]);
 
 		} else if ($1->production == "len" && $1->isLeaf) { //builtin len
 			if (function_call_args.size() != 1) {
@@ -2445,7 +2463,7 @@ primary: atom {
 			}
 		}
 		int size = 0;
-		for (iter = 0;iter < len; iter ++) {
+		for (iter = 0; iter < len; iter ++) {
 			//typecast
 			bool cast = false;
 			string temp = "";
@@ -2494,6 +2512,7 @@ primary: atom {
 		}
 		
 		//this is the most convenient place to put this, honest!
+		//here is also where the x86 is generated for fxn calls
 		if (!($1->production == "len" && $1->isLeaf)) {
             //if this is a member function, push calling object onto list too
             //address list reversed + object is 1st param => put object as last param
@@ -2508,10 +2527,15 @@ primary: atom {
                 fprintf(tac,"\tparam %s\n", temp.c_str());
                 fprintf(tac,"\tstackpointer -%d\n", (int)top->table_size + 8);
                 fprintf(tac,"\tcall allocmem 1\n");
-                fprintf(tac,"\tstackpointer +%d\n", (int) top->table_size+8);
+                fprintf(tac,"\tstackpointer +%d\n", (int) top->table_size + 8);
                 fprintf(tac,"\t%s = popparam\n",temp.c_str());
                 fprintf(tac,"\tparam %s\n",temp.c_str());	
                 size += 8;
+                
+                //generate x86 for this
+                //confirm if table_size needs +8 or not
+                top->call_malloc(top->table_size);
+                
             }
         
             //move stackptr
@@ -2525,25 +2549,46 @@ primary: atom {
                 //built-in: len, print, range
                 if ($1->production == "len") {
                     //this isn't handled here, check the else block at the end
+                    dprintf(stderr_copy, "Internal Error: accessed len function somehow");
+                    exit(1);
                 } else if ($1->production == "range") {
                     //return something
                     //TO DO
                 } else if ($1->production == "print") {
                     //returns nothing
                     fprintf(tac, "\tcall print 1\n");
+                    top->call_printf(function_call_args[0]);
                 }
             } else {
                 //not a built-in
                 if (current_scope->return_type != "None") {
                     $$->addr = newtemp();
                     fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len);
+                    
+                    //do function call
+                    //no issue with reversed vector, we want that to be like that
+                    fprintf(x86asm, 
+                    "\t#function call: %s aka %s aka %s\n", 
+                    $1->production.c_str(), current_scope->name.c_str(), current_scope->label.c_str());
+                    top->do_function_call(current_scope, function_call_args);
+                    
 					fprintf(x86asm, "\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset($$->addr));
                 } else if (isConstructor){
                     $$->addr = newtemp();
-                    fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len + 1);
+                    fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len);
+                    
+                    fprintf(x86asm, 
+                    "\t#function call: %s aka %s aka %s\n", 
+                    $1->production.c_str(), current_scope->name.c_str(), current_scope->label.c_str());
+                    top->do_function_call(current_scope, function_call_args);
+                    
 					fprintf(x86asm, "\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset($$->addr));
-                }else {
+                } else {
                     fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), len);
+                    fprintf(x86asm, 
+                    "\t#function call: %s aka %s aka %s\n", 
+                    $1->production.c_str(), current_scope->name.c_str(), current_scope->label.c_str());
+                    top->do_function_call(current_scope, function_call_args);
                 }
             }		        
             fprintf(tac, "\tstackpointer +%d\n", size + 16);
@@ -2685,7 +2730,7 @@ primary: atom {
 			exit(69);
 		}
 			//not a built-in
-		top->do_function_call(current_scope, function_call_args, "" ); // complete this later
+		top->do_function_call(current_scope, function_call_args); // complete this later
 		if (current_scope->return_type != "None"
 		||  isConstructor) {
 			$$->addr = newtemp();

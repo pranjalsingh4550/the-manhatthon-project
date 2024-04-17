@@ -813,7 +813,7 @@ class SymbolTable {
 			fprintf (x86asm, "\tmovq %%r13, -%ld(%%rbp)\n", get_rbp_offset(name));
 		}
 
-		void do_function_call (SymbolTable* callee, vector<Node *> args, string self_ptr) {
+		void do_function_call (SymbolTable* callee, vector<Node *> args/*, string self_ptr*/) {
 			// handles function call as well as return from child
 			// self_ptr is empty if it isn't a class method
 			fprintf (x86asm, "\n\t# begin procedure call routine\n");
@@ -827,10 +827,10 @@ class SymbolTable {
 
 			fprintf (x86asm, "\tsub $16, %%rsp\n"); // space for return address and rbp
 
-			if (self_ptr != "") {
-				fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", get_rbp_offset(self_ptr));
-				fprintf (x86asm, "\tpushq %%rcx\n");
-			}
+			// if (self_ptr != "") {
+// 				fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", get_rbp_offset(self_ptr));
+// 				fprintf (x86asm, "\tpushq %%rcx\n");
+// 			}
 
 			for (auto arg: args) {
 				// use rcx as the temp register

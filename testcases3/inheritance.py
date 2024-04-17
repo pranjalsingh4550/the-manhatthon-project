@@ -1,4 +1,4 @@
-lass creature : 
+class creature : 
 	def __init__ (self, name:str, lifespan:int, flies:bool, beautiful:bool, dangerous:bool, colour:str):
 		self.name:str = name
 		self.lifespan:int = lifespan
@@ -7,7 +7,7 @@ lass creature :
 		self.colour:str = colour
 		self.huge:bool = self.lifespan == lifespan
 		self.huge = self.huge and self.lifespan > 50
-		self.huge = self.huge and self.beautiful = False
+		self.huge = self.huge and self.beautiful == False
 	def set_lifespan(self, l:int):
 		print ("I don't trust your input")
 		self.lifespan = l * 2
@@ -18,7 +18,7 @@ lass creature :
 			print ("this is a cunning animal: beautiful but dangerous")
 			print (self.name)
 			return True
-		else if self.beautiful:
+		elif self.beautiful:
 			print ("This is beautiful and innocuous:")
 			print (self.name)
 			return False

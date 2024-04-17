@@ -964,4 +964,3 @@ class instruction {
 		// not convinced about this setup yet
 
 };
->>>>>>> 4ee7bbf0f81fda6d3dad5590a93f650ff5aa6f08

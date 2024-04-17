@@ -15,6 +15,9 @@ test: parser
 
 do : test
 	gcc output.s
+
+done: do
+	./a.out
 temp:
 	./parser < input.py 2>output.txt
 

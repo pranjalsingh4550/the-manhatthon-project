@@ -424,7 +424,7 @@
 			case SUB:		fprintf(tac, "\t%s\t= %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\tsubq %%r13, %%r12\n");
-							top->asm_store_value_r13(resultaddr);
+							top->asm_store_value(12,resultaddr);
 							break;
 			case MUL:		fprintf(tac, "\t%s\t= %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r13(right);

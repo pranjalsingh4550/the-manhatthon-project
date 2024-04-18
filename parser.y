@@ -54,7 +54,7 @@
 	vector<Node*> function_params;
 
 	#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-	#define TEMPDEBUG 1
+	#define TEMPDEBUG 0
 	
 	bool is_not_name (Node*);
 	
@@ -164,6 +164,7 @@
 	static Node* name;
 	enum ir_operation current_op;
 	string return_type="None";
+	int returned=0;
 	static Node* params;
 	void newscope(string name){
 	// cout << "New scope " << name << endl;
@@ -831,7 +832,7 @@ small_stmt: expr_stmt
 			dprintf (stderr_copy, "Error at line %d: return is not inside a function\n", (int) yylineno);
 			exit(57);
 		}
-	} return_stmt[ret] {$$=$ret;}
+	} return_stmt[ret] {$$=$ret;returned=1;}
 
 	| "break" {
 		/*check if current scope is loop or not by top->isLoop*/
@@ -1195,7 +1196,7 @@ augassign: "+=" {$$ = new Node ("+="); $$->op = ADD;}
 return_stmt: "return" test {
 			if($2->isConstant ){
 				if(!check_types($2->typestring, top->return_type)){
-					dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
+					dprintf (stderr_copy, "Error at line %d: type %s does not match function return type %s\n", (int) $2->lineno, $2->typestring.c_str(), top->return_type.c_str());
 					exit(57);
 				}
 			}
@@ -1206,11 +1207,11 @@ return_stmt: "return" test {
 					printf("values: %d %d\n", $2->isLeaf, top->has($2));
 					#endif
 				
-					dprintf (stderr_copy, "Error at line %d: return value not declared\n", (int) $2->lineno);
+					dprintf (stderr_copy, "Error at line %d: %s was not declared\n", (int) $2->lineno, $2->production.c_str());
 					exit(57);
 				}
 				if(!check_types($2->typestring, top->return_type)){
-					dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $2->lineno);
+					dprintf (stderr_copy, "Error at line %d: type %s does not match function return type %s\n", (int) $2->lineno, $2->typestring.c_str(), top->return_type.c_str());
 					exit(57);
 				}
 			}
@@ -1220,7 +1221,7 @@ return_stmt: "return" test {
 	}
 	| "return" {
 			if(top->return_type != "None"){
-				dprintf (stderr_copy, "Error at line %d: return type does not match function return type\n", (int) $1->lineno);
+				dprintf (stderr_copy, "Error at line %d: non-void return for a void function\n", (int) $1->lineno);
 				exit(57);
 			}
 		string temp = "Keyword\n"; temp += "( return )"; $$ = new Node(temp);
@@ -3127,7 +3128,15 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 
 		basecount-=function_params.size();
 		function_params.clear();
-		
+		if($ret->production=="None"){
+			if(!returned){
+				fprintf(x86asm,"\tretq\n");
+			}
+		}
+		else if(!returned){
+			dprintf(stderr_copy, "Error at line %d: Function %s does not return a value\n", $id->lineno, $id->production.c_str());
+		}
+		returned=0;
 		fprintf(tac, "\tendfunc\n");
 
 	}
@@ -3147,9 +3156,16 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 			function_call_args.clear();
 			basecount-=function_params.size();
 			function_params.clear();
-
 			fprintf(tac, "\tendfunc\n");
-			
+		if($returntype->production=="None"){
+			if(!returned&&$id->production!="main"){
+				fprintf(x86asm,"\tretq\n");
+			}
+		}
+		else if(!returned){
+			dprintf(stderr_copy, "Error at line %d: Function %s does not return a value\n", $id->lineno, $id->production.c_str());
+		}
+		returned=0;	
 	}
 	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" {
 	    #if TEMPDEBUG
@@ -3164,7 +3180,6 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 		    currently_defining_class->print_local_symbols(stdump);
 		top->print_local_symbols(stdump);
         top->child_return();
-		endscope();
 		inside_init = 0;
         $$ = new Node ("Function Defn");
         $$->addchild($id, "Name");
@@ -3180,8 +3195,15 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
             fprintf(tac, "\tret \n");
         } else {
             fprintf(tac, "\tret t%d\n", basecount);
+			string mpt= "t";
+			mpt+=to_string(basecount);
+			fprintf(x86asm,"\tmovq -%ld(%%rbp), %%rax\n",top->get_rbp_offset(mpt));
+			// fprintf(x86asm,"\tretq -%ld(%%rbp)\n",top-.get)
         }
+		if(!returned && $id->production!="main")fprintf(x86asm,"\tretq\n");
+		returned=0;
         fprintf(tac, "\tendfunc\n");
+		endscope(); 
 	}
 	| "def" NAME[id] functionstart "(" ")" ":" {
 			top->return_type = "None";
@@ -3200,6 +3222,8 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 
 		basecount-=function_params.size();
 		function_params.clear();
+		if(!returned)fprintf(x86asm,"\tretq\n");
+		returned=0;
 		fprintf(tac, "\tendfunc\n");
 	}
 
@@ -3244,6 +3268,7 @@ functionstart:  {
 		top->isFunction =1;
 		fprintf(tac, "%s:\n", top->label.c_str());
 		fprintf(tac, "\tbeginfunc\n");
+		returned=0;
 	}
 ;
 classdef: "class" NAME classstart ":" {

@@ -875,9 +875,11 @@ class SymbolTable {
 			fprintf (x86asm, "\tmovq %%rbp, %%rsp\n");
 			fprintf (x86asm, "\tpopq %%rbp\n");\
 			if(name=="main"){
-				fprintf(x86asm,"\tmovq $0, %%rax\n");
+				fprintf(x86asm,"\tmovq $60, %%rax\n");
+				fprintf(x86asm,"\txorq %%rdi, %%rdi\n");
+				fprintf(x86asm,"\tsyscall\n");
 			}
-			fprintf (x86asm, "\tretq\n");
+			//fprintf (x86asm, "\tretq\n");
 			fprintf (x86asm, "\t# end activation record management\n");
 
 		}

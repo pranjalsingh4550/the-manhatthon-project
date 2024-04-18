@@ -32,3 +32,5 @@ output.s
 cscope.out
 test.c
 test.s
+elf_exe
+

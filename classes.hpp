@@ -882,7 +882,7 @@ class SymbolTable {
 				fprintf(x86asm,"\txorq %%rdi, %%rdi\n");
 				fprintf(x86asm,"\tsyscall\n");
 			}
-			//fprintf (x86asm, "\tretq\n");
+			fprintf (x86asm, "\tretq\n");
 			fprintf (x86asm, "\t# end activation record management\n");
 
 		}

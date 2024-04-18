@@ -3324,7 +3324,6 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 			dprintf(stderr_copy, "Error at line %d: Function %s does not return a value\n", $id->lineno, $id->production.c_str());
 			exit(1);
 		}
-		if($id->production!="main")fprintf(x86asm,"\tretq\n");
 	}
 	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" {
 	    #if TEMPDEBUG
@@ -3360,7 +3359,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 
         function_params.clear();			
         
-		if($id->production!="main")fprintf(x86asm,"\tretq\n");
+		top->child_return (function_params.size());
 		returned=0;
         fprintf(tac, "\tendfunc\n");
 		endscope(); 
@@ -3382,7 +3381,7 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 
 		basecount-=function_params.size();
 		function_params.clear();
-		if(!returned)fprintf(x86asm,"\tretq\n");
+		top->child_return (function_params.size());
 		returned=0;
 		fprintf(tac, "\tendfunc\n");
 	}

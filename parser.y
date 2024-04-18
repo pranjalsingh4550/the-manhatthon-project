@@ -463,7 +463,7 @@
 
 				fprintf(x86asm, "\tmovq 0(%%r14), %%r15\n");
 
-				top->asm_store_value(15,resultaddr);
+				top->asm_store_value(15,deref);
 
 				result->addr = deref;
 				fprintf(tac, "%s", s.c_str());

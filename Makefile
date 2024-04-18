@@ -11,10 +11,9 @@ parser: clean
 
 test: parser
 	./parser -input doubts/test.py
-	gcc -g output.s
 
 do : test
-	gcc output.s
+	gcc -g output.s
 
 done: do
 	./a.out

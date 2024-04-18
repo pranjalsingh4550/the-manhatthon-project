@@ -3540,7 +3540,11 @@ for_stmt:
 
 set_itr_ptr : {
     //set for loop iterator node to current top of stack i.e. NAME[iter] in previous
-	for_loop_iterator_node = $<node>0;
+	 if (top->get ($<node>0->production) == NULL) {
+		 dprintf(stderr_copy, "NameError at line %d: variable %s not declared\n", $<node>0->lineno, $<node>0->production.c_str());
+		 exit (55);
+	 }
+	for_loop_iterator_node = top->getnode ($<node>0->production);
 }
 
 check_name_is_range : {
@@ -3553,15 +3557,30 @@ check_name_is_range : {
 set_num_range_args_1 : {
         //range(n) equivalent to range(0, n)
 		for_loop_range_first_arg = NULL;
-		for_loop_range_second_arg = top->getnode ($<node>0->production); //i.e. atom in  for loop
+ 		if (top->getnode ($<node>0->production)) { //i.e. atom in  for loop
+			for_loop_range_second_arg =top->getnode ($<node>0->production);
+		}
+		else {
+			for_loop_range_second_arg =$<node>0;
+		}
 		if(for_loop_range_second_arg->isConstant)basecount++;
 		//note that atom can ALSO BE A NAME. 
 		}
 set_num_range_args_2 : {
         //range(a, b) case
-		for_loop_range_first_arg = top->getnode (($<node>-1)->production); //i.e. first atom
+ 		if (top->getnode ($<node>-1->production)) { //i.e. atom in  for loop
+			for_loop_range_first_arg =top->getnode ($<node>-1->production);
+		}
+		else {
+			for_loop_range_first_arg =$<node>-1;
+		}
 		if(for_loop_range_first_arg->isConstant)basecount++;
-		for_loop_range_second_arg = top->getnode (($<node>0)->production); //i.e. second atom
+ 		if (top->getnode ($<node>0->production)) { //i.e. atom in  for loop
+			for_loop_range_second_arg =top->getnode ($<node>0->production);
+		}
+		else {
+			for_loop_range_second_arg =$<node>0;
+		}
 		if(for_loop_range_second_arg->isConstant)basecount++;
 
 		// fprintf (tac, "\n\t%s = %s\n", for_loop_iterator_node->addr.c_str(), for_loop_range_first_arg->addr.c_str());

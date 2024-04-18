@@ -9,6 +9,8 @@ class Sentence:
     def print(self):
         index_i: int = 0
         leng:int = self.myleng
+        print("inside call: leng")
+        print(leng)
         for index_i in range(leng):
             word_i:Word = self.mylist[index_i]
             print(index_i)
@@ -53,20 +55,25 @@ def main():
     index_j:int = 0
     mylen:int = len(mylist)
     while (index_i < mylen):
-        print(index_i)
+        # print(index_i)
         index_j = 0
         while (index_j < mylen):
-            print(index_j)
+            # print(index_j)
             if (index_j >= index_i):
                 break
             word_i:Word = mylist[index_i]
             word_j:Word = mylist[index_j]
-            print(word_j.val)
+            # print(word_j.val)
             if (word_i.key < word_j.key): #swap the pointers
                 mylist[index_i] = word_j
                 mylist[index_j] = word_i
             index_j += 1
         index_i += 1
+    # i: int = 0
+    # for i in range(mylen):
+#         print(i)
+#         myword:Word = mylist[i]
+#         print(myword.val)
     mysent: Sentence = Sentence(mylist, mylen)
     mysent.print()
 if __name__ == "__main__":

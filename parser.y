@@ -57,7 +57,7 @@
 	vector<Node*> function_params;
 
 	#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-	#define TEMPDEBUG 0
+	#define TEMPDEBUG 1
 	
 	bool is_not_name (Node*);
 	
@@ -1104,6 +1104,9 @@ expr_stmt: primary[id] ":" typeclass[type] {
 				exit (40);
 			}
 			if ($id->typestring == "def" || $id->typestring == "class" || $id->islval == false) {
+			    #if TEMPDEBUG
+			    printf("id typestring: %s islval: %d\n", $id->typestring.c_str(), $id->islval);
+			    #endif
 				dprintf (stderr_copy, "Error at line %d: assignment must be to an identifier or class attribute\n",
 						(int) $id->lineno);
 				exit (33);
@@ -1979,20 +1982,22 @@ factor: "+" factor	{
 		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 		exit(1);
 	}
-	$$ = $1;
 }
 power: primary {
     Node *t1 = $1;
+    $$ = new Node("");
+    *$$ = *$1; //COPY the node
+    Node *tt = $$;
     //doesn't conflict with testlist anymore
 	current_scope = NULL;
-	if ($1->typestring == "") {
+	if ($$->typestring == "") {
 		dprintf(stderr_copy, 
 		"NameError at line %d: undefined variable [%s]\n", 
 		$1->lineno, $1->production.c_str());
 		if ($1->isLeaf) dprintf (stderr_copy, "Name of variable: %s\n", $1->production.c_str());
 		exit(1);
 	}
-	if ($1->islval) {
+	if ($$->islval) {
 		//if it's reached here, it's no longer valid as an lval
 		//so check if any temporaries need to be generated (for
 		//cases of assignment to attributes/subscripts)
@@ -2000,13 +2005,13 @@ power: primary {
 		//an address/pointer -> all that needs to be done is to
 		//dereference it
 		// dprintf(stderr_copy, "Production being lvalified: %s addr: %s\n", $1->production.c_str(), $1->addr.c_str());
-		$1->islval = false;
-		if (!$1->isLeaf /*NOT isLeaf: addr is a temporary*/) {
+		$$->islval = false;
+		if (!$$->isLeaf /*NOT isLeaf: addr is a temporary -> should have an address, not a value*/) {
 			// dprintf(stderr_copy, "Leaf indicator\n");
-			gen($1, $1, NULL, DEREF);
+			gen($$, $1, NULL, DEREF);
 		}
 	}
-	$$ = $1;
+	
 }
 	| primary "**" factor	{
 	#if TEMPDEBUG
@@ -2036,6 +2041,7 @@ power: primary {
 		 exit(69);
 	}
 	$$ = new Node ("**");
+	$$->islval = false;
 	if ($1->typestring == "complex" || $3->typestring == "complex") {
 		$$->typestring = "complex";
 	} else if ($1->typestring == "float" || $3->typestring == "float"){
@@ -2045,7 +2051,7 @@ power: primary {
 	}
 	//edit $1's lval status and generate temporaries if needed
 	if ($1->islval) {
-		$1->islval = false;
+		// $1->islval = false; //don't change the node itself
 		if (!$1->isLeaf /*NOT isLeaf: addr is a temporary*/) {
 			gen($1, $1, NULL, DEREF);
 		}
@@ -2107,6 +2113,9 @@ load_current_scope: /*empty*/ {
 primary: atom {
 		// // set typestring if available, so we know if it's a declaration or a use
 		// cout<<$1->isLeaf<<endl;
+		#if TEMPDEBUG
+		printf("atom %s, type: %s, lval: %d\n", $1->production.c_str(), $1->typestring.c_str(), $1->islval);
+		#endif
 		$$ = $1;
 		$$->isdecl = true;
 		if (top->has($1->production)){

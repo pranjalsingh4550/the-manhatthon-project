@@ -29,6 +29,7 @@
 	int stderr_dup, stderr_copy;
 	bool inside_init = false;
 	bool list_init = false;
+	bool saved_list_init;
 	string class_name_saved_for_init;
 	SymbolTable* top, *globalSymTable, *current_scope, *saved_scope, *currently_defining_class;
 	string newtemp(){
@@ -57,7 +58,7 @@
 	vector<Node*> function_params;
 
 	#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-	#define TEMPDEBUG 0
+	#define TEMPDEBUG 1
 	
 	bool is_not_name (Node*);
 	
@@ -151,7 +152,8 @@
 			return false;
 		} else if (len1 < 0) {
 			//len1 belongs to uninitialized array
-			if (len2 > 0) return true; 
+			// if (len2 > 0) return true; 
+			if (len2 != 0) return true;
 			 //problem: rhs cannot be an uninitialized array
 			 //-> rhs must have actual length, can't be -1
 			return false;
@@ -2105,6 +2107,8 @@ save_current_scope: /*empty*/ {
     printf("saving current scope, addr is %p\n", current_scope);
     #endif
     saved_scope = current_scope;
+    saved_list_init = list_init;
+    list_init = false;
     current_scope = NULL;
 }
 
@@ -2113,6 +2117,7 @@ load_current_scope: /*empty*/ {
     printf("loading current scope, addr is %p\n", saved_scope);
     #endif
     current_scope = saved_scope;
+    list_init = saved_list_init;
 }
 
 //whenever islval is true, if addr is a temporary, then it is a pointer
@@ -2330,7 +2335,7 @@ primary: atom {
 			update $$->typestring as return type of function
 		*/
 		#if TEMPDEBUG
-		printf("entering primary %s ( testlist )\n", $1->production.c_str());
+		printf("entering primary %s ( testlist ) number args: %ld\n", $1->production.c_str(), function_call_args.size());
 		#endif
 		bool isConstructor = false;
 		bool isMemberFn = false;
@@ -2443,6 +2448,16 @@ primary: atom {
 			if (function_call_args.size() != current_scope->arg_types.size()) {
 				dprintf (stderr_copy, "Error at line %d: Function call expected %d arguments, received %d\n",
 					(int)$1->lineno, (int)current_scope->arg_types.size(),(int) function_call_args.size());
+				#if TEMPDEBUG
+				printf("Dumping args:\n");
+				for (auto arg: function_call_args) {
+				    printf("arg %s\n", arg->production.c_str());
+				}
+				printf("Dumping types:\n");
+				for (auto arg: current_scope->arg_types) {
+				    printf("type %s\n", arg.c_str());
+				}
+				#endif
 				exit (60);
 			}
             //skip 1st argument if this is a member function to avoid throwing error
@@ -2680,9 +2695,16 @@ primary: atom {
             //handle len here
             //error checking has already been handled earlier
             $$->addr = newtemp();
-            //new node for constant value of param
             Node *param_length = new Node(NUMBER, (long int)function_call_args_dim[0]);
-            gen($$, $$, param_length, ASSIGN);
+            param_length->production = to_string(function_call_args_dim[0]);
+            //new node for constant value of param
+                        //fprintf(x86asm,"askdjfashldfjl\n\n\n");
+            fprintf(tac,"\t%s = %s\n", $$->addr.c_str(),param_length->production.c_str());
+            fprintf(x86asm,"\t# %s = %s\n", $$->addr.c_str(),param_length->production.c_str());
+            fprintf(x86asm,  "\tmovq $%s, %%r13\n",param_length->production.c_str());
+            top->asm_store_value_r13($$->addr);
+            // gen($$, $$, param_length, ASSIGN);
+            // gen()
         }
         
 		function_call_args.clear();
@@ -3083,10 +3105,10 @@ arglist: test[obj]
 		if (list_init) { // NUMBER, STRING, CLASS, BOOL, NONE
 			// base of the list is a static region in memory but we don't know the length yet. so store in a vector for now
 			list_init_inputs.push_back ($obj);
-		}
-
-		function_call_args.push_back ($obj);
-		function_call_args_dim.push_back($obj->dimension);
+		} else {
+            function_call_args.push_back ($obj);
+            function_call_args_dim.push_back($obj->dimension);
+        }
 	}
 	| arglist "," test[obj] { $$ = new Node ("Multiple terms"); $$->addchild($1); $$->addchild($3);
 		if (list_init)

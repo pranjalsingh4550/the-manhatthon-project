@@ -2438,11 +2438,13 @@ primary: atom {
 				dprintf (stderr_copy, "TypeError at line %d: argument to len() neither a string nor a list\n",
 						(int) $1->lineno);
 				exit (49);
-			} else if (function_call_args_dim[0] == -1) {
-			    dprintf (stderr_copy, "Error at line %d: argument to len() is an uninitialized list\n",
-						(int) $1->lineno);
-				exit (49);
-			}
+			}//  else if (function_call_args_dim[0] == -1) {
+// 			    dprintf (stderr_copy, "Error at line %d: argument to len() is an uninitialized list\n",
+// 						(int) $1->lineno);
+// 				exit (49);
+// 			}
+            //removed because we're not getting uninitialized lists in len (sir sez) and
+            //the only other time is when it is a function parameter -> let it be
 			$$->typestring = "int";
 		} else { //i.e. user defined function: not len, range or print
 			if (function_call_args.size() != current_scope->arg_types.size()) {

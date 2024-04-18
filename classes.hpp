@@ -708,6 +708,7 @@ class SymbolTable {
 				temp_variable_offsets[index] = table_size;
 				num_temps = index + 1;
 				table_size += 8;
+				fprintf (x86asm, "\t#new program temporary: t%d is at offset -%ld\n", index, table_size);
 				#if TEMPDEBUG
 				printf ("temp count increased t%d will be stored at offset %d\n", table_size - 8);
 				#endif
@@ -799,6 +800,7 @@ class SymbolTable {
 			return -1;
 		}
 		void asm_load_value(int reg,string name){
+			fprintf (x86asm, "\t## right is %s\n", name.c_str());
 			fprintf (x86asm, "\tmovq -%ld(%%rbp), %%r%d\n", get_rbp_offset(name), reg);
 		}
 		void asm_store_value(int reg,string name){
@@ -861,7 +863,6 @@ class SymbolTable {
 		void child_enter_function() {
 			fprintf (x86asm, "\t# begin procedure entry routine\n");
 			fprintf (x86asm, "\tpushq %%rbp\n");
-			this->table_size += 8; // is this needed? because rbp is already shifted by 8
 			fprintf (x86asm, "\tmovq %%rsp, %%rbp\n");
 			if (this->arg_types.size())
 				fprintf (x86asm, "\tsubq $%ld, %%rsp\t# space for arguments filled earlier\n", (this->arg_types.size()) * 8);

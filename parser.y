@@ -3111,12 +3111,12 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
             top->arg_dimensions.push_back(0);
 		}
 		
-		$1->addr="t"+to_string(basecount);
+		$1->addr= newtemp();
+		basecount ++;
+		resettemp(1);
 		// $1->isLeaf=false;
 		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
 		fprintf(x86asm, "\t# %s = popparam\n", $1->addr.c_str());
-		basecount++;
-		resettemp(1);
 		function_params.push_back ($1);
 		top->put($1, currently_defining_class->name);
 		currently_defining_class->put($1, currently_defining_class->name);
@@ -3158,13 +3158,13 @@ typedargument: NAME ":" typeclass {
 		top->arg_types.push_back ($3->production);
 		top->arg_dimensions.push_back ($3->dimension);
 
-		$1->addr="t"+to_string(basecount);
+		$1->addr=newtemp();
+		basecount ++;
 		// $1->isLeaf=false;
+		resettemp(1);
 		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
 		fprintf(x86asm, "\t# %s = popparam\n", $1->addr.c_str());
-		basecount++;
 		function_params.push_back ($1);
-		resettemp(1);
 		put ($1, $3);
 		$1->addr="t"+to_string(basecount-1);
 		top->getnode($1->production) ->addr= "t"+to_string(basecount-1);
@@ -3487,6 +3487,7 @@ handle_loop_condition : {
 		Node* test = $<node>-1;
 		int begin = 0, end = 0;
 		string loop_condition = newtemp();
+		basecount ++;
 		Node* dummy_test_condition_node = new Node (0);
 		Node* dummy_test_condition_node2 = new Node (0);
 		dummy_test_condition_node->addr = loop_condition;

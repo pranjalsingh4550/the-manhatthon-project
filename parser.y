@@ -57,7 +57,7 @@
 	vector<Node*> function_params;
 
 	#define ISPRIMITIVE(nodep) (nodep->typestring == "int" || nodep->typestring == "bool" || nodep->typestring == "float" || nodep->production == "str")
-	#define TEMPDEBUG 1
+	#define TEMPDEBUG 0
 	
 	bool is_not_name (Node*);
 	
@@ -3188,12 +3188,12 @@ suite:  simple_stmt[first]
 
 funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" typeclass[ret] {
 	top->return_type = $ret->production;
-	top->child_enter_function();
+	top->child_enter_function(function_params.size());
 }":" suite[last] {
 		Funcsuite=0;
 		if (inside_init) currently_defining_class->print_local_symbols(stdump);
 		top->print_local_symbols(stdump);
-		top->child_return();
+		top->child_return(function_params.size());
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
 		$$->addchild($id, "Name");
@@ -3215,12 +3215,12 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	}
 	| "def" NAME[id] functionstart "(" ")" "->" typeclass[returntype] {
 		top->return_type = $returntype->production;
-		top->child_enter_function();
+		top->child_enter_function(function_params.size());
 	} ":" suite[last] {
 	       	Funcsuite=0;
 		if (inside_init) currently_defining_class->print_local_symbols(stdump);
 		top->print_local_symbols(stdump);
-			top->child_return();
+			top->child_return(function_params.size());
 		endscope(); inside_init = 0;
 	       	$$ = new Node ("Function Defn"); $$->addchild($id, "Name");
 	       	$$->addchild($returntype, "Return type");
@@ -3241,25 +3241,14 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
         printf("entering function definition of %s\n", $2->production.c_str());
         #endif
 			top->return_type = "None";
-			top->child_enter_function();
+			top->child_enter_function(function_params.size());
 		}
 		suite[last] {
 	       	Funcsuite=0;
-		if (inside_init)
+		if (inside_init){
 		    currently_defining_class->print_local_symbols(stdump);
-		top->print_local_symbols(stdump);
-        top->child_return();
-		inside_init = 0;
-        $$ = new Node ("Function Defn");
-        $$->addchild($id, "Name");
-        $$->addchild($param,"Parameters");
-        $$->addchild($last, "Body");
-        function_call_args_dim.clear();
-        function_call_args.clear();
-
+		}
         basecount-=function_params.size();
-        function_params.clear();			
-        
         if ($id->production != "__init__") {
             fprintf(tac, "\tret \n");
         } else {
@@ -3269,6 +3258,18 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 			fprintf(x86asm,"\tmovq -%ld(%%rbp), %%rax\n",top->get_rbp_offset(mpt));
 			// fprintf(x86asm,"\tretq -%ld(%%rbp)\n",top-.get)
         }
+		top->print_local_symbols(stdump);
+        top->child_return(function_params.size());
+		inside_init = 0;
+        $$ = new Node ("Function Defn");
+        $$->addchild($id, "Name");
+        $$->addchild($param,"Parameters");
+        $$->addchild($last, "Body");
+        function_call_args_dim.clear();
+        function_call_args.clear();
+
+        function_params.clear();			
+        
 		if($id->production!="main")fprintf(x86asm,"\tretq\n");
 		returned=0;
         fprintf(tac, "\tendfunc\n");
@@ -3276,12 +3277,12 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 	}
 	| "def" NAME[id] functionstart "(" ")" ":" {
 			top->return_type = "None";
-			top->child_enter_function();
+			top->child_enter_function(function_params.size());
 	}suite[last] {
 	       	Funcsuite=0;
 		if (inside_init) currently_defining_class->print_local_symbols(stdump);
 		top->print_local_symbols (stdump);
-		top->child_return();
+		top->child_return(function_params.size());
 		endscope(); inside_init = 0;
 		$$ = new Node ("Function Defn");
 		$$->addchild($id, "Name");
@@ -3314,14 +3315,14 @@ functionstart:  {
 		if (inside_init) {
 			top = new SymbolTable (globalSymTable, CTOR_ST, currently_defining_class->name);
 			string temp =currently_defining_class->name + ".ctor";
-			fprintf (x86asm, "%s:\n", temp.c_str());
+			//fprintf (x86asm, "%s:\n", temp.c_str());
 		}
 		else {
 			top = new SymbolTable (
 					top,
 					Classsuite?MEMBER_FN_ST:FUNCTION_ST,
 					$<node>0->production);
-			fprintf (x86asm, "%s:\n", $<node>0->production.c_str());
+			//fprintf (x86asm, "%s:\n", $<node>0->production.c_str());
 		}
 		top->label=top->name;
 		if(currently_defining_class){
@@ -3336,6 +3337,7 @@ functionstart:  {
 		top->lineno = $<node>0->lineno;
 		top->isFunction =1;
 		fprintf(tac, "%s:\n", top->label.c_str());
+		fprintf(x86asm, "%s:\n", top->label.c_str());
 		fprintf(tac, "\tbeginfunc\n");
 		returned=0;
 	}

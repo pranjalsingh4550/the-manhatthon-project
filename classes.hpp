@@ -800,7 +800,6 @@ class SymbolTable {
 			return -1;
 		}
 		void asm_load_value(int reg,string name){
-			fprintf (x86asm, "\t## right is %s\n", name.c_str());
 			fprintf (x86asm, "\tmovq -%ld(%%rbp), %%r%d\n", get_rbp_offset(name), reg);
 		}
 		void asm_store_value(int reg,string name){
@@ -860,21 +859,21 @@ class SymbolTable {
 			return;
 		}
 
-		void child_enter_function() {
+		void child_enter_function(long int paramsize) {
 			fprintf (x86asm, "\t# begin procedure entry routine\n");
 			fprintf (x86asm, "\tpushq %%rbp\n");
 			fprintf (x86asm, "\tmovq %%rsp, %%rbp\n");
 			if (this->arg_types.size())
-				fprintf (x86asm, "\tsubq $%ld, %%rsp\t# space for arguments filled earlier\n", (this->arg_types.size()) * 8);
+				fprintf (x86asm, "\tsubq $%ld, %%rsp\t# space for arguments filled earlier\n", (paramsize) * 8);
 			spill_caller_regs();
 			fprintf (x86asm, "\t# end procedure entry routine\n\n");
 
 		}
 
-		void child_return() {
+		void child_return(long int paramsize) {
 
-			fprintf (x86asm, "\t# begin procedure call routine\n");
-			fprintf (x86asm, "\tleaq -%ld(%%rbp), %%rsp\n", (this->arg_types.size() + NUM_CALLEE_SAVED) * 8);
+			fprintf (x86asm, "\t# begin procedure return routine\n");
+			fprintf (x86asm, "\tleaq -%ld(%%rbp), %%rsp\n", (paramsize + NUM_CALLEE_SAVED) * 8);
 			restore_caller_regs();
 			fprintf (x86asm, "\tmovq %%rbp, %%rsp\n");
 			fprintf (x86asm, "\tpopq %%rbp\n");\
@@ -904,6 +903,7 @@ class SymbolTable {
 			// procedure calls preserve rbp and rsp
 			restore_own_regs();
 			fprintf (x86asm, "\taddq %%rbx, %%rsp # undoing 16B alignment if needed\n");
+			fprintf (x86asm, "\t# end System V ABI procedure call routine\n\n");
 		}
 		void call_malloc(int size) {
 			this->systemV_ABI_call_begin();

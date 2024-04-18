@@ -10,7 +10,8 @@ parser: clean
 	g++ -g -o parser lex.yy.c parser.tab.c -fmax-errors=6 
 
 test: parser
-	./parser -input doubts/test.py
+	./parser -input input.py
+	gcc -g output.s -o elf_exe
 
 do : test
 	gcc -g output.s
@@ -18,7 +19,9 @@ do : test
 done: do
 	./a.out
 temp:
-	./parser < input.py 2>output.txt
+	./parser < input.py
+	gcc -g output.s
+	./a.out
 
 my: parser
 

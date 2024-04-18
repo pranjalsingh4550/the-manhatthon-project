@@ -3551,13 +3551,17 @@ check_name_is_range : {
 set_num_range_args_1 : {
         //range(n) equivalent to range(0, n)
 		for_loop_range_first_arg = NULL;
-		for_loop_range_second_arg = $<node>0; //i.e. atom in  for loop
+		for_loop_range_second_arg = top->getnode ($<node>0->production); //i.e. atom in  for loop
+		if(for_loop_range_second_arg->isConstant)basecount++;
 		//note that atom can ALSO BE A NAME. 
 		}
 set_num_range_args_2 : {
         //range(a, b) case
-		for_loop_range_first_arg = $<node>-1; //i.e. first atom
-		for_loop_range_second_arg = $<node>0; //i.e. second atom
+		for_loop_range_first_arg = top->getnode (($<node>-1)->production); //i.e. first atom
+		if(for_loop_range_first_arg->isConstant)basecount++;
+		for_loop_range_second_arg = top->getnode (($<node>0)->production); //i.e. second atom
+		if(for_loop_range_second_arg->isConstant)basecount++;
+
 		// fprintf (tac, "\n\t%s = %s\n", for_loop_iterator_node->addr.c_str(), for_loop_range_first_arg->addr.c_str());
 	}
 
@@ -3566,26 +3570,29 @@ handle_loop_condition : {
         #if TEMPDEBUG
         printf("starting for loop generation...\n");
         #endif
+
+		string internal_store = newtemp();
 		if(!for_loop_range_first_arg) {
-			fprintf(tac,"\tt%d = %s\n", basecount, "0");
-			fprintf(x86asm,"\t# t%d = %s\n", basecount, "0");
-			fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset("t" + to_string(basecount)));
+			fprintf(tac,"\t%s = %s\n", internal_store.c_str(), "0");
+			fprintf(x86asm,"\t# %s = %s\n", internal_store.c_str(), "0");
+			fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(internal_store));
 		}
 		else{
-			fprintf(tac,"\tt%d = %s\n", basecount, for_loop_range_first_arg->addr.c_str());
-			fprintf(x86asm,"\t# t%d = %s\n", basecount, for_loop_range_first_arg->addr.c_str());
+			fprintf(tac,"\t%s = %s\n", internal_store.c_str(), for_loop_range_first_arg->addr.c_str());
+			fprintf(x86asm,"\t# %s = %s\n", internal_store.c_str(), for_loop_range_first_arg->addr.c_str());
 			top->asm_load_value_r13 (for_loop_range_first_arg->addr);
-			top->asm_store_value_r13 ("t" + to_string (basecount));
+			top->asm_store_value_r13(internal_store);
 		}
-		basecount++;
 		string lbl = get_next_label_upper ("");
 		fprintf (tac, "%s:\n", lbl.c_str());
 		fprintf (x86asm, "%s:\n", lbl.c_str());
-		string temp = "t"+to_string(basecount-1);
+		string temp = internal_store;
 		fprintf(tac, "\t%s = %s\n", top->getaddr(for_loop_iterator_node).c_str(), temp.c_str());
 		fprintf(x86asm, "\t# %s = %s\n", top->getaddr(for_loop_iterator_node).c_str(), temp.c_str());
 		top->asm_load_value_r13 (temp);
 		top->asm_store_value_r13 (top->getaddr(for_loop_iterator_node));
+		resettemp(1);
+		basecount++;
 
 		// fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
 		// fprintf (x86asm, "\t# %s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());

@@ -460,6 +460,7 @@
 				
 				s += offset + " =  "  +right + " * 8\n\t";
 				fprintf(x86asm , "\t# %s = %s * 8\n",offset.c_str(),right.c_str());
+				top->asm_load_value_r12(right);
 				fprintf (x86asm, "\timulq $8, %%r12\n");
 				string ult = newtemp();
 				s+=ult +" = " + left + " + " + offset + "\n";

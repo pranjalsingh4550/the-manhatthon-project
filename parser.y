@@ -282,6 +282,7 @@
 	}
 	void gen_branch (Node* condition, string target) {
 		fprintf (tac, "\tifFalse %s\tjmp %s\n", condition->addr.c_str(), target.c_str());
+		fprintf (x86asm, "\t# ifFalse %s\tjmp %s\n", condition->addr.c_str(), target.c_str());
 		fprintf (x86asm, "\tcmpq $0, -%ld(%%rbp)\n", top->get_rbp_offset(condition->addr));
 		fprintf (x86asm, "\tje %s\n", target.c_str());
 	}
@@ -533,17 +534,19 @@
 							fprintf (x86asm, "\tmovq %%rdx, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							break;
 			case AND_log:	fprintf(tac, "\t%s\t= %s and %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
-							// fprintf(x86asm, "\t# %s\t= %s and %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s and %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r13(right);
 							fprintf (x86asm, "\timulq -%ld(%%rbp), %%r13\n", top->get_rbp_offset(left));
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case OR_log:	fprintf(tac, "\t%s\t= %s or %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s or %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\torq %%r12, %%r13\n");
 							top->asm_store_value_r13(resultaddr);
 
 			case NOT_log:	fprintf(tac, "\t%s\t= not %s\n",resultaddr.c_str(), left.c_str());
+							fprintf(x86asm, "\t# %s\t= not %s\n",resultaddr.c_str(), left.c_str());
 							generic_if (left);
 							fprintf (x86asm, "\tmovq $0, %%r13\n");
 							generic_else();
@@ -552,6 +555,7 @@
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case LT:		fprintf(tac, "\t%s\t= %s < %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s < %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
@@ -560,6 +564,8 @@
 							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
 							break;
 			case GT:		fprintf(tac, "\t%s\t= %s > %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s > %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
@@ -568,6 +574,7 @@
 							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
 							break;
 			case LTE:		fprintf(tac, "\t%s\t= %s <= %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s <= %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
@@ -576,6 +583,7 @@
 							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
 							break;
 			case GTE:		fprintf(tac, "\t%s\t= %s >= %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s >= %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
@@ -584,6 +592,7 @@
 							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
 							break;
 			case EQ:		fprintf(tac, "\t%s\t= %s == %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s == %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
@@ -592,6 +601,7 @@
 							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
 							break;
 			case NEQ:		fprintf(tac, "\t%s\t= %s != %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s != %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
@@ -600,39 +610,50 @@
 							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
 							break;
 			case OR_bit:	fprintf(tac, "\t%s\t= %s | %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s | %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\torq %%r12, %%r13\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case AND_bit:	fprintf(tac, "\t%s\t= %s & %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s & %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\tandq %%r12, %%r13\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case NOT_bit:	fprintf(tac, "\t%s\t= ~%s\n",resultaddr.c_str(), left.c_str());
+							fprintf(x86asm, "\t# %s\t= ~%s\n",resultaddr.c_str(), left.c_str());
 							top->asm_load_value_r13 (left);
 							fprintf (x86asm, "\tnotq %%r13\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case XOR:		fprintf(tac, "\t%s\t= %s ^ %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s ^ %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\txorq %%r13, %%r12\n");
 							top->asm_store_value(12,resultaddr);
 							break;
 			case SHL:		fprintf(tac, "\t%s\t= %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rdx\n", top->get_rbp_offset(left));
 							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", top->get_rbp_offset(right));
 							fprintf (x86asm, "\tsalq %%cl, %%rdx\n");
 							fprintf (x86asm, "\rmovq %%rdx, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							break;
 			case SHR:		fprintf(tac, "\t%s\t= %s >> %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s >> %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							
 							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rdx\n", top->get_rbp_offset(left));
 							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", top->get_rbp_offset(right));
 							fprintf (x86asm, "\tsarq %%cl, %%rdx\n");
 							fprintf (x86asm, "\rmovq %%rdx, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							break;
-			case POW:		{ fprintf(tac, "\t%s\t= %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
-			                /* template
+			case POW:		{ 
+							fprintf(tac, "\t%s\t= %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+			                fprintf(x86asm, "\t# %s\t= %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+			                
+							/* template
 			                
 			                
 			                int power(int a (base), int b (exponent)) {
@@ -701,12 +722,11 @@
 							get_current_label(); //loop
 							break; }
 			case NEG:		fprintf(tac, "\t%s\t= -%s\n",resultaddr.c_str(), left.c_str());
+							fprintf(x86asm, "\t# %s\t= -%s\n",resultaddr.c_str(), left.c_str());
 							top->asm_load_value_r12 (left);
-							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
-							fprintf (x86asm, "\tcmpq %%r13, $0\n");
-							fprintf (x86asm, "\tjne comparison_jump%d\n", comparison_label_count);
-							fprintf (x86asm, "\tmovq $0xffff, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
-							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
+							fprintf(x86asm, "\tmovq $0, %%r13\n");
+							fprintf(x86asm, "\tsubq %%r12, %%r13\n");
+							top->asm_store_value(13,resultaddr);
 							break;
 			case FLOORDIV:	fprintf(tac, "\t%s\t= %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							fprintf(x86asm, "\t# %s\t= %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
@@ -717,15 +737,17 @@
 							fprintf (x86asm, "\tmovq %%rax, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							break;
 			case STREQ:		fprintf(tac, "\t%s\t= STREQ(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break;
+							fprintf(x86asm, "\t# %s\t= STREQ(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break;
 							top->call_strcmp (right, left);
 							fprintf (x86asm, "\tmovq %%rax, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 			case STRCMP:	{
 					fprintf(tac,"\tparam %s\n",right.c_str());
 					fprintf(tac,"\tparam %s\n",left.c_str());
-					fprintf(tac,"\t%s\t= call STRCMP 2\n",resultaddr.c_str());
+					fprintf(tac,"\t%s\t= call STRCMP 2\n",resultaddr.c_str());break;
+					fprintf(x86asm, "\t# %s = strcmp (%s, %s)  not actual tac\n",resultaddr.c_str(),left.c_str(),right.c_str());
 					top->call_strcmp (left, right);
+					fprintf(x86asm, "\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset(resultaddr));
 					break;
-
 				// fprintf(tac, "\t%s\t= STRCMP(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break; 
 				}
 			default: dprintf (stderr_copy,"Wrong op at line no : %d\n",yylineno);exit(1);
@@ -2729,6 +2751,7 @@ primary: atom {
             $$->isdecl = false;
             $$->isLeaf = true;
             //first: get array address in a register
+			fprintf(x86asm, "\t# %s = len (%s)\n",$$->addr.c_str(), function_call_args[0]->addr.c_str());
             top->asm_load_value_r12(function_call_args[0]->addr);
             //then, move value 8 bytes BEHIND r12 in r13
             fprintf(x86asm, "\tmovq -8(%%r12), %%r13\n");
@@ -2823,7 +2846,8 @@ primary: atom {
 		$$->lineno = $1->lineno;
         
         #if TEMPDEBUG
-        if (function_call_args[0]->typestring != current_scope->arg_types[0]) {
+        if (function_call_args.size() && 
+			function_call_args[0]->typestring != current_scope->arg_types[0]) {
             printf("inherited function call!\n");
         }
         #endif
@@ -3008,6 +3032,7 @@ atom: NAME {
 				
 				fprintf (x86asm, "\taddq $8, -%ld(%%rbp)\n", top->get_rbp_offset(ret));
 		}
+		
 		fprintf(tac, "\t%s = %s - %lu\n", 
 		dev_helper($$).c_str(), dev_helper($$).c_str(), list_init_inputs.size() * 8);
 		fprintf (x86asm, "\tsubq $%ld, -%ld(%%rbp)\n", list_init_inputs.size()*8, top->get_rbp_offset(ret));
@@ -3493,7 +3518,9 @@ for_stmt:
             basecount--;
             fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);
 			fprintf (x86asm, "\t# t%d = t%d + 1\n",basecount, basecount);
-			
+			top->asm_load_value(12,"t"+to_string(basecount));
+			fprintf (x86asm ,"\taddq $1, %%r12\n");
+			top->asm_store_value(12,"t"+to_string(basecount));
         } loop_end_jump_back
          jump_target_false_lower {}
 	|   "for" NAME[iter] set_itr_ptr "in" NAME check_name_is_range 
@@ -3504,7 +3531,9 @@ for_stmt:
 	        basecount--;
 	        fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);
 	    	fprintf (x86asm, "\t# t%d = t%d + 1\n",basecount, basecount);
-	    
+			top->asm_load_value(12,"t"+to_string(basecount));
+			fprintf (x86asm ,"\taddq $1, %%r12\n");
+			top->asm_store_value(12,"t"+to_string(basecount));
 		} loop_end_jump_back jump_target_false_lower {}
 
 set_itr_ptr : {
@@ -3539,10 +3568,12 @@ handle_loop_condition : {
         #endif
 		if(!for_loop_range_first_arg) {
 			fprintf(tac,"\tt%d = %s\n", basecount, "0");
+			fprintf(x86asm,"\t# t%d = %s\n", basecount, "0");
 			fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset("t" + to_string(basecount)));
 		}
 		else{
 			fprintf(tac,"\tt%d = %s\n", basecount, for_loop_range_first_arg->addr.c_str());
+			fprintf(x86asm,"\t# t%d = %s\n", basecount, for_loop_range_first_arg->addr.c_str());
 			top->asm_load_value_r13 (for_loop_range_first_arg->addr);
 			top->asm_store_value_r13 ("t" + to_string (basecount));
 		}
@@ -3552,15 +3583,17 @@ handle_loop_condition : {
 		fprintf (x86asm, "%s:\n", lbl.c_str());
 		string temp = "t"+to_string(basecount-1);
 		fprintf(tac, "\t%s = %s\n", top->getaddr(for_loop_iterator_node).c_str(), temp.c_str());
-		top->asm_load_value_r13 (top->getaddr(for_loop_iterator_node));
-		top->asm_store_value_r13 (temp);
+		fprintf(x86asm, "\t# %s = %s\n", top->getaddr(for_loop_iterator_node).c_str(), temp.c_str());
+		top->asm_load_value_r13 (temp);
+		top->asm_store_value_r13 (top->getaddr(for_loop_iterator_node));
 
-		fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
+		// fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
+		// fprintf (x86asm, "\t# %s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
 		
 		Node* test = $<node>-1;
 		int begin = 0, end = 0;
 		string loop_condition = newtemp();
-		basecount ++;
+		// basecount ++;
 		Node* dummy_test_condition_node = new Node (0);
 		Node* dummy_test_condition_node2 = new Node (0);
 		dummy_test_condition_node->addr = loop_condition;
@@ -3575,6 +3608,7 @@ handle_loop_condition : {
 		// dummy_test_condition_node is the handle to the loop condition
 		lbl = get_next_label("");
 		fprintf (tac, "\tifFalse %s\tjmp %s\n", dev_helper(dummy_test_condition_node).c_str(), lbl.c_str());
+		fprintf (x86asm, "\t# ifFalse %s\tjmp %s\n", dev_helper(dummy_test_condition_node).c_str(), lbl.c_str());
 		fprintf (x86asm, "\tcmpq $0, -%ld(%%rbp)\n", top->get_rbp_offset(dev_helper(dummy_test_condition_node)));
 		fprintf (x86asm, "\tje %s\n", lbl.c_str());
 	}

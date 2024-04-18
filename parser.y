@@ -720,13 +720,14 @@
 		return top->getaddr (n);
 	}
 	void generic_if(string test) {
-		string lbl2 = get_next_label_upper3("internal_false");
 		string lbl = get_next_label3 ("internal");
-		fprintf (x86asm, "\t movq -%lx(%%rbp), %%rax\n", top->get_rbp_offset(test));
+		fprintf (x86asm, "\tmovq -%lx(%%rbp), %%rax\n", top->get_rbp_offset(test));
 		fprintf (x86asm, "\tcmpq $0, %%rax\n");
 		fprintf (x86asm, "\tjmp	%s\n", lbl.c_str());
+		
 	}
 	void generic_else() {
+		fprintf (x86asm, "\tjmp %s\n", get_next_label_upper3("").c_str());
 		fprintf (x86asm, "%s:\n", get_current_label3().c_str());
 	}
 	void generic_exit() {
@@ -1040,7 +1041,7 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			//put handles typestrings of id, type
 			currently_defining_class->put($id, $type);
 			//generate the right address using the thisname addr and the production in $id
-			auto thisname_entry = currently_defining_class->symbols.find(top->thisname);
+			auto thisname_entry = top->symbols.find(top->thisname);
 			gen($id, thisname_entry->second->node, $id, ATTR);
 		}
 		gen ($$,$id, $value, ASSIGN);
@@ -2224,7 +2225,7 @@ primary: atom {
 			if (entry != current_scope->symbols.end()) {
 				//i.e. already declared
 				//get addr of thisname from symbol table
-				auto thisname_entry = current_scope->symbols.find(top->thisname);
+				auto thisname_entry = top->symbols.find(top->thisname);
 				$1->addr = thisname_entry->second->node->addr;
 				#if TEMPDEBUG
 				printf("thisname addr: %s\n", $1->addr.c_str());
@@ -3127,12 +3128,9 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		fprintf(x86asm, "\t# %s = popparam\n", $1->addr.c_str());
 		function_params.push_back ($1);
 		top->put($1, currently_defining_class->name);
-		currently_defining_class->put($1, currently_defining_class->name);
+		// currently_defining_class->put($1, currently_defining_class->name);
 		$1->addr="t"+to_string(basecount-1);
 		top->getnode($1->production) ->addr= "t"+to_string(basecount-1);
-		currently_defining_class->table_size = 0;
-		if (currently_defining_class->parent_class) 
-			currently_defining_class->table_size = currently_defining_class->parent_class->table_size;
 	}
 	| typedarglist "," typedargument[last] { 
 		$$ = new Node ("Multiple Terms"); 
@@ -3610,7 +3608,7 @@ int main(int argc, char** argv){
 	}
 
 	static_section = "\t.text\n\t.section\t.rodata\n\n" ;
-	static_section += "\t\ttrue_string:\t.asciz,\"True\"\n\t\tfalse_string:\t.asciz,\"False\"\n";
+	static_section += "\t\ttrue_string:\t.asciz,\"True\\n\"\n\t\tfalse_string:\t.asciz,\"False\\n\"\n";
 	concatenating_string_plus = "\0";
 	
 	tac = fopen (outputfile, "w+");

@@ -708,15 +708,15 @@ class SymbolTable {
 				temp_variable_offsets[index] = table_size;
 				num_temps = index + 1;
 				table_size += 8;
-				fprintf (x86asm, "\t#new program temporary: t%d is at offset -%ld\n", index, table_size);
 				#if TEMPDEBUG
+				fprintf (x86asm, "\t#new program temporary: t%d is at offset -%ld\n", index, table_size);
 				printf ("temp count increased t%d will be stored at offset %d\n", table_size - 8);
 				#endif
 			}
 		}
 #define NUM_CALLEE_SAVED 5
 #define NUM_CALLER_SAVED 8
-#define ASMDEBUG 1
+#define ASMDEBUG 0
 		void spill_caller_regs() {
 			/* rbx r12 r13 r14 r15 -> push in opposite order. push/pop rbp at the ends
 			don't mess with rsp meanwhile
@@ -908,7 +908,7 @@ class SymbolTable {
 		void call_malloc(int size) {
 			this->systemV_ABI_call_begin();
 			
-			fprintf (x86asm, "\tmovq $%d, %%rdx\n", size);
+			fprintf (x86asm, "\tmovq $%d, %%rdi\n", size);
 			fprintf (x86asm, "\tcallq malloc\n");
 			// return value in rax
 			this->systemV_ABI_call_end();
@@ -922,22 +922,23 @@ class SymbolTable {
 			this->systemV_ABI_call_begin();
 			// arg->addr += "@" + top->name;
 
-			if (arg->typestring == "str") // pointer is stored in the stack at address
+			if (arg->typestring == "str") { // pointer is stored in the stack at address
 				fprintf (x86asm, "\tleaq string_format(%%rip), %%rdi\n");
-			else if (arg->typestring == "int")
+				fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rsi\n", this->get_rbp_offset(arg->addr));
+			}
+			else if (arg->typestring == "int") {
 				fprintf (x86asm, "\tleaq integer_format(%%rip), %%rdi\n");
+				fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rsi\n", this->get_rbp_offset(arg->addr));
+			}
 			else if (arg->typestring == "bool") {
-				fprintf (x86asm, "\tleaq string_format(%%rip), %%rdi\n");
-
 				generic_if (arg->addr);
-				fprintf (x86asm, "\tmovq true_string(%%rip), %%rsi\n");
+				fprintf (x86asm, "\tleaq true_string(%%rip), %%rdi\n");
 				generic_else ();
-				fprintf (x86asm, "\tmovq false_string(%%rip), %%rsi\n");
+				fprintf (x86asm, "\tleaq false_string(%%rip), %%rdi\n");
 				generic_exit();
 			}
 
 					
-			fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rsi\n", this->get_rbp_offset(arg->addr));
 			fprintf (x86asm, "\tcallq printf\n");
 			this->systemV_ABI_call_end();
 			return ;

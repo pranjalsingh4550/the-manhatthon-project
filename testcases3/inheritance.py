@@ -81,6 +81,13 @@ def main():
 	if mystery.is_domestic():
 		print ("The garbagee values in x86 think this is a domestic creature\n")
 		print ("** demonstrating inheritance of methods: multiple call sites\n")
+
+	m2:reptile = mystery
+	mystery.set_croc()
+	m2.set_croc()
+	print ("Passing by reference: mystery's name has been set")
+	print (mystery.name)
+	print (mystery.disgusting)
 	
 if __name__ == "__main__":
 	main()

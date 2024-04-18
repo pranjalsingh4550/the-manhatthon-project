@@ -3517,28 +3517,28 @@ for_stmt:
         handle_loop_condition ":" { inLoop++; }
         suite {
             inLoop--;
-			if ($right->isConstant) basecount --;
+            basecount--;
             fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);
 			fprintf (x86asm, "\t# t%d = t%d + 1\n",basecount, basecount);
 			top->asm_load_value(12,"t"+to_string(basecount));
 			fprintf (x86asm ,"\taddq $1, %%r12\n");
 			top->asm_store_value(12,"t"+to_string(basecount));
-            basecount--;
+			if ($right->isConstant) basecount --;
         } loop_end_jump_back
          jump_target_false_lower {}
 	|   "for" NAME[iter] set_itr_ptr "in" NAME check_name_is_range 
 	    "(" atom[left] "," atom[right] set_num_range_args_2 ")" 
 	    handle_loop_condition ":" { inLoop++; }
 	    suite {
-			if ($left->isConstant) basecount --;
-			if ($right->isConstant) basecount --;
 	        inLoop--;
+	        basecount--;
 	        fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);
 	    	fprintf (x86asm, "\t# t%d = t%d + 1\n",basecount, basecount);
 			top->asm_load_value(12,"t"+to_string(basecount));
 			fprintf (x86asm ,"\taddq $1, %%r12\n");
 			top->asm_store_value(12,"t"+to_string(basecount));
-	        basecount--;
+			if ($left->isConstant) basecount --;
+			if ($right->isConstant) basecount --;
 		} loop_end_jump_back jump_target_false_lower {}
 
 set_itr_ptr : {

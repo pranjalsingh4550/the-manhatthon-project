@@ -847,7 +847,7 @@ class SymbolTable {
 				fprintf (x86asm, "\tpushq %%rcx\n");
 			}
 			// take rsp back to the empty slot
-			fprintf (x86asm, "\taddq $%ld, %%rsp\n", 8 * (2 + args.size()+(self_ptr!="")));
+			fprintf (x86asm, "\taddq $%ld, %%rsp\n", 8 * (2 + args.size()));
 			fprintf (x86asm, "\tcallq %s\n",
 					callee->label.c_str()
 					);

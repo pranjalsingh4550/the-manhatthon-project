@@ -2604,7 +2604,7 @@ primary: atom {
                 //do_function_call only accesses addr of this
                 Node *new_arg = new Node("");
                 new_arg->addr = temp;
-                function_call_args.push(new_arg);
+                function_call_args.push_back(new_arg);
                 //increase len
                 len++;
                 
@@ -2826,7 +2826,7 @@ primary: atom {
 			exit(69);
 		}
 			//not a built-in
-		top->do_function_call(current_scope, function_call_args,temp); // complete this later
+		top->do_function_call(current_scope, function_call_args); // complete this later
 		if (current_scope->return_type != "None"
 		||  isConstructor) {
 			$$->addr = newtemp();

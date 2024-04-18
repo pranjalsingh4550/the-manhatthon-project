@@ -542,7 +542,7 @@
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
 							fprintf (x86asm, "\tjge comparison_jump%d\n", comparison_label_count);
-							fprintf (x86asm, "\taddq $ffff, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
+							fprintf (x86asm, "\taddq $0xffff, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
 							break;
 			case GT:		fprintf(tac, "\t%s\t= %s > %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
@@ -550,7 +550,7 @@
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
 							fprintf (x86asm, "\tjle comparison_jump%d\n", comparison_label_count);
-							fprintf (x86asm, "\taddq $ffff, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
+							fprintf (x86asm, "\taddq $0xffff, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
 							break;
 			case LTE:		fprintf(tac, "\t%s\t= %s <= %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
@@ -559,7 +559,7 @@
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
 							fprintf (x86asm, "\tjg comparison_jump%d\n", comparison_label_count);
-							fprintf (x86asm, "\taddq $ffff, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
+							fprintf (x86asm, "\taddq $0xffff, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
 							break;
 			case GTE:		fprintf(tac, "\t%s\t= %s >= %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
@@ -568,7 +568,7 @@
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
 							fprintf (x86asm, "\tjl comparison_jump%d\n", comparison_label_count);
-							fprintf (x86asm, "\taddq $ffff, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
+							fprintf (x86asm, "\taddq $0xffff, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
 							break;
 			case EQ:		fprintf(tac, "\t%s\t= %s == %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
@@ -576,7 +576,7 @@
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
 							fprintf (x86asm, "\tjne comparison_jump%d\n", comparison_label_count);
-							fprintf (x86asm, "\taddq $ffff, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
+							fprintf (x86asm, "\taddq $0xffff, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
 							break;
 			case NEQ:		fprintf(tac, "\t%s\t= %s != %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
@@ -584,7 +584,7 @@
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
 							fprintf (x86asm, "\tje comparison_jump%d\n", comparison_label_count);
-							fprintf (x86asm, "\taddq $ffff, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
+							fprintf (x86asm, "\taddq $0xffff, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
 							break;
 			case OR_bit:	fprintf(tac, "\t%s\t= %s | %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
@@ -3120,6 +3120,7 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		
 		$1->addr= newtemp();
 		basecount ++;
+		top->table_size -= 8;
 		resettemp(1);
 		// $1->isLeaf=false;
 		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
@@ -3166,6 +3167,7 @@ typedargument: NAME ":" typeclass {
 		top->arg_dimensions.push_back ($3->dimension);
 
 		$1->addr=newtemp();
+		top->table_size -= 8;
 		basecount ++;
 		// $1->isLeaf=false;
 		resettemp(1);

@@ -1963,7 +1963,8 @@ factor: "+" factor	{
 }
 power: primary {
     Node *t1 = $1;
-	// current_scope = NULL;
+    //doesn't conflict with testlist anymore
+	current_scope = NULL;
 	if ($1->typestring == "") {
 		dprintf(stderr_copy, 
 		"NameError at line %d: undefined variable [%s]\n", 
@@ -2031,7 +2032,7 @@ power: primary {
 	}
 	$$->addchild($1);
 	$$->addchild($3);
-	// current_scope = NULL;
+	current_scope = NULL;
 	gen($$,$1, $3, POW);
 }
 
@@ -2111,8 +2112,8 @@ primary: atom {
 			$$->isdecl = false;
 		}
 		#if TEMPDEBUG
-		printf("Test print, inside primary.name, production: %s.%s\n", 
-		$1->production.c_str(), $3->production.c_str());
+		printf("Test print, lineno: %d, inside primary.name, production: %s.%s\n", 
+		$3->lineno, $1->production.c_str(), $3->production.c_str());
 		printf("Isdecl: %d\n", $$->isdecl);
 		printf("Factors: %d %d %s\n", inside_init, $1->isLeaf, top->thisname.c_str());
 		#endif
@@ -2178,7 +2179,7 @@ primary: atom {
 			//this only happens in a self.something case so we just
 			//set the overall production to the last term, it'll get
 			//put later on
-			$$->lineno = $1->lineno;
+			$$->lineno = $3->lineno;
 			$$->production = $3->production;
 			#if TEMPDEBUG
 				printf("self something: %s\n", $3->production.c_str());
@@ -2219,7 +2220,7 @@ primary: atom {
 			//here: then we found a definition -> generate the temporary and set the typestrings/dimension
 			$$->typestring = entry->second->typestring;
 			$$->dimension = entry->second->dimension;
-			$$->lineno = $1->lineno;
+			$$->lineno = $3->lineno;
 			$$->production = $3->production; 
 			//should NOT be having any puts if it is already declared
 			gen($$,$1,$3,ATTR);
@@ -2409,8 +2410,9 @@ primary: atom {
 					(int)$1->lineno, (int)current_scope->arg_types.size(),(int) function_call_args.size());
 				exit (60);
 			}
-
-			for (iter = 0; iter< current_scope->arg_types.size(); iter ++) { 
+            //skip 1st argument if this is a member function to avoid throwing error
+            //due to derived class using base class method call
+			for (iter = (isMemberFn ? 1 : 0); iter< current_scope->arg_types.size(); iter ++) { 
 				if (function_call_args[iter]->typestring == (current_scope->arg_types)[iter]
 				 && check_array(function_call_args_dim[iter], (current_scope->arg_dimensions)[iter] )) {
 					continue;
@@ -2713,15 +2715,25 @@ primary: atom {
 		#endif
 		// printf("typestring = %s\n", $$->typestring.c_str());
 		$$->lineno = $1->lineno;
-
+        
+        #if TEMPDEBUG
+        if (function_call_args[0]->typestring != current_scope->arg_types[0]) {
+            printf("inherited function call!\n");
+        }
+        #endif
+        
 		int size = current_scope->arg_types.size();
 		if (function_call_args.size() != size
 		|| (size > 0 
 		    &&  (   function_call_args_dim[0] != 0
-		        ||  function_call_args[0]->typestring != current_scope->arg_types[0]
+		        // ||  function_call_args[0]->typestring != current_scope->arg_types[0]
 		    )
 		)) {
-		    dprintf(stderr_copy, "Something is terribly wrong, please check\n");
+		    dprintf(stderr_copy, "Something is terribly wrong, please check\n \
+		    size: %d function_call_args_dim[0]: %d \n \
+		    function_call_args typestring: [%s] current_scope arg types: [%s]\n",
+		    size, function_call_args_dim[0], function_call_args[0]->typestring.c_str(),
+		    current_scope->arg_types[0].c_str());
 		    exit(69);
 		}
 		
@@ -3056,7 +3068,10 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 
 typedarglist_comma: typedarglist | typedarglist ","
 
-typedargument: NAME ":" typeclass { $$ = new Node ("Typed Parameter"); $$->addchild($1,"Name"); $$->addchild($3,"Type");
+typedargument: NAME ":" typeclass {
+        $$ = new Node ("Typed Parameter");
+        $$->addchild($1,"Name");
+        $$->addchild($3,"Type");
 		if (is_not_name($3)) {
 			dprintf (stderr_copy, "Error at line %d: type hints must be L-values\n", yylineno);
 			exit(45);
@@ -3137,6 +3152,9 @@ funcdef: "def" NAME[id]  functionstart "(" typedarglist_comma[param] ")" "->" ty
 			
 	}
 	| "def" NAME[id] functionstart "(" typedarglist_comma[param] ")" ":" {
+	    #if TEMPDEBUG
+        printf("entering function definition of %s\n", $2->production.c_str());
+        #endif
 			top->return_type = "None";
 			top->child_enter_function();
 		}

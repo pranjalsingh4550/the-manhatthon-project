@@ -28,22 +28,22 @@ class vertebrate (creature):
 	def __init__ (self, mammal:bool, habitat:str):
 		self.is_mammal:bool = mammal
 		self.habitat:str = habitat
-		if self.habitat == "forest" and self.mammal:
+		if self.habitat == "forest" and self.is_mammal:
 			print ("Assuming this is a lion")
 		self.name = "lion"
 	
 	def is_domestic(self)->bool:
-		if self.habitat = "forest"
+		if self.habitat == "forest":
 			return False
-		if not self.mammal:
+		if not self.is_mammal:
 			return False
 		return True
 
 class reptile (vertebrate):
 	def __init__ (self, color:str, habitat:str):
-		self.colour:str = color
+		self.colour = color
 		self.habitat = habitat
-		self.disgusting = True
+		self.disgusting:bool = True
 		print ("Hello, I am a disgusting reptile");
 	def set_croc(self):
 		self.name = "crocodile"
@@ -60,12 +60,12 @@ def main():
 	bison:creature = creature("bison", 40, False, True, True, "unknown")
 	if bison.dangerous == giraffe.dangerous:
 		print ("Bisons and giraffes are equally dangerous")
-	else if bison.dangerous > giraffe.dangerous:
+	elif bison.dangerous > giraffe.dangerous:
 		print ("Avoid bisons and flexes but not girrafes")
 
 	if bison.huge:
 		print ("bisons are huge")
-	else
+	else:
 		print ("bisons are not huge")
 	
 	dirt:str = "dirt"

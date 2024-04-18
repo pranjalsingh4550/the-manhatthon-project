@@ -793,6 +793,7 @@ class SymbolTable {
 				return temp_variable_offsets[stoi (reg_name.substr (1, reg_name.size()))]+8;
 			}
 			else {
+			    printf("exiting :( reg_name: %s\n", reg_name.c_str());
 				exit(88);
 			}
 			return -1;

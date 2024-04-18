@@ -505,8 +505,9 @@
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case DIV:		fprintf(tac, "\t%s\t= %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
-							fprintf(x86asm, "\t# %s\t= %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rax\n", top->get_rbp_offset(left));
+							fprintf (x86asm, "\tcqto\n");
 							fprintf (x86asm, "\tidivq -%ld(%%rbp)\n", top->get_rbp_offset(right));
 							fprintf (x86asm, "\tmovq %%rax, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							break;
@@ -515,6 +516,7 @@
 							
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rax\n", top->get_rbp_offset(left));
+							fprintf (x86asm, "\tcqto\n");
 							fprintf (x86asm, "\tidivq -%ld(%%rbp)\n", top->get_rbp_offset(right));
 							fprintf (x86asm, "\tmovq %%rdx, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							break;
@@ -555,7 +557,6 @@
 							break;
 			case LTE:		fprintf(tac, "\t%s\t= %s <= %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %%r13, %%r12\n");
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
 							fprintf (x86asm, "\tjg comparison_jump%d\n", comparison_label_count);
@@ -564,7 +565,6 @@
 							break;
 			case GTE:		fprintf(tac, "\t%s\t= %s >= %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %%r13, %%r12\n");
 							fprintf (x86asm, "\tmovq $0, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							fprintf (x86asm, "\tcmpq %%r13, %%r12\n");
 							fprintf (x86asm, "\tjl comparison_jump%d\n", comparison_label_count);
@@ -608,14 +608,16 @@
 							top->asm_store_value(12,resultaddr);
 							break;
 			case SHL:		fprintf(tac, "\t%s\t= %s << %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
-							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "\tsalq %%r13, %%r12\n");
-							top->asm_store_value(12,resultaddr);
+							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rdx\n", top->get_rbp_offset(left));
+							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", top->get_rbp_offset(right));
+							fprintf (x86asm, "\tsalq %%cl, %%rdx\n");
+							fprintf (x86asm, "\rmovq %%rdx, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							break;
 			case SHR:		fprintf(tac, "\t%s\t= %s >> %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
-							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "\tsarq %%r13, %%r12\n");
-							top->asm_store_value(12,resultaddr);
+							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rdx\n", top->get_rbp_offset(left));
+							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", top->get_rbp_offset(right));
+							fprintf (x86asm, "\tsarq %%cl, %%rdx\n");
+							fprintf (x86asm, "\rmovq %%rdx, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							break;
 			case POW:		{ fprintf(tac, "\t%s\t= %s ** %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 			                /* template
@@ -695,9 +697,12 @@
 							fprintf (x86asm, "comparison_jump%d:\n", comparison_label_count++);
 							break;
 			case FLOORDIV:	fprintf(tac, "\t%s\t= %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
-							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
-							fprintf (x86asm, "- %%r13, %%r12\n");
-							top->asm_store_value_r13(resultaddr);
+							fprintf(x86asm, "\t# %s\t= %s // %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rax\n", top->get_rbp_offset(left));
+							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rbx\n", top->get_rbp_offset(right));
+							fprintf (x86asm, "\tcqto\n");
+							fprintf (x86asm, "\tidivq %%rbx\n");
+							fprintf (x86asm, "\tmovq %%rax, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							break;
 			case STREQ:		fprintf(tac, "\t%s\t= STREQ(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break;
 							top->call_strcmp (right, left);
@@ -723,7 +728,7 @@
 		string lbl = get_next_label3 ("internal");
 		fprintf (x86asm, "\tmovq -%lx(%%rbp), %%rax\n", top->get_rbp_offset(test));
 		fprintf (x86asm, "\tcmpq $0, %%rax\n");
-		fprintf (x86asm, "\tjmp	%s\n", lbl.c_str());
+		fprintf (x86asm, "\tje	%s\n", lbl.c_str());
 		
 	}
 	void generic_else() {
@@ -1855,7 +1860,7 @@ term: term "*" factor	{
 	if ($1->typestring == "complex" || $3->typestring == "complex") {
 		$$->typestring = "complex";
 	} else { //all other cases: float
-		$$->typestring = "float";
+		$$->typestring = "int";
 	}
 	gen($$,$1, $3, DIV);
 }

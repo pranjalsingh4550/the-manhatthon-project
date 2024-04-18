@@ -441,7 +441,7 @@
 				fprintf (tac, "\t*%s = %s\n", resultaddr.c_str(), left.c_str()); 
 				fprintf (x86asm, "\t# *%s = %s\n", resultaddr.c_str(), left.c_str()); 
 				top->asm_load_value(14,left);
-				top->asm_store_value(15,resultaddr);
+				top->asm_load_value(15,resultaddr);
 				fprintf(x86asm, "\tmovq %%r14, 0(%%r15)\n");
 				return;
 			}
@@ -2694,17 +2694,31 @@ primary: atom {
         } else {
             //handle len here
             //error checking has already been handled earlier
-            $$->addr = newtemp();
-            Node *param_length = new Node(NUMBER, (long int)function_call_args_dim[0]);
-            param_length->production = to_string(function_call_args_dim[0]);
-            //new node for constant value of param
-                        //fprintf(x86asm,"askdjfashldfjl\n\n\n");
-            fprintf(tac,"\t%s = %s\n", $$->addr.c_str(),param_length->production.c_str());
-            fprintf(x86asm,"\t# %s = %s\n", $$->addr.c_str(),param_length->production.c_str());
-            fprintf(x86asm,  "\tmovq $%s, %%r13\n",param_length->production.c_str());
-            top->asm_store_value_r13($$->addr);
+            // $$->addr = newtemp();
+//             Node *param_length = new Node(NUMBER, (long int)function_call_args_dim[0]);
+//             param_length->production = to_string(function_call_args_dim[0]);
+//             //new node for constant value of param
+//                         //fprintf(x86asm,"askdjfashldfjl\n\n\n");
+//             fprintf(tac,"\t%s = %s\n", $$->addr.c_str(),param_length->production.c_str());
+//             fprintf(x86asm,"\t# %s = %s\n", $$->addr.c_str(),param_length->production.c_str());
+//             fprintf(x86asm,  "\tmovq $%s, %%r13\n",param_length->production.c_str());
+//             top->asm_store_value_r13($$->addr);
             // gen($$, $$, param_length, ASSIGN);
             // gen()
+            //we're doing len dynamically now
+            //we have the addr to len in function_call_args[0]->addr
+            $$->addr = newtemp();
+            $$->typestring = "int";
+            $$->islval = false;
+            $$->isdecl = false;
+            $$->isLeaf = true;
+            //first: get array address in a register
+            top->asm_load_value_r12(function_call_args[0]->addr);
+            //then, move value 8 bytes BEHIND r12 in r13
+            fprintf(x86asm, "\tmovq -8(%%r12), %%r13\n");
+            //then store r13
+            top->asm_store_value_r13($$->addr);
+            
         }
         
 		function_call_args.clear();
@@ -2955,24 +2969,31 @@ atom: NAME {
 		}
 		// Node* $$ = new Node (0, "", "");
 		$$->addr= newtemp();
-		int thissize = find_class (currently_defining_identifier_typestring)->table_size;
-		fprintf (tac, "\t%s = ALLOC_HEAP (%lu)\n", dev_helper($$).c_str(), list_init_inputs.size() * thissize);
-		fprintf (x86asm, "\t# %s = ALLOC_HEAP (%lu)\n", dev_helper($$).c_str(), list_init_inputs.size() * thissize);
+		// int thissize = find_class (currently_defining_identifier_typestring)->table_size;
+		// + 8 for an int to store array length - just before head of array
+		fprintf (tac, "\t%s = ALLOC_HEAP (%lu)\n", dev_helper($$).c_str(), list_init_inputs.size() * 8 + 8);
+		fprintf (x86asm, "\t# %s = ALLOC_HEAP (%lu)\n", dev_helper($$).c_str(), list_init_inputs.size() * 8 + 8);
 		
-		string ret = newtemp();
-		top->call_malloc (list_init_inputs.size() * 8);
+		string ret = $$->addr;
+		top->call_malloc(list_init_inputs.size() * 8 + 8);
 		fprintf(x86asm, "\t# %s= ret\n",ret.c_str());
+		//store array size 8 bytes before head
+		fprintf(x86asm, "\t# store array length 8 bytes before array head location\n");
+		fprintf(x86asm, "\tmovq $%ld, 0(%%rax)\n", list_init_inputs.size());
+		//move rax to where head should be
+		fprintf(x86asm, "\taddq $0x8, %%rax\n");
+		//store array head addr
 		fprintf (x86asm, "\tmovq %%rax, -%ld(%%rbp)\n", top->get_rbp_offset(ret));
 		for(auto itrv:list_init_inputs){
 			// 3ac to copy list to temp
 				gen ($$, itrv, (Node*) NULL, SW);
-				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
-				fprintf(x86asm, "\t# %s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
+				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), 8);
+				fprintf(x86asm, "\t# %s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), 8);
 				
 				fprintf (x86asm, "\taddq $8, -%ld(%%rbp)\n", top->get_rbp_offset(ret));
 		}
 		fprintf(tac, "\t%s = %s - %lu\n", 
-		dev_helper($$).c_str(), dev_helper($$).c_str(), list_init_inputs.size() * thissize);
+		dev_helper($$).c_str(), dev_helper($$).c_str(), list_init_inputs.size() * 8);
 		fprintf (x86asm, "\tsubq $%ld, -%ld(%%rbp)\n", list_init_inputs.size()*8, top->get_rbp_offset(ret));
 
 		$$->typestring = currently_defining_identifier_typestring;

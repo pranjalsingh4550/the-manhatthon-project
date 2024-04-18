@@ -40,7 +40,10 @@
 	}
 	void resettemp(int f=0){
 		tempcount=basecount;
-		if(!f)fprintf(tac,"\n");
+		if(!f){
+			fprintf(tac,"\n");
+			fprintf(x86asm,"\n");
+		}
 	}
 	SymbolTable *currently_defining_list;
 	string currently_defining_identifier_typestring;
@@ -281,7 +284,7 @@
 		fprintf (x86asm, "\tje %s\n", target.c_str());
 	}
 	void gen(Node*result, Node* leftop, Node* rightop,enum ir_operation op){
-		fprintf(x86asm,"\t# gen Started\n\n");
+		// fprintf(x86asm,"\t#  gen Started\n\n");
 		if (tac == NULL) tac = stdout;
 		string left= leftop ? top->getaddr(leftop) : "";
 		string right= rightop ? top->getaddr(rightop) : "";
@@ -304,11 +307,11 @@
 			//temp or a new temp) and then use the result temp in a SW
 			
 			//first, generate the deref:
-			string s = "\t";
+			string s = "";
 			string deref = newtemp();
-			s += deref + " = *" + left + "\n";
-			fprintf(tac, "%s", s.c_str());
-			
+			s += deref + " = *" + left;
+			fprintf(tac, "\t%s\n", s.c_str());
+			fprintf(x86asm, "\t# %s\n", s.c_str());
 			top->asm_load_value(14,left);
 			
 			fprintf(x86asm, "\tmovq 0(%%r14), %%r15\n");
@@ -325,7 +328,7 @@
 			result->addr = old_addr;
 			result->islval = true;
 			fprintf (tac, "\t*%s = %s\n", old_addr.c_str(), right.c_str());
-
+			fprintf(x86asm, "\t# *%s = %s\n", old_addr.c_str(), right.c_str());
 			top->asm_load_value(14,right);
 			top->asm_load_value(15,old_addr);
 			fprintf(x86asm, "\tmovq %%r14, 0(%%r15)\n");
@@ -344,6 +347,8 @@
 			printf("special assign, leftaddr: %s, rightaddr: %s\n", leftop->addr.c_str(), rightop->addr.c_str());
 			#endif
 			fprintf (tac, "\t*%s = %s\n", left.c_str(), right.c_str());
+			fprintf (x86asm, "\t# *%s = %s\n", left.c_str(), right.c_str());
+			
 			top->asm_load_value(14,right);
 			top->asm_load_value(15,left);
 			fprintf(x86asm, "\tmovq %%r14, 0(%%r15)\n");
@@ -353,6 +358,8 @@
 			case ASSIGN: {
 				if (leftop->typestring == rightop->typestring) {
 					fprintf(tac, "\t%s = %s\n", left.c_str(), right.c_str());
+					fprintf(x86asm, "\t# %s = %s\n", left.c_str(), right.c_str());
+					
 					top->asm_load_value_r13(right);
 					top->asm_store_value_r13(left);
 					return;
@@ -381,6 +388,7 @@
 				&& top->getnode(leftop->production)->isLeaf){
 					string obj= newtemp();
 					s+=obj +" = " + left +"\n\t";
+					fprintf(x86asm, "\t# %s = %s\n",obj.c_str(),left.c_str());
 					top->asm_load_value_r12(left);
 					top->asm_store_value(12,obj);
 					left = obj;
@@ -404,12 +412,12 @@
 				// t_2 = $1->addr + offset
 #endif
 				s+= offset + " = "+ to_string(num_offset)+" [ symtable(" + leftop->typestring + ", " + rightop->production + ") ]\n\t"; 
-
+				fprintf(x86asm, "\t# %s = %d [ symtable(%s, %s) ]\n",offset.c_str(),num_offset, leftop->typestring.c_str(),rightop->production.c_str());
 				fprintf(x86asm,"\tmovq $%ld, -%ld(%%rbp)\n",(long)num_offset,top->get_rbp_offset(offset));
 
 				string ult = newtemp();
 				s+=ult +" = " + left + " + " + offset ;
-
+				fprintf(x86asm ,"\t# %s = %s + %s\n",ult.c_str(),left.c_str(),offset.c_str());
 				top->asm_load_value_r12(left);
 				top->asm_load_value_r13(offset);
 
@@ -423,12 +431,13 @@
 				result->addr = ult;
 				// // cout<<"nice "<<addr<<endl;
 				fprintf(tac, "%s\n", s.c_str());
+
 				// fprintf (tac, "\t\t= %d\n", num_offset);
 				return;
 			}
 			case SW:	{
 				fprintf (tac, "\t*%s = %s\n", resultaddr.c_str(), left.c_str()); 
-
+				fprintf (x86asm, "\t# *%s = %s\n", resultaddr.c_str(), left.c_str()); 
 				top->asm_load_value(14,left);
 				top->asm_store_value(15,resultaddr);
 				fprintf(x86asm, "\tmovq %%r14, 0(%%r15)\n");
@@ -439,9 +448,11 @@
 				string offset = newtemp();
 				
 				s += offset + " =  "  +right + " * 8\n\t";
+				fprintf(x86asm , "\t# %s = %s * 8\n",offset.c_str(),right.c_str());
 				fprintf (x86asm, "\timulq $8, %%r12\n");
 				string ult = newtemp();
 				s+=ult +" = " + left + " + " + offset + "\n";
+				fprintf(x86asm,"\t# %s = %s + %s\n",ult.c_str(),left.c_str(),offset.c_str());
 				top->asm_load_value_r13(left);
 				fprintf (x86asm, "\taddq %%r13, %%r12\n");
 
@@ -457,7 +468,7 @@
 				string s = "\t";
 				string deref = newtemp();
 				s += deref + " = *" + left + "\n";
-
+				fprintf(x86asm,"\t# %s = *%s\n",deref.c_str(),left.c_str());
 				top->asm_load_value(14,left);
 				top->asm_load_value(15,deref);
 
@@ -475,32 +486,40 @@
 		resultaddr = result->addr;
 		switch(op){
 			case ADD:		fprintf(tac, "\t%s\t= %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s + %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r12(left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\taddq %%r12, %%r13\n");
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case SUB:		fprintf(tac, "\t%s\t= %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s - %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\tsubq %%r13, %%r12\n");
 							top->asm_store_value(12,resultaddr);
 							break;
 			case MUL:		fprintf(tac, "\t%s\t= %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s * %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r13(right);
 							fprintf (x86asm, "\timulq -%ld(%%rbp), %%r13\n", top->get_rbp_offset(left));
 							top->asm_store_value_r13(resultaddr);
 							break;
 			case DIV:		fprintf(tac, "\t%s\t= %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s / %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rax\n", top->get_rbp_offset(left));
 							fprintf (x86asm, "\tidivq -%ld(%%rbp)\n", top->get_rbp_offset(right));
 							fprintf (x86asm, "\tmovq %%rax, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							break;
 			case MOD:		fprintf(tac, "\t%s\t= %s %% %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							fprintf(x86asm, "\t# %s\t= %s %% %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rax\n", top->get_rbp_offset(left));
 							fprintf (x86asm, "\tidivq -%ld(%%rbp)\n", top->get_rbp_offset(right));
 							fprintf (x86asm, "\tmovq %%rdx, -%ld(%%rbp)\n", top->get_rbp_offset(resultaddr));
 							break;
 			case AND_log:	fprintf(tac, "\t%s\t= %s and %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
+							// fprintf(x86asm, "\t# %s\t= %s and %s\n",resultaddr.c_str(), left.c_str(), right.c_str());
 							top->asm_load_value_r13(right);
 							fprintf (x86asm, "\timulq -%ld(%%rbp), %%r13\n", top->get_rbp_offset(left));
 							top->asm_store_value_r13(resultaddr);
@@ -2552,8 +2571,9 @@ primary: atom {
 //                 fprintf(tac, "\tparam %s\n", $1->addr.c_str());
 //                 len++;
 //                 size+=8;
+			string temp="";
             if (isConstructor) {
-                string temp = newtemp();
+                temp = newtemp();
                 fprintf(tac,"\t%s = %d\n", temp.c_str(), getwidth($$->typestring));
                 fprintf(tac,"\tparam %s\n", temp.c_str());
                 fprintf(tac,"\tstackpointer -%d\n", (int)top->table_size + 8);
@@ -2566,7 +2586,13 @@ primary: atom {
                 //generate x86 for this
                 //confirm if table_size needs +8 or not
                 top->call_malloc(top->table_size);
-                
+				fprintf(x86asm, "\t# %s = ret\n", temp.c_str());
+				fprintf(x86asm,"\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset(temp));
+
+				// fprintf(x86asm, "\t# param %s\n",temp.c_str());
+				// fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", top->get_rbp_offset(temp));
+				// fprintf(x86asm ,"\tpushq %%rcx\n");				
+
             }
         
             //move stackptr
@@ -2599,27 +2625,30 @@ primary: atom {
                     //do function call
                     //no issue with reversed vector, we want that to be like that
                     fprintf(x86asm, 
-                    "\t#function call: %s aka %s aka %s\n", 
+                    "\t# function call: %s aka %s aka %s\n", 
                     $1->production.c_str(), current_scope->name.c_str(), current_scope->label.c_str());
-                    top->do_function_call(current_scope, function_call_args);
-                    
+                    top->do_function_call(current_scope, function_call_args,temp);
+					// fprintf(x86asm, "\t# param %s\n",temp.c_str());
+				// fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", top->get_rbp_offset(temp));
+				// fprintf(x86asm ,"\tpushq %%rcx\n");	
+                    fprintf(x86asm, "\t# %s = ret\n",$$->addr.c_str());
 					fprintf(x86asm, "\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset($$->addr));
                 } else if (isConstructor){
                     $$->addr = newtemp();
                     fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len);
                     
                     fprintf(x86asm, 
-                    "\t#function call: %s aka %s aka %s\n", 
+                    "\t# function call: %s aka %s aka %s\n", 
                     $1->production.c_str(), current_scope->name.c_str(), current_scope->label.c_str());
-                    top->do_function_call(current_scope, function_call_args);
-                    
+                    top->do_function_call(current_scope, function_call_args,temp);
+                    fprintf(x86asm, "\t# %s = ret\n", $$->addr.c_str());
 					fprintf(x86asm, "\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset($$->addr));
                 } else {
                     fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), len);
                     fprintf(x86asm, 
-                    "\t#function call: %s aka %s aka %s\n", 
+                    "\t# function call: %s aka %s aka %s\n", 
                     $1->production.c_str(), current_scope->name.c_str(), current_scope->label.c_str());
-                    top->do_function_call(current_scope, function_call_args);
+                    top->do_function_call(current_scope, function_call_args,temp);
                 }
             }		        
             fprintf(tac, "\tstackpointer +%d\n", size + 16);
@@ -2747,9 +2776,9 @@ primary: atom {
 		    //push implicit param onto stack
 		    fprintf(tac, "\tparam %s\n", dev_helper(function_call_args[0]).c_str());
 		}
-		
+		string temp="";
 		if (isConstructor) {
-			string temp = newtemp();
+			temp = newtemp();
 			fprintf(tac,"\t%s = %d\n", temp.c_str(), getwidth($$->typestring));
 			fprintf(tac,"\tparam %s\n", temp.c_str());
 			fprintf(tac,"\tstackpointer -%d\n", 8);
@@ -2758,8 +2787,15 @@ primary: atom {
 			fprintf(tac,"\t%s = popparam\n",temp.c_str());
 			fprintf(tac,"\tparam %s\n",temp.c_str());	
 			size += 8;
-		}
+		top->call_malloc(top->table_size);
+		fprintf(x86asm, "\t# %s = ret\n", temp.c_str());
+		fprintf(x86asm,"\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset(temp));
 
+		// top->do_function_call(current_scope, function_call_args); // complete this later // made changes check !!
+		// fprintf(x86asm, "\t# param %s\n",temp.c_str());
+		// fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", top->get_rbp_offset(temp));
+		// fprintf(x86asm ,"\tpushq %%rcx\n");
+		}
 		
 		fprintf(tac, "\tstackpointer -%d\n", size + 16);
 
@@ -2771,7 +2807,7 @@ primary: atom {
 			exit(69);
 		}
 			//not a built-in
-		top->do_function_call(current_scope, function_call_args); // complete this later
+		top->do_function_call(current_scope, function_call_args,temp); // complete this later
 		if (current_scope->return_type != "None"
 		||  isConstructor) {
 			$$->addr = newtemp();
@@ -2780,6 +2816,7 @@ primary: atom {
 			} else {
 				fprintf(tac, "\t%s = call %s\n", $$->addr.c_str(), current_scope->label.c_str());
 			}
+			fprintf(x86asm,"\t# %s = ret\n", $$->addr.c_str());
 			fprintf(x86asm, "\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset($$->addr));
 		} else {
 			fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), size / 8);
@@ -2811,6 +2848,7 @@ atom: NAME {
 		$1->addr=newtemp();
 		//fprintf(x86asm,"askdjfashldfjl\n\n\n");
 		fprintf(tac,"\t%s = %s\n", $1->addr.c_str(),$1->production.c_str());
+		fprintf(x86asm,"\t# %s = %s\n", $1->addr.c_str(),$1->production.c_str());
 		fprintf(x86asm,  "\tmovq $%s, %%r13\n",$1->production.c_str());
 		top->asm_store_value_r13($1->addr);
 		$$=$1;
@@ -2823,6 +2861,8 @@ atom: NAME {
 		$$->addr = newtemp();
 
 		fprintf (tac, "\t<string literal> %s = ptr(\"%s\")\n", top->getaddr($$).c_str(), $$->production.c_str()) ;
+		fprintf (x86asm, "\t# <string literal> %s = ptr(\"%s\")\n", top->getaddr($$).c_str(), $$->production.c_str()) ;
+		
 		static_section += "str_literal" + to_string (str_count ++) + ":\t.asciz,\"";
 		static_section += $$->production + "\"\n";
 		fprintf (x86asm, "\tleaq str_literal%d(%%rip), %%rbx\n", str_count-1);
@@ -2832,6 +2872,7 @@ atom: NAME {
     | "True" {
 		$1->addr=newtemp();
 		fprintf(tac,"\t%s = 1\n", $1->addr.c_str());
+		fprintf(x86asm,"\t# %s = 1\n", $1->addr.c_str());
 		fprintf(x86asm,  "\tmovq $1, %%r13\n");
 		top->asm_store_value_r13($1->addr);
 		$$=$1;
@@ -2839,6 +2880,7 @@ atom: NAME {
     | "False" {
 		$1->addr=newtemp();
 		fprintf(tac,"\t%s = 0\n", $1->addr.c_str());
+		fprintf(x86asm,"\t# %s = 0\n", $1->addr.c_str());
 		fprintf(x86asm,  "\tmovq $0, %%r13\n");
 		top->asm_store_value_r13($1->addr);
 		$$=$1;
@@ -2860,16 +2902,19 @@ atom: NAME {
 		// Node* $$ = new Node (0, "", "");
 		$$->addr= newtemp();
 		int thissize = find_class (currently_defining_identifier_typestring)->table_size;
-		fprintf (tac, "\t%s = ALLOC_HEAP (%lu)\n", 
-		dev_helper($$).c_str(), list_init_inputs.size() * thissize);
-
+		fprintf (tac, "\t%s = ALLOC_HEAP (%lu)\n", dev_helper($$).c_str(), list_init_inputs.size() * thissize);
+		fprintf (x86asm, "\t# %s = ALLOC_HEAP (%lu)\n", dev_helper($$).c_str(), list_init_inputs.size() * thissize);
+		
 		string ret = newtemp();
 		top->call_malloc (list_init_inputs.size() * 8);
+		fprintf(x86asm, "\t# %s= ret\n",ret.c_str());
 		fprintf (x86asm, "\tmovq %%rax, -%ld(%%rbp)\n", top->get_rbp_offset(ret));
 		for(auto itrv:list_init_inputs){
 			// 3ac to copy list to temp
 				gen ($$, itrv, (Node*) NULL, SW);
 				fprintf(tac, "\t%s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
+				fprintf(x86asm, "\t# %s= %s + %d\n", dev_helper($$).c_str(), dev_helper($$).c_str(), thissize);
+				
 				fprintf (x86asm, "\taddq $8, -%ld(%%rbp)\n", top->get_rbp_offset(ret));
 		}
 		fprintf(tac, "\t%s = %s - %lu\n", 
@@ -2939,6 +2984,7 @@ new_jump_to_end3: {
 insert_jump_if_false3: {
 		string lbl = get_next_label3("");
 		fprintf (tac, "\tifFalse %s\tjmp %s\n",  dev_helper($<node>-1).c_str(), lbl.c_str());
+		// fprintf (x86asm, "\t# ifFalse %s\tjmp %s\n",  dev_helper($<node>-1).c_str(), lbl.c_str());
 		fprintf (x86asm, "\tcmpq $0, -%ld(%%rbp)\n", top->get_rbp_offset(dev_helper($<node>-1)));
 		fprintf (x86asm, "\tje %s\n", lbl.c_str());
 	}
@@ -3049,6 +3095,7 @@ typedarglist:  typedargument {/*top->arguments push*/$$=$1;}
 		$1->addr="t"+to_string(basecount);
 		// $1->isLeaf=false;
 		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
+		fprintf(x86asm, "\t# %s = popparam\n", $1->addr.c_str());
 		basecount++;
 		resettemp(1);
 		function_params.push_back ($1);
@@ -3095,12 +3142,14 @@ typedargument: NAME ":" typeclass {
 		$1->addr="t"+to_string(basecount);
 		// $1->isLeaf=false;
 		fprintf(tac, "\t%s = popparam\n", $1->addr.c_str());
+		fprintf(x86asm, "\t# %s = popparam\n", $1->addr.c_str());
 		basecount++;
 		function_params.push_back ($1);
 		resettemp(1);
 		put ($1, $3);
 		$1->addr="t"+to_string(basecount-1);
 		top->getnode($1->production) ->addr= "t"+to_string(basecount-1);
+
 	}
 
 suite:  simple_stmt[first] 
@@ -3351,6 +3400,8 @@ for_stmt:
             inLoop--;
             basecount--;
             fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);
+			fprintf (x86asm, "\t# t%d = t%d + 1\n",basecount, basecount);
+			
         } loop_end_jump_back
          jump_target_false_lower {}
 	|   "for" NAME[iter] set_itr_ptr "in" NAME check_name_is_range 
@@ -3360,7 +3411,9 @@ for_stmt:
 	        inLoop--;
 	        basecount--;
 	        fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);
-	    } loop_end_jump_back jump_target_false_lower {}
+	    	fprintf (x86asm, "\t# t%d = t%d + 1\n",basecount, basecount);
+	    
+		} loop_end_jump_back jump_target_false_lower {}
 
 set_itr_ptr : {
     //set for loop iterator node to current top of stack i.e. NAME[iter] in previous
@@ -3411,6 +3464,7 @@ handle_loop_condition : {
 		top->asm_store_value_r13 (temp);
 
 		fprintf (tac, "\t%s = %s + 1\n", for_loop_iterator_node->addr.c_str(), for_loop_iterator_node->addr.c_str());
+		
 		Node* test = $<node>-1;
 		int begin = 0, end = 0;
 		string loop_condition = newtemp();
@@ -3543,7 +3597,7 @@ int main(int argc, char** argv){
 	fprintf(x86asm,".global main\n");
 	fprintf(x86asm,".text\n");
 
-	fprintf (x86asm, "\t# beginning of user functions\n");
+	fprintf (x86asm, "\t#  beginning of user functions\n");
 
 	stdump = fopen ("symbol_table.csv", "w+");
 	if(stdump == NULL){

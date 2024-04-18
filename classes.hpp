@@ -814,7 +814,7 @@ class SymbolTable {
 			fprintf (x86asm, "\tmovq %%r13, -%ld(%%rbp)\n", get_rbp_offset(name));
 		}
 
-		void do_function_call (SymbolTable* callee, vector<Node *> args/*, string self_ptr*/) {
+		void do_function_call (SymbolTable* callee, vector<Node *> args, string self_ptr="") {
 			// handles function call as well as return from child
 			// self_ptr is empty if it isn't a class method
 			fprintf (x86asm, "\n\t# begin procedure call routine\n");
@@ -828,23 +828,26 @@ class SymbolTable {
 
 			fprintf (x86asm, "\tsub $16, %%rsp\n"); // space for return address and rbp
 
-			// if (self_ptr != "") {
-// 				fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", get_rbp_offset(self_ptr));
-// 				fprintf (x86asm, "\tpushq %%rcx\n");
-// 			}
-
-			for (auto arg: args) {
-				// use rcx as the temp register
-				if (arg->addr != "")
-					fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", get_rbp_offset(arg->addr));
-				else
-					exit(printf ("internal error: addr not initialised\n"));
+			if (self_ptr != "") {
+				fprintf(x86asm ,"\t# param %s\n",self_ptr.c_str());
+				fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", get_rbp_offset(self_ptr));
 				fprintf (x86asm, "\tpushq %%rcx\n");
 			}
-
+			
+			reverse(args.begin(), args.end());
+			for (auto arg: args) {
+				// use rcx as the temp register
+				if (arg->addr != ""){
+					fprintf(x86asm,"\t# param %s\n",arg->addr.c_str());
+					fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", get_rbp_offset(arg->addr));
+				}
+				else{
+					exit(printf ("internal error: addr not initialised\n"));
+				}
+				fprintf (x86asm, "\tpushq %%rcx\n");
+			}
 			// take rsp back to the empty slot
-			fprintf (x86asm, "\taddq $%ld, %%rsp\n", 8 * (2 + args.size())
-						);
+			fprintf (x86asm, "\taddq $%ld, %%rsp\n", 8 * (2 + args.size()+(self_ptr!="")));
 			fprintf (x86asm, "\tcallq %s\n",
 					callee->label.c_str()
 					);

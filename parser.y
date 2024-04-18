@@ -2553,7 +2553,7 @@ primary: atom {
 					fprintf(tac, "\t%s = FLOAT_TO_INT(%s)\n", temp.c_str(), function_call_args[iter]->addr.c_str());
 				}
 			}
-			//push onto stack
+			//push onto stack for 3AC
 			if (cast) {
 				fprintf(tac, "\tparam %s\n", temp.c_str());
 			} else {
@@ -2593,11 +2593,21 @@ primary: atom {
                 size += 8;
                 
                 //generate x86 for this
+                //x86 should see a constructor only as a normal function operating on
+                //an object/struct
                 //confirm if table_size needs +8 or not
                 top->call_malloc(top->table_size);
 				fprintf(x86asm, "\t# %s = ret\n", temp.c_str());
 				fprintf(x86asm,"\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset(temp));
-
+                
+                //push temp i.e. new object onto the function_args_list
+                //do_function_call only accesses addr of this
+                Node *new_arg = new Node("");
+                new_arg->addr = temp;
+                function_call_args.push(new_arg);
+                //increase len
+                len++;
+                
 				// fprintf(x86asm, "\t# param %s\n",temp.c_str());
 				// fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", top->get_rbp_offset(temp));
 				// fprintf(x86asm ,"\tpushq %%rcx\n");				
@@ -2615,7 +2625,7 @@ primary: atom {
                 //built-in: len, print, range
                 if ($1->production == "len") {
                     //this isn't handled here, check the else block at the end
-                    dprintf(stderr_copy, "Internal Error: accessed len function somehow");
+                    dprintf(stderr_copy, "Internal Error: accessed len function somehow\n");
                     exit(1);
                 } else if ($1->production == "range") {
                     //return something
@@ -2627,7 +2637,7 @@ primary: atom {
                 }
             } else {
                 //not a built-in
-                if (current_scope->return_type != "None") {
+                if (current_scope->return_type != "None" || isConstructor) {
                     $$->addr = newtemp();
                     fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len);
                     
@@ -2636,28 +2646,28 @@ primary: atom {
                     fprintf(x86asm, 
                     "\t# function call: %s aka %s aka %s\n", 
                     $1->production.c_str(), current_scope->name.c_str(), current_scope->label.c_str());
-                    top->do_function_call(current_scope, function_call_args,temp);
+                    top->do_function_call(current_scope, function_call_args);
 					// fprintf(x86asm, "\t# param %s\n",temp.c_str());
 				// fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rcx\n", top->get_rbp_offset(temp));
 				// fprintf(x86asm ,"\tpushq %%rcx\n");	
                     fprintf(x86asm, "\t# %s = ret\n",$$->addr.c_str());
 					fprintf(x86asm, "\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset($$->addr));
-                } else if (isConstructor){
+                }/* else if (isConstructor){
                     $$->addr = newtemp();
                     fprintf(tac, "\t%s = call %s %d\n", $$->addr.c_str(), current_scope->label.c_str(), len);
                     
                     fprintf(x86asm, 
                     "\t# function call: %s aka %s aka %s\n", 
                     $1->production.c_str(), current_scope->name.c_str(), current_scope->label.c_str());
-                    top->do_function_call(current_scope, function_call_args,temp);
+                    top->do_function_call(current_scope, function_call_args);
                     fprintf(x86asm, "\t# %s = ret\n", $$->addr.c_str());
 					fprintf(x86asm, "\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset($$->addr));
-                } else {
+                }*/ else {
                     fprintf(tac, "\tcall %s %d\n", current_scope->label.c_str(), len);
                     fprintf(x86asm, 
                     "\t# function call: %s aka %s aka %s\n", 
                     $1->production.c_str(), current_scope->name.c_str(), current_scope->label.c_str());
-                    top->do_function_call(current_scope, function_call_args,temp);
+                    top->do_function_call(current_scope, function_call_args);
                 }
             }		        
             fprintf(tac, "\tstackpointer +%d\n", size + 16);

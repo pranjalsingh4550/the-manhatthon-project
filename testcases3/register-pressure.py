@@ -53,35 +53,37 @@ def lot_of_regs():
 	y = True
 	z = True
 
-	a = 41 ** a
-	b = 41 ** a
-	c = 41 ** a
-	d = 41 ** a
-	e = 41 ** a
-	f = 41 ** a
-	g = 41 ** a
-	h = 41 ** a
-	i = 41 ** a
-	j = 41 ** a
-	k = 41 ** a
-	l = 41 ** a
-	m = 41 ** a
-	n = 41 ** a
-	o = 41 ** a
-	p = 41 ** a
-	q = 41 ** a
-	r = 41 ** a
-	s = 41 ** a
-	t = 41 ** a
-	u = 41 ** a
-	v = 41 ** a
-	w = 41 ** a
-	x = 41 ** a
-	y = 41 ** a
-	z = 41 ** a
+	a = 41 * a
+	b = 41 * a
+	c = 41 * a
+	d = 41 * a
+	e = 41 * a
+	f = 41 * a
+	g = 41 * a
+	h = 41 * a
+	i = 41 * a
+	j = 41 * a
+	k = 41 * a
+	l = 41 * a
+	m = 41 * a
+	n = 41 * a
+	o = 41 * a
+	p = 41 * a
+	q = 41 * a
+	r = 41 * a
+	s = 41 * a
+	t = 41 * a
+	u = 41 * a
+	v = 41 * a
+	w = 41 * a
+	x = 41 * a
+	y = 41 * a
+	z = 41 * a
+	return 
 
 
 def main():
+	print ("ko")
 	lot_of_regs()
 
 if __name__ == "__main__":

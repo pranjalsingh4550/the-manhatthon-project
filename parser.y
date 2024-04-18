@@ -3513,29 +3513,32 @@ compound_stmt:
 
 for_stmt:   
         "for" NAME[iter] set_itr_ptr "in" NAME check_name_is_range 
-        "(" atom set_num_range_args_1 ")" 
+        "(" atom[right] set_num_range_args_1 ")" 
         handle_loop_condition ":" { inLoop++; }
         suite {
             inLoop--;
-            basecount--;
+			if ($right->isConstant) basecount --;
             fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);
 			fprintf (x86asm, "\t# t%d = t%d + 1\n",basecount, basecount);
 			top->asm_load_value(12,"t"+to_string(basecount));
 			fprintf (x86asm ,"\taddq $1, %%r12\n");
 			top->asm_store_value(12,"t"+to_string(basecount));
+            basecount--;
         } loop_end_jump_back
          jump_target_false_lower {}
 	|   "for" NAME[iter] set_itr_ptr "in" NAME check_name_is_range 
-	    "(" atom "," atom set_num_range_args_2 ")" 
+	    "(" atom[left] "," atom[right] set_num_range_args_2 ")" 
 	    handle_loop_condition ":" { inLoop++; }
 	    suite {
+			if ($left->isConstant) basecount --;
+			if ($right->isConstant) basecount --;
 	        inLoop--;
-	        basecount--;
 	        fprintf (tac, "\tt%d = t%d + 1\n",basecount, basecount);
 	    	fprintf (x86asm, "\t# t%d = t%d + 1\n",basecount, basecount);
 			top->asm_load_value(12,"t"+to_string(basecount));
 			fprintf (x86asm ,"\taddq $1, %%r12\n");
 			top->asm_store_value(12,"t"+to_string(basecount));
+	        basecount--;
 		} loop_end_jump_back jump_target_false_lower {}
 
 set_itr_ptr : {
@@ -3563,7 +3566,7 @@ set_num_range_args_1 : {
 		else {
 			for_loop_range_second_arg =$<node>0;
 		}
-		if(for_loop_range_second_arg->isConstant)basecount++;
+		if($<node>0->isConstant)basecount++;
 		//note that atom can ALSO BE A NAME. 
 		}
 set_num_range_args_2 : {
@@ -3575,6 +3578,8 @@ set_num_range_args_2 : {
 			for_loop_range_first_arg =$<node>-1;
 		}
 		if(for_loop_range_first_arg->isConstant)basecount++;
+
+
  		if (top->getnode ($<node>0->production)) { //i.e. atom in  for loop
 			for_loop_range_second_arg =top->getnode ($<node>0->production);
 		}

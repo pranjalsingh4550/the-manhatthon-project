@@ -2359,8 +2359,26 @@ primary: atom {
 		$$->isdecl = false;
 		$$->isLeaf = false; //should deref this to assign to/from it
 		$$->dimension = 0; //indexed, and we're only dealing with 1D arrays
-
-		gen($$, $1, $3, SUBSCRIPT);
+		
+		//if $1 is not a leaf, then it contains an *address* to where the list pointer is actually stored
+		//so, deref pls
+		if (!$1->isLeaf) {
+		    fprintf(x86asm, "\t#member is a list ->deref once\n");
+		    gen($$, $1, NULL, DEREF);
+		    fprintf(x86asm, "\t#now subscript\n");
+		    Node *fin = new Node("");
+		    fin->addr = newtemp();
+		    gen(fin, $$, $3, SUBSCRIPT);
+		    $$->addr = fin->addr;
+		} else {
+		    gen($$, $1, $3, SUBSCRIPT);
+		}
+		
+		
+		
+		
+        
+		
 
 		}
 	| primary "(" save_current_scope testlist load_current_scope  ")" {

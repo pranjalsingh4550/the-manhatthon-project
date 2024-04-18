@@ -532,7 +532,7 @@
 							top->asm_load_value_r12 (left); top->asm_load_value_r13(right);
 							fprintf (x86asm, "\torq %%r12, %%r13\n");
 							top->asm_store_value_r13(resultaddr);
-							break;
+
 			case NOT_log:	fprintf(tac, "\t%s\t= not %s\n",resultaddr.c_str(), left.c_str());
 							generic_if (left);
 							fprintf (x86asm, "\tmovq $0, %%r13\n");
@@ -712,8 +712,9 @@
 			case STRCMP:	{
 					fprintf(tac,"\tparam %s\n",right.c_str());
 					fprintf(tac,"\tparam %s\n",left.c_str());
-					fprintf(tac,"\t%s\t= call STRCMP 2\n",resultaddr.c_str());break;
-					top->call_strcmp (right, left);
+					fprintf(tac,"\t%s\t= call STRCMP 2\n",resultaddr.c_str());
+					top->call_strcmp (left, right);
+					break;
 
 				// fprintf(tac, "\t%s\t= STRCMP(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break; 
 				}

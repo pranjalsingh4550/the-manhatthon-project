@@ -903,6 +903,7 @@ class SymbolTable {
 		}
 		void call_malloc(int size) {
 			this->systemV_ABI_call_begin();
+			
 			fprintf (x86asm, "\tmovq $%d, %%rdx\n", size);
 			fprintf (x86asm, "\tcallq malloc\n");
 			// return value in rax

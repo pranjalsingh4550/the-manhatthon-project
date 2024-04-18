@@ -2521,7 +2521,7 @@ primary: atom {
 				exit(74);
 			}
 		}
-		int size = 0;
+		int size = len*8;
 		for (iter = 0; iter < len; iter ++) {
 			//typecast
 			bool cast = false;
@@ -2560,7 +2560,6 @@ primary: atom {
 				fprintf(tac, "\tparam %s\n", dev_helper(function_call_args[iter]).c_str());
 			}
 			string typestring = function_call_args[iter]->typestring;
-			size+=8;
 			// if (typestring == "bool" || typestring == "float" || typestring == "int") {
 			// 	size += 8;
 			// } else if (typestring == "complex" || typestring == "str") {
@@ -2806,9 +2805,17 @@ primary: atom {
 			fprintf(tac,"\t%s = popparam\n",temp.c_str());
 			fprintf(tac,"\tparam %s\n",temp.c_str());	
 			size += 8;
-		top->call_malloc(top->table_size);
-		fprintf(x86asm, "\t# %s = ret\n", temp.c_str());
-		fprintf(x86asm,"\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset(temp));
+			
+            top->call_malloc(top->table_size);
+            fprintf(x86asm, "\t# %s = ret\n", temp.c_str());
+            fprintf(x86asm,"\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset(temp));
+            
+            //push temp i.e. new object onto the function_args_list
+            //do_function_call only accesses addr of this
+            Node *new_arg = new Node("");
+            new_arg->addr = temp;
+            function_call_args.push_back(new_arg);
+            //size already increased
 
 		// top->do_function_call(current_scope, function_call_args); // complete this later // made changes check !!
 		// fprintf(x86asm, "\t# param %s\n",temp.c_str());

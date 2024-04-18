@@ -892,7 +892,10 @@ small_stmt: expr_stmt
 			dprintf (stderr_copy, "Error at line %d: return is not inside a function\n", (int) yylineno);
 			exit(57);
 		}
-	} return_stmt[ret] {$$=$ret;returned=1;}
+	} return_stmt[ret] {$$=$ret;returned=1;
+		top->child_return(function_params.size());
+	}
+
 
 	| "break" {
 		/*check if current scope is loop or not by top->isLoop*/

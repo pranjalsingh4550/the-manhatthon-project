@@ -291,6 +291,12 @@
 		string left= leftop ? top->getaddr(leftop) : "";
 		string right= rightop ? top->getaddr(rightop) : "";
 		string resultaddr = result ? top->getaddr(result) : "";
+		#if TEMPDEBUG
+		if (leftop == result) {
+		    printf("augassign\nresultaddr: %s leftaddr: %s result->addr: %s left->addr: %s\n", 
+		    resultaddr.c_str(), left.c_str(), result->addr.c_str(), leftop->addr.c_str());
+		}
+		#endif
 		//if not leafs, then addr contains the address corresponding to the field
 		//so don't get addr from symbol table
 		if (leftop && !leftop->isLeaf) left = leftop->addr;
@@ -300,6 +306,9 @@
 		&&  result != NULL
 		&& 	result->islval
 		&&  !leftop->isLeaf /*NOT isLeaf -> addr is a temporary*/) {
+		    #if TEMPDEBUG
+		    printf("augmented assign but weird\n");
+		    #endif
 			// dprintf(stderr_copy, "gen: augassign special case isLeaf: %d\n", leftop->isLeaf);
 			//augmented assign case
 			//result and leftop is an lval=true case AND is a temporary
@@ -1091,8 +1100,11 @@ expr_stmt: primary[id] ":" typeclass[type] {
 			$$ = new Node ($operation->production);
 			$$->addchild($id);
 			$$->addchild($value);
-			gen($$,$id,$value,$operation->op);
-			fprintf(tac,"\t%s = %s\n", top->getaddr($id).c_str(), $$->addr.c_str());
+			$$->typestring = $id->typestring;
+			gen($$, $id,$value,$operation->op);
+			gen($$, $id, $$, ASSIGN);
+			// fprintf(tac,"\t%s = %s\n", top->getaddr($id).c_str(), $$->addr.c_str());
+			
 	
 	}
 	| primary[id] "=" test[value] {

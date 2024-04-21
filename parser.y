@@ -1466,7 +1466,8 @@ comparison: expr {
 		$$->typestring = "bool";
 		gen($$,$1,$3,STRCMP);
 		Node *dummy = new Node("0");
-		dummy->addr="0";
+		dummy->addr=newtemp();
+		fprintf(x86asm, "\tmovq $0, -%ld(%%rbp)\n",top->get_rbp_offset(dummy->addr));
 		gen($$,$$,dummy,LT);
 		// call strcmp
 		// if ($1->isLeaf && $3->isLeaf && $1->production == "__name__" && $3->strVal == "\\\"__main__\\\"") {
@@ -1506,7 +1507,8 @@ comparison: expr {
 		$$->typestring = "bool";
 		gen($$,$1,$3,STRCMP);
 		Node *dummy = new Node("0");
-		dummy->addr="0";
+		dummy->addr=newtemp();
+		fprintf(x86asm, "\tmovq $0, -%ld(%%rbp)\n",top->get_rbp_offset(dummy->addr));
 		gen($$,$$,dummy,LTE);
 	}
 	else if (!check_number($1)) {
@@ -1542,7 +1544,8 @@ comparison: expr {
 		$$->typestring = "bool";
 		gen($$,$1,$3,STRCMP);
 		Node *dummy = new Node("0");
-		dummy->addr="0";
+		dummy->addr=newtemp();
+		fprintf(x86asm, "\tmovq $0, -%ld(%%rbp)\n",top->get_rbp_offset(dummy->addr));
 		gen($$,$$,dummy,GT);
 	}
 	else if (!check_number($1)) {
@@ -1577,7 +1580,8 @@ comparison: expr {
 		$$->typestring = "bool";
 		gen($$,$1,$3,STRCMP);
 		Node *dummy = new Node("0");
-		dummy->addr="0";
+		dummy->addr=newtemp();
+		fprintf(x86asm, "\tmovq $0, -%ld(%%rbp)\n",top->get_rbp_offset(dummy->addr));
 		gen($$,$$,dummy,GTE);
 	}
 	else if (!check_number($1)) {

@@ -368,7 +368,7 @@
 		}
 		switch(op){
 			case ASSIGN: {
-				if (leftop->typestring == rightop->typestring) {
+				if (1) { // no typecasting in asm
 					fprintf(tac, "\t%s = %s\n", left.c_str(), right.c_str());
 					fprintf(x86asm, "\t# %s = %s\n", left.c_str(), right.c_str());
 					

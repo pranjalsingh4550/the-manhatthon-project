@@ -949,6 +949,8 @@ class SymbolTable {
 			fprintf (x86asm, "movq -%ld(%%rbp), %%rdi\n\tmovq -%ld(%%rbp), %%rsi\n", get_rbp_offset(arg1), get_rbp_offset(arg2));
 			fprintf (x86asm, "\tcallq strcmp\n");
 			systemV_ABI_call_end();
+			//bitshift 32 to the right because strcmp returns an int and we are working with longs
+			fprintf(x86asm, "\t#fix for strcmp\n\tsalq $32, %%rax\n");
 		}
 		
 };

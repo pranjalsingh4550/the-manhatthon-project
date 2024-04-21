@@ -743,9 +743,9 @@
 			case STRCMP:	{
 					fprintf(tac,"\tparam %s\n",right.c_str());
 					fprintf(tac,"\tparam %s\n",left.c_str());
-					fprintf(tac,"\t%s\t= call STRCMP 2\n",resultaddr.c_str());break;
+					fprintf(tac,"\t%s\t= call STRCMP 2\n",resultaddr.c_str());
 					fprintf(x86asm, "\t# %s = strcmp (%s, %s)  not actual tac\n",resultaddr.c_str(),left.c_str(),right.c_str());
-					top->call_strcmp (left, right);
+					top->call_strcmp(left, right);
 					fprintf(x86asm, "\tmovq %%rax, -%ld(%%rbp)\n",top->get_rbp_offset(resultaddr));
 					break;
 				// fprintf(tac, "\t%s\t= STRCMP(%s, %s)\n", resultaddr.c_str(), left.c_str(), right.c_str()); break; 
@@ -761,7 +761,7 @@
 	}
 	void generic_if(string test) {
 		string lbl = get_next_label3 ("internal");
-		fprintf (x86asm, "\tmovq -%lx(%%rbp), %%rax\n", top->get_rbp_offset(test));
+		fprintf (x86asm, "\tmovq -%ld(%%rbp), %%rax\n", top->get_rbp_offset(test));
 		fprintf (x86asm, "\tcmpq $0, %%rax\n");
 		fprintf (x86asm, "\tje	%s\n", lbl.c_str());
 		

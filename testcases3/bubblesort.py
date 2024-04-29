@@ -12,7 +12,7 @@ class Sentence:
         for index_i in range(leng):
             word_i:Word = self.mylist[index_i]
             print(index_i)
-            print(word_i.key)
+            # print(word_i.key)
             print(word_i.val)
 def main():
     First: Word = Word(0, "First")
